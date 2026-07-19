@@ -36,6 +36,7 @@ interface PlacementNodes {
   quality: PanQuality
   placement: Placement
   lastRampAt: number
+  lastGain: number
 }
 
 function createDefaultAudioContext(): EngineAudioContext {
@@ -95,11 +96,12 @@ export class SoundEngine {
     spatial.connect(gain)
     gain.connect(this.master)
 
-    const nodes: PlacementNodes = { source, spatial, gain, quality: this.quality, placement, lastRampAt: -Infinity }
+    const target = this.computeGain(placement, this.quality)
+    const nodes: PlacementNodes = { source, spatial, gain, quality: this.quality, placement, lastRampAt: -Infinity, lastGain: target }
     this.active.set(placement.id, nodes)
 
     gain.gain.value = 0
-    fadeTo(gain.gain, this.ctx.currentTime, this.computeGain(placement, this.quality), FADE_IN_SEC)
+    fadeTo(gain.gain, this.ctx.currentTime, target, FADE_IN_SEC)
     this.applySpatial(nodes, placement, true)
 
     source.start()
@@ -123,7 +125,14 @@ export class SoundEngine {
     const nodes = this.active.get(placement.id)
     if (!nodes) return
     nodes.placement = placement
-    nodes.gain.gain.value = this.computeGain(placement, nodes.quality)
+    // MEDIUM-1: OrbitField calls this every rAF frame while a placement orbits. A raw
+    // `.value =` assignment is an immediate automation event that cancels any in-flight ramp
+    // (e.g. play()'s fade-in) — only touch it when the gain actually changed.
+    const g = this.computeGain(placement, nodes.quality)
+    if (g !== nodes.lastGain) {
+      nodes.gain.gain.value = g
+      nodes.lastGain = g
+    }
     if (!placement.locked) this.applySpatial(nodes, placement, false)
   }
 
@@ -146,7 +155,8 @@ export class SoundEngine {
       nodes.spatial = spatial
       nodes.quality = q
       nodes.lastRampAt = -Infinity
-      nodes.gain.gain.value = this.computeGain(nodes.placement, q)
+      nodes.lastGain = this.computeGain(nodes.placement, q)
+      nodes.gain.gain.value = nodes.lastGain
       this.applySpatial(nodes, nodes.placement, true)
     }
   }

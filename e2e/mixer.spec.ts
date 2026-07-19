@@ -16,9 +16,8 @@ test('drag a sound from the palette onto the field, reposition it, then delete i
   await expect(paletteItem).toBeVisible()
   await expect(paletteItem).toBeEnabled() // first catalog entry is a synth noise, always available
 
-  // Sounds with no real audio asset yet are shown locked, not draggable.
-  const lockedItem = page.locator('.mixer-palette-item:disabled').first()
-  await expect(lockedItem).toBeVisible()
+  // L-4: sounds with no real audio asset yet are hidden from the palette entirely, not shown locked.
+  await expect(page.locator('.mixer-palette-item:disabled')).toHaveCount(0)
 
   const fieldBox = await field.boundingBox()
   const chipBox = await paletteItem.boundingBox()

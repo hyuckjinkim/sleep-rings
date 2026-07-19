@@ -98,6 +98,30 @@ describe('SoundEngine', () => {
     expect(result!.pan.z).toBeGreaterThan(0) // behind
   })
 
+  it('setPlacement() does not touch gain.value when the computed gain is unchanged (MEDIUM-1 regression)', async () => {
+    // OrbitField calls setPlacement every rAF frame while a placement orbits (angle changes,
+    // gain doesn't). A raw `.value =` write on every frame would cancel play()'s fade-in ramp
+    // (and any future fade) the instant the first frame lands — this must not happen.
+    await engine.load(NOISE_SOUND)
+    engine.play(placement({ volume: 1 }))
+
+    const gainNode = vi.mocked(ctx.createGain).mock.results[1].value // [0] is the master gain
+    let writes = 0
+    const current = gainNode.gain.value
+    Object.defineProperty(gainNode.gain, 'value', {
+      get: () => current,
+      set: () => {
+        writes++
+      },
+    })
+
+    engine.setPlacement(placement({ volume: 1 })) // same gain as play() computed
+    expect(writes).toBe(0)
+
+    engine.setPlacement(placement({ volume: 0.5 })) // an actual change still writes
+    expect(writes).toBe(1)
+  })
+
   it('setPlacement() with muted:true silences gain', async () => {
     await engine.load(NOISE_SOUND)
     engine.play(placement())

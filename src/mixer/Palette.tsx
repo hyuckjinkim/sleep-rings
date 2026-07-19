@@ -13,13 +13,12 @@ interface PaletteProps {
 interface PaletteItemProps {
   sound: Sound
   label: string
-  available: boolean
   fieldRef: RefObject<HTMLDivElement | null>
   addPlacement: (soundId: string, radius: number, angle: number) => string
 }
 
 /** Drag a catalog chip onto the field to add it as a new orb. Pointer Events cover touch+mouse. */
-function PaletteItem({ sound, label, available, fieldRef, addPlacement }: PaletteItemProps) {
+function PaletteItem({ sound, label, fieldRef, addPlacement }: PaletteItemProps) {
   const chipRef = useRef<HTMLButtonElement | null>(null)
   const drag = useRef<{ startX: number; startY: number } | null>(null)
 
@@ -62,13 +61,12 @@ function PaletteItem({ sound, label, available, fieldRef, addPlacement }: Palett
       type="button"
       className="mixer-palette-item"
       style={{ '--orb-color': `var(--so-orb-${sound.category})` } as React.CSSProperties}
-      disabled={!available}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {available ? label : `🔒 ${label}`}
+      {label}
     </button>
   )
 }
@@ -80,16 +78,13 @@ export function Palette({ fieldRef }: PaletteProps) {
 
   return (
     <div className="mixer-palette" aria-label={t('mixer.palette.label')}>
-      {catalog.map((sound) => (
-        <PaletteItem
-          key={sound.id}
-          sound={sound}
-          label={sound.name[locale]}
-          available={isAvailable(sound.id)}
-          fieldRef={fieldRef}
-          addPlacement={addPlacement}
-        />
-      ))}
+      {/* L-4: sounds with no real asset yet are hidden rather than shown locked (store review
+          risk) — they reappear automatically once catalog.ts flips them available. */}
+      {catalog
+        .filter((sound) => isAvailable(sound.id))
+        .map((sound) => (
+          <PaletteItem key={sound.id} sound={sound} label={sound.name[locale]} fieldRef={fieldRef} addPlacement={addPlacement} />
+        ))}
     </div>
   )
 }

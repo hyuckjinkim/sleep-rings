@@ -191,4 +191,16 @@ describe('sleep timer', () => {
     vi.advanceTimersByTime(15 * 60 * 1000)
     expect(useMixStore.getState().sleeping).toBe(true) // the second (30m) timer fires
   })
+
+  it('re-engaging after the timer completes resumes the (suspended) engine (MEDIUM-2 regression)', () => {
+    useMixStore.getState().startSleepTimer(15)
+    vi.advanceTimersByTime(15 * 60 * 1000)
+    expect(useMixStore.getState().sleeping).toBe(true)
+
+    const resumeSpy = vi.spyOn(soundEngine, 'onEnterForeground')
+    useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    expect(resumeSpy).toHaveBeenCalled()
+
+    resumeSpy.mockRestore()
+  })
 })

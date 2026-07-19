@@ -121,6 +121,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   sleeping: false,
 
   addPlacement(soundId, radius, angle) {
+    soundEngine.onEnterForeground() // MEDIUM-2: re-resume if a completed sleep timer suspended the context
     const placement: Placement = {
       id: makeId('p'),
       soundId,
@@ -179,7 +180,8 @@ export const useMixStore = create<MixStore>((set, get) => ({
   loadPreset(id) {
     const preset = get().presets.find((p) => p.id === id)
     if (!preset) return
-    for (const p of get().current.placements) soundEngine.stop(p.id)
+    soundEngine.onEnterForeground() // MEDIUM-2
+    for (const p of get().current.placements) soundEngine.stop(p.id, PLACEMENT_FADE_SEC) // L-1: fade, not a hard cut
     const current: Mix = { ...preset, id: makeId('mix'), updatedAt: Date.now() }
     set({ current, loadingIds: new Set(), erroredIds: new Set(), sleepEndsAt: null, sleeping: false })
     clearTimeout(sleepTimeout)
@@ -192,6 +194,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   startSleepTimer(minutes) {
+    soundEngine.onEnterForeground() // MEDIUM-2
     clearTimeout(sleepTimeout)
     const durationSec = Math.max(0, minutes) * 60
     soundEngine.scheduleSleep(durationSec, SLEEP_FADE_SEC)
@@ -200,6 +203,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   cancelSleepTimer() {
+    soundEngine.onEnterForeground() // MEDIUM-2: lets the "off" recovery path also un-suspend
     clearTimeout(sleepTimeout)
     soundEngine.cancelSleep()
     set({ sleepEndsAt: null, sleeping: false })

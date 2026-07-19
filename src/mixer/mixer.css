@@ -148,12 +148,6 @@
   user-select: none;
 }
 
-.mixer-palette-item:disabled {
-  opacity: var(--so-state-idle-opacity, 0.55);
-  color: var(--so-text-disabled, #454b66);
-  cursor: not-allowed;
-}
-
 .mixer-controls {
   position: fixed;
   left: 0;
