@@ -18,7 +18,7 @@ Sleep Orbit 풀 클론 — 웹 기반(Capacitor+React+Vite) 수면 사운드 믹
 | 수익화 | 전부 무료, IAP 없음 |
 | i18n | 한국어 + 영어 |
 | 알람 | 벤치마크에 없음 → 범위 제외 |
-| 앱 이름 | 자동 결정(상표 충돌 검토 후) — 후보: Slumber Orbit, DreamOrbit, Lull Orbit, SleepRings. "Sleep Orbit" 명칭·에셋 사용 금지 |
+| 앱 이름 | **SleepRings** (작업명 확정 2026-07-20, docs/app-name.md — 8후보 중 충돌 최소). 작업 번들 ID `com.sleeprings.app` (스토어 제출 전 USPTO/KIPRIS 공식 조회 + 도메인 확인 필수, 제출 후 변경 불가 유의). "Sleep Orbit" 명칭·에셋 사용 금지 |
 | 환경 | WSL2 — Android 서명 빌드까지, iOS는 Xcode 프로젝트 구성+절차 문서화(macOS 컴파일 불가) |
 
 ## 페이즈 로드맵
@@ -35,15 +35,17 @@ Sleep Orbit 풀 클론 — 웹 기반(Capacitor+React+Vite) 수면 사운드 믹
 
 품질 게이트(전 페이즈): 단위+통합+E2E(Playwright), 커버리지 ≥80%, code-reviewer 승인 후 머지.
 
-## 팀 구성 (/team 10, opus/sonnet 분배)
+## 팀 구성 (/team 10, 사용량 절약 모드 — 2026-07-20 사용자 지시)
+
+usage 정책: opus는 **설계 1회 + 페이즈 경계 배치 리뷰**에만. 구현은 설계 문서 기반 sonnet. 워커는 웨이브 방식 스폰(유휴 금지), 리드 wakeup 최소화.
 
 | # | 역할 | 모델 | 담당 |
 |---|------|------|------|
-| 1 | team-lead | opus | 오케스트레이션, 플랜·docs·매니페스트 관리 |
-| 2 | architect | opus | 오디오 엔진·상태 구조·Capacitor 아키텍처 (read-only 자문) |
-| 3 | audio-engineer | opus | Web Audio 믹서 엔진·합성·루핑·페이드 (최고 난이도) |
-| 4 | code-reviewer | opus | 리뷰·시큐리티 패스 (별도 레인) |
-| 5 | researcher | sonnet | 벤치마크 세부 확인, CC0 음원 소스 조사 |
+| 1 | team-lead | (메인 세션) | 오케스트레이션, 커밋, docs·매니페스트 관리 |
+| 2 | architect | opus (1회성 설계) | 오디오 엔진·아키텍처 설계 문서 |
+| 3 | code-reviewer | opus (페이즈 경계 배치 리뷰) | P1~2, P3~4, P5~6 경계에서 일괄 리뷰·시큐리티 |
+| 4 | audio-engineer | sonnet | Web Audio 믹서 엔진 구현 (설계 문서 추종) |
+| 5 | researcher | sonnet | 앱 이름 검증, 벤치마크 세부 확인 |
 | 6 | ui-executor | sonnet | React 컴포넌트, 궤도 캔버스, 인터랙션 |
 | 7 | designer | sonnet | 비주얼 테마·애니메이션·아이콘·스크린샷 |
 | 8 | sound-pipeline | sonnet | CC0 다운로드 스크립트·라이선스 대장·에셋 최적화 |
