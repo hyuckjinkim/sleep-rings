@@ -9,8 +9,8 @@ export default defineConfig({
     setupFiles: ['./src/setupTests.ts'],
     exclude: ['e2e/**', 'node_modules/**'],
     // WSL drvfs(/mnt/d)에서 병렬 워커의 jsdom import가 스폰 타임아웃 유발 —
-    // 단일 스레드 직렬 실행으로 모듈 캐시 재사용 (첫 파일만 import 비용 부담)
+    // 파일 직렬 실행으로 워커 동시 스폰 경합 제거 (vitest 4: poolOptions 대신 top-level)
     pool: 'threads',
-    poolOptions: { threads: { singleThread: true } },
+    fileParallelism: false,
   },
 })
