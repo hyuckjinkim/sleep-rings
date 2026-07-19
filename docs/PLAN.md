@@ -68,7 +68,13 @@ usage 정책: opus는 **설계 1회 + 페이즈 경계 배치 리뷰**에만. �
 3. **개인정보처리방침 연락 이메일·시행일 기입** — `docs/store/privacy-policy-{ko,en}.md`의 placeholder 교체 (양대 스토어 제출 하드 요구사항, 최종 리뷰 L-2)
 4. Android/iOS 스토어 계정·서명·제출 (P5~P6 산출물로 준비됨). 제출 전 키스토어 비밀번호 교체(`android/keystore.properties`) + 상표 공식 조회(USPTO/KIPRIS)
 
-v1 개발 중 카탈로그는 합성 5종(노이즈 4 + 바이노럴) + 합성 근사 자연음(후보: 필터드 노이즈 기반 rain/wind/waves — P3 후속 검토)으로 동작한다.
+v0.1.0 카탈로그 실물은 합성 노이즈 4종(바이노럴은 타입만 존재 — v0.2.0에서 구현). 합성 근사 자연음은 v0.2.0 스코프.
+
+## v0.2.0 고도화 스코프 (E2 승인 2026-07-20, `.omc/qa/enhancement-gaps.md`)
+
+**enh-core(오디오·엔진)**: ① 궤도 경로별 볼륨 변화(차별화 — Orbit.volumeCurve + computeGain 각도 모듈레이션) ⑥ 바이노럴 비트 합성(궤도 팬 우회 경로) ⑦ 필터드 노이즈 자연음 4종(rain/wind/waves/stream — 팔레트 4→8) ⑧ HRTF 동시개수 임계 자동 stereo 강등
+**enh-polish(UI·QA 백로그)**: ② 마스터 볼륨 UI ③ 'fixed' 궤도 모드 노출 ④ 궤도 속도 조절 ⑤ 궤도 모양 슬라이더(핀치 비접근 사용자) + QA Q5 백로그
+**제외**: CC0 파일 카테고리(수동 대기), 오디오 임포트(v0.3), 풍경 테마, iOS 실기기, 브랜치 커버리지 보강(스트레치)
 
 ## 운영 규칙
 
