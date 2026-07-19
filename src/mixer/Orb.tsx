@@ -53,6 +53,7 @@ export function Orb({
   const toggleLocked = useMixStore((s) => s.toggleLocked)
   const removePlacement = useMixStore((s) => s.removePlacement)
   const loading = useMixStore((s) => s.loadingIds.has(placement.id))
+  const sleeping = useMixStore((s) => s.sleeping)
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gesture = useRef<{
@@ -234,7 +235,9 @@ export function Orb({
         elRef.current = el
         registerEl(placement.id, el)
       }}
-      className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}${loading ? ' is-loading' : ''}`}
+      // "sleeping" (post sleep-timer fade-out) reuses the loading look — both mean
+      // "not audibly playing right now", visual-theme.md §3 only defines one dim state.
+      className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}${loading || sleeping ? ' is-loading' : ''}`}
       style={category ? ({ '--orb-color': `var(--so-orb-${category})` } as React.CSSProperties) : undefined}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

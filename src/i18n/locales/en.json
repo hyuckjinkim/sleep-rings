@@ -18,6 +18,17 @@
       "lock": "Lock position",
       "unlock": "Unlock",
       "delete": "Delete"
+    },
+    "sleep": {
+      "title": "Sleep timer",
+      "minutes": "{{minutes}}m",
+      "off": "Off"
+    },
+    "presets": {
+      "namePlaceholder": "Mix name",
+      "save": "Save",
+      "load": "Load",
+      "delete": "Delete"
     }
   }
 }

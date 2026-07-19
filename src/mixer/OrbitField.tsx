@@ -75,14 +75,15 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
       last = now
       const r = fieldRef.current?.getBoundingClientRect().width ?? 0
       const fieldRadiusPx = r / 2
-      const current = useMixStore.getState().current.placements
+      const state = useMixStore.getState()
+      const current = state.current.placements
 
       for (const p of current) {
         const el = orbRefs.get(p.id)
         if (!el || interactingIds.has(p.id)) continue
 
         let angle = liveAngles.get(p.id) ?? p.angle
-        if (!reducedMotion && !p.locked && p.orbit.speed > 0) {
+        if (!reducedMotion && !state.sleeping && !p.locked && p.orbit.speed > 0) {
           if (p.orbit.mode === 'random') {
             const flipAt = nextFlipAt.get(p.id)
             if (flipAt == null) {

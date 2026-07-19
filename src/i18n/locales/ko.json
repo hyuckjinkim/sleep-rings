@@ -18,6 +18,17 @@
       "lock": "위치 고정",
       "unlock": "고정 해제",
       "delete": "삭제"
+    },
+    "sleep": {
+      "title": "슬립 타이머",
+      "minutes": "{{minutes}}분",
+      "off": "해제"
+    },
+    "presets": {
+      "namePlaceholder": "믹스 이름",
+      "save": "저장",
+      "load": "불러오기",
+      "delete": "삭제"
     }
   }
 }
