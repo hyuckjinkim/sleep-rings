@@ -1,10 +1,22 @@
 // Minimal placeholder catalog so the mixer palette has something to drag. Full 17-category
 // library is sound-pipeline's job (task #8); this just unblocks UI dev. File paths for
 // 'file' sources are aspirational — no audio assets exist yet.
-import type { Locale, Sound } from '../data/types'
+import type { Category, Locale, Sound } from '../data/types'
 
 export function soundName(soundId: string, locale: Locale): string {
   return catalog.find((s) => s.id === soundId)?.name[locale] ?? soundId
+}
+
+export function soundCategory(soundId: string): Category | undefined {
+  return catalog.find((s) => s.id === soundId)?.category
+}
+
+// 'file' sounds below have no real asset yet (sound-pipeline task #8 pending manual
+// download) — loading them would 404. Keep them visible in the palette but locked.
+const UNAVAILABLE_IDS = new Set(['garden-rain', 'seaside', 'night-stream'])
+
+export function isAvailable(soundId: string): boolean {
+  return !UNAVAILABLE_IDS.has(soundId)
 }
 
 export const catalog: Sound[] = [

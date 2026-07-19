@@ -1,6 +1,5 @@
-// No-op stand-in for the real engine (src/audio/, built in parallel by audio-engineer).
-// Logs only, so UI wiring to SoundEngine calls can be exercised and swapped for the real
-// implementation later without touching call sites. See docs/design/audio-engine.md §7.
+// No-op stand-in for the real engine (src/audio/). Used by tests (jsdom has no
+// AudioContext) — see ./instance.ts for the real-vs-mock runtime selection.
 import type { SoundEngine } from './SoundEngine'
 
 const log = (...args: unknown[]) => console.debug('[MockSoundEngine]', ...args)
@@ -51,6 +50,3 @@ export function createMockSoundEngine(): SoundEngine {
     },
   }
 }
-
-/** Singleton used by the mixer store — the later integration task swaps this import. */
-export const soundEngine = createMockSoundEngine()

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
-import { useMixStore } from './store'
+import { DEFAULT_ORBIT_SPEED, useMixStore } from './store'
 import { angleDelta, clamp, polarToUnit, unitToPolar } from './geometry'
-import type { OrbitShape, Placement } from './types'
+import type { Category, OrbitShape, Placement } from './types'
 
 const LONG_PRESS_MS = 500
 const SWIPE_MAX_MS = 300
@@ -13,6 +13,7 @@ const MOVE_THRESHOLD_RADIUS = 0.02
 interface OrbProps {
   placement: Placement
   label: string
+  category: Category | undefined
   fieldRef: RefObject<HTMLDivElement | null>
   registerEl: (id: string, el: HTMLDivElement | null) => void
   isDeleteZone: (clientY: number) => boolean
@@ -38,6 +39,7 @@ function shapeForEccentricity(eccentricity: number): OrbitShape {
 export function Orb({
   placement,
   label,
+  category,
   fieldRef,
   registerEl,
   isDeleteZone,
@@ -50,6 +52,7 @@ export function Orb({
   const updatePlacement = useMixStore((s) => s.updatePlacement)
   const toggleLocked = useMixStore((s) => s.toggleLocked)
   const removePlacement = useMixStore((s) => s.removePlacement)
+  const loading = useMixStore((s) => s.loadingIds.has(placement.id))
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gesture = useRef<{
@@ -186,7 +189,7 @@ export function Orb({
       updatePlacement(placement.id, {
         radius,
         angle,
-        orbit: { mode: 'steered', direction: delta > 0 ? 1 : -1, speed: placement.orbit.speed || 0.15 },
+        orbit: { mode: 'steered', direction: delta > 0 ? 1 : -1, speed: placement.orbit.speed || DEFAULT_ORBIT_SPEED },
       })
     } else {
       updatePlacement(placement.id, { radius, angle })
@@ -210,8 +213,11 @@ export function Orb({
     }
 
     if (pointers.current.size === 0) {
+      // Don't reset the transform here: `placement` is the stale pre-commit prop, and the
+      // element is already visually at the just-committed position from the live drag/pinch
+      // preview. Handing back to the parent's rAF loop (which reads fresh store state next
+      // frame) avoids a one-frame snap-back-then-forward glitch on release.
       endInteraction(placement.id)
-      setLiveTransform(placement.radius, placement.angle, placement.orbit.shape)
     }
   }
 
@@ -228,7 +234,8 @@ export function Orb({
         elRef.current = el
         registerEl(placement.id, el)
       }}
-      className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}`}
+      className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}${loading ? ' is-loading' : ''}`}
+      style={category ? ({ '--orb-color': `var(--so-orb-${category})` } as React.CSSProperties) : undefined}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

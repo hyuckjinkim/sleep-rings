@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
 import { unitToPolar } from './geometry'
-import { catalog } from '../library/catalog'
+import { catalog, isAvailable } from '../library/catalog'
 import type { Locale, Sound } from './types'
 
 interface PaletteProps {
@@ -13,12 +13,13 @@ interface PaletteProps {
 interface PaletteItemProps {
   sound: Sound
   label: string
+  available: boolean
   fieldRef: RefObject<HTMLDivElement | null>
   addPlacement: (soundId: string, radius: number, angle: number) => string
 }
 
 /** Drag a catalog chip onto the field to add it as a new orb. Pointer Events cover touch+mouse. */
-function PaletteItem({ sound, label, fieldRef, addPlacement }: PaletteItemProps) {
+function PaletteItem({ sound, label, available, fieldRef, addPlacement }: PaletteItemProps) {
   const chipRef = useRef<HTMLButtonElement | null>(null)
   const drag = useRef<{ startX: number; startY: number } | null>(null)
 
@@ -60,12 +61,14 @@ function PaletteItem({ sound, label, fieldRef, addPlacement }: PaletteItemProps)
       ref={chipRef}
       type="button"
       className="mixer-palette-item"
+      style={{ '--orb-color': `var(--so-orb-${sound.category})` } as React.CSSProperties}
+      disabled={!available}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {label}
+      {available ? label : `🔒 ${label}`}
     </button>
   )
 }
@@ -82,6 +85,7 @@ export function Palette({ fieldRef }: PaletteProps) {
           key={sound.id}
           sound={sound}
           label={sound.name[locale]}
+          available={isAvailable(sound.id)}
           fieldRef={fieldRef}
           addPlacement={addPlacement}
         />

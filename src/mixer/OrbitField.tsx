@@ -3,7 +3,8 @@ import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
 import { polarToUnit } from './geometry'
-import { soundName } from '../library/catalog'
+import { soundEngine } from './engine/instance'
+import { soundCategory, soundName } from '../library/catalog'
 import { Orb } from './Orb'
 import type { Locale } from './types'
 
@@ -65,6 +66,9 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   useEffect(() => {
     let raf: number
     let last = performance.now()
+    // visual-theme.md §9: reduced-motion is this layer's responsibility, not CSS's — freeze orbiting.
+    const reducedMotion =
+      typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
     function tick(now: number) {
       const dt = Math.min((now - last) / 1000, 0.1)
@@ -78,7 +82,7 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
         if (!el || interactingIds.has(p.id)) continue
 
         let angle = liveAngles.get(p.id) ?? p.angle
-        if (!p.locked && p.orbit.speed > 0) {
+        if (!reducedMotion && !p.locked && p.orbit.speed > 0) {
           if (p.orbit.mode === 'random') {
             const flipAt = nextFlipAt.get(p.id)
             if (flipAt == null) {
@@ -89,8 +93,12 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
             }
           }
           angle += p.orbit.speed * p.orbit.direction * dt
+          liveAngles.set(p.id, angle)
+          // engine throttles/ramps internally (audio-engine.md §2) — safe to call every frame.
+          soundEngine.setPlacement({ ...p, angle })
+        } else {
+          liveAngles.set(p.id, angle)
         }
-        liveAngles.set(p.id, angle)
 
         const { x, y } = polarToUnit(p.radius, angle, p.orbit.shape)
         el.style.transform = `translate(${x * fieldRadiusPx}px, ${y * fieldRadiusPx}px)`
@@ -113,6 +121,7 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
           key={p.id}
           placement={p}
           label={soundName(p.soundId, locale)}
+          category={soundCategory(p.soundId)}
           fieldRef={fieldRef}
           registerEl={registerEl}
           isDeleteZone={(clientY) => isInDeleteZone(fieldRef, clientY)}

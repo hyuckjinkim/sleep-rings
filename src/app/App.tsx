@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Mixer } from '../mixer/Mixer'
+// theme.css is imported once in main.tsx
 
 export function App() {
   const { t, i18n } = useTranslation()
@@ -18,9 +19,9 @@ export function App() {
         justifyContent: 'flex-start',
         gap: '0.5rem',
         padding: '1.5rem 0 6rem',
-        background: 'var(--so-bg, #0a0e1a)',
-        color: 'var(--so-fg, #f0f0f5)',
-        fontFamily: 'system-ui, sans-serif',
+        background: 'var(--so-bg-base, #0a0e1a)',
+        color: 'var(--so-text-primary, #f0f0f5)',
+        fontFamily: 'var(--so-font-family, system-ui, sans-serif)',
       }}
     >
       <h1>{t('app.title')}</h1>
