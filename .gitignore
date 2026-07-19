@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+.omc/
+.DS_Store
+
+# Capacitor native build outputs
+android/app/build/
+android/.gradle/
+android/local.properties
+ios/App/build/
+ios/App/Pods/
+
+# signing secrets
+*.keystore
+*.jks
+keystore.properties
