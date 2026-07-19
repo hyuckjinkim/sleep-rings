@@ -65,7 +65,8 @@ usage 정책: opus는 **설계 1회 + 페이즈 경계 배치 리뷰**에만. �
 
 1. **Freesound 음원 25건 수동 다운로드** — `docs/sound-manual-downloads.md`의 목록을 받아 `scripts/sounds/raw/{category}/`에 배치 (Freesound API의 상용 약관이 회색지대라 자동화 제외; archive.org는 라이선스 검증 결과 0건 사용 가능)
 2. **ffmpeg 설치** (`sudo apt-get install ffmpeg`) 후 `node scripts/sounds/process.mjs` 실행 → loudnorm·루프·AAC 변환
-3. Android/iOS 스토어 계정·서명·제출 (P5~P6 산출물로 준비됨)
+3. **개인정보처리방침 연락 이메일·시행일 기입** — `docs/store/privacy-policy-{ko,en}.md`의 placeholder 교체 (양대 스토어 제출 하드 요구사항, 최종 리뷰 L-2)
+4. Android/iOS 스토어 계정·서명·제출 (P5~P6 산출물로 준비됨). 제출 전 키스토어 비밀번호 교체(`android/keystore.properties`) + 상표 공식 조회(USPTO/KIPRIS)
 
 v1 개발 중 카탈로그는 합성 5종(노이즈 4 + 바이노럴) + 합성 근사 자연음(후보: 필터드 노이즈 기반 rain/wind/waves — P3 후속 검토)으로 동작한다.
 
