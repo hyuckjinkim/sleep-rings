@@ -7,7 +7,7 @@ describe('App', () => {
   it('renders the default-language title and toggles to the other language', () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: 'Sleep Mixer' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'SleepRings' })).toBeInTheDocument()
     expect(screen.getByText('야간 사운드 믹서')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'English' }))
