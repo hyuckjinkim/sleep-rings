@@ -14,24 +14,19 @@ node scripts/store/screenshots.mjs
 
 dev 서버(`localhost:5173`)가 떠 있지 않으면 스크립트가 알아서 `npm run dev`로 띄우고 끝나면 종료한다. 이미 떠 있으면 그대로 재사용(종료하지 않음). iOS(1290x2796) / Android(1080x1920) 두 뷰포트 각각 4장(빈 필드 → 노이즈 4종 배치 → 오브 탭 팝오버 → 슬립 타이머/프리셋)을 찍는다. 궤도가 rAF로 계속 회전해 Playwright의 클릭/스크린샷 안정성 체크가 절대 통과하지 못하는 문제가 있어, 스크립트가 `page.emulateMedia({ reducedMotion: 'reduce' })`로 앱에 이미 내장된 감속-모션 정지 로직(`OrbitField.tsx`, `visual-theme.md` §9)을 켜서 우회한다 — 덕분에 재실행할 때마다 결과가 결정적이다.
 
-## 아이콘 PNG 변환 — 스킵됨 (#12b에서 처리)
+## 아이콘·스플래시 생성 — 완료 (#12b)
 
-`assets/icon.svg`(1024 viewBox)를 실제 제출용 PNG(1024x1024 등)로 변환해야 하는데, 이 환경엔 변환 도구가 하나도 없다(확인 완료: `sharp`는 devDependencies에 없음, `rsvg-convert`/`convert`(ImageMagick)/`inkscape` 전부 PATH에 없음). 새 의존성을 설치하지 않고 명령만 남긴다.
+`@capacitor/assets@3.0.5`(devDependency)로 `assets/icon.svg`에서 iOS/Android 전 해상도 아이콘·스플래시를 생성 완료 — Android `mipmap-{m,h,xh,xxh,xxxh}dpi`(런처 아이콘 + 적응형 아이콘 전경/배경 + 라이트/다크 스플래시), iOS `Assets.xcassets/{AppIcon,Splash}.imageset`. 배경색은 앱 테마 토큰과 동일값 사용(`src/app/theme.css`의 `--so-bg-void #05070d`/`--so-bg-base #0a0e1a` — 앱에 별도 라이트 테마가 없어 라이트/다크 둘 다 동일값).
 
-아래 중 하나가 설치되면 실행:
+재생성 명령:
 
 ```bash
-# ImageMagick (convert 또는 magick)
-convert -background none -resize 1024x1024 assets/icon.svg assets/icon-1024.png
-
-# rsvg-convert (librsvg)
-rsvg-convert -w 1024 -h 1024 assets/icon.svg -o assets/icon-1024.png
-
-# sharp (프로젝트에 devDependency로 추가 후)
-node -e "require('sharp')('assets/icon.svg').resize(1024,1024).png().toFile('assets/icon-1024.png')"
+npx @capacitor/assets generate --iconBackgroundColor '#05070d' --iconBackgroundColorDark '#05070d' --splashBackgroundColor '#0a0e1a' --splashBackgroundColorDark '#0a0e1a' --ios --android
 ```
 
-Android는 추가로 여러 해상도(mipmap-mdpi~xxxhdpi)가 필요하므로, 위 명령의 `-resize`/`-w -h` 값을 48/72/96/144/192(mdpi~xxxhdpi)로 바꿔 반복하거나 `@capacitor/assets` 같은 기존 Capacitor 툴체인을 쓰는 편이 낫다(mobile-packager 담당 영역).
+**`--ios --android`를 반드시 명시할 것** — 플래그 없이 실행하면 이 프로젝트가 쓰지 않는 PWA 매니페스트(`public/manifest.webmanifest`)와 최상위 `icons/` 디렉터리까지 같이 생성한다(#12b에서 발견, 수동 삭제 후 처리).
+
+Android 알림(백그라운드 재생 포그라운드 서비스, `docs/android-build.md` §3) 아이콘 `ic_stat_sleeprings`도 `assets/icon.svg`의 실제 초승달 모티프(두 원 마스크 합성, `docs/android-build.md` §3 참고)로 교체 완료 — 기존 손으로 그린 플레이스홀더 벡터는 삭제.
 
 ## 스토어 제출 전 반드시 교체할 항목
 

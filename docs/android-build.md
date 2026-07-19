@@ -63,9 +63,12 @@ Android 모듈은 **JDK 21**을 요구한다. `~/.local/jdk21/`에 Temurin 21을
 호출에서 `serviceType`은 생략 가능한 선택 파라미터) 문제되지 않는다 — 매니페스트 선언만으로
 Android 14+ 요구사항을 충족한다.
 
-**알림 아이콘**: `android/app/src/main/res/drawable/ic_stat_sleeprings.xml` — 임시 벡터 아이콘
-(달 모양 실루엣). `smallIcon`이 플러그인 API에서 필수 파라미터라 최소한으로 채워넣었다. **P6(스토어
-자료) 단계에서 디자이너의 최종 브랜드 아이콘으로 교체 필요** — `ponytail:` 주석으로 표시해둠.
+**알림 아이콘**: `android/app/src/main/res/drawable-{m,h,xh,xxh,xxxh}dpi/ic_stat_sleeprings.png` —
+(#12b에서) `assets/icon.svg`의 실제 초승달 모티프로 교체 완료. 손으로 근사한 벡터 대신, 소스 SVG의
+두 원(`cx=512,cy=470,r=150` 빼기 `cx=574,cy=436,r=140`)을 SVG `<mask>`로 합성해(단순 겹친 원 2개를
+evenOdd로 두면 겹치지 않는 바깥쪽 조각까지 남아 모양이 깨짐 — mask는 진짜 알파 구멍을 뚫어 정확한
+초승달만 남는다) `sharp`(`@capacitor/assets`가 끌어온 전이 의존성)로 밀도별 PNG 5장을 렌더링.
+기존 `drawable/ic_stat_sleeprings.xml` 플레이스홀더는 삭제.
 
 ## 4. 웹 쪽 통합 — `src/mobile/`
 
@@ -86,20 +89,13 @@ Android 14+ 요구사항을 충족한다.
   래퍼. `startAndroidKeepAliveService()`/`stopAndroidKeepAliveService()` (Android 외 플랫폼은 no-op).
 - **`src/mobile/index.ts`** — 배럴.
 
-### 배선 지점 (아직 적용 안 함 — 팀 리드/오디오팀 판단으로 연결 필요)
+### 배선 지점
 
-1. **`src/audio/sound-engine.ts`의 `SoundEngine` 인스턴스**(예: `src/mixer/engine/instance.ts`의
-   `soundEngine`)를 앱 시작 시 한 번 `initBackgroundAudio(soundEngine)`에 넘겨야 한다 — 타입은
-   구조적으로 이미 호환된다(`onEnterBackground`/`onEnterForeground` 시그니처 일치).
-   권장 위치: `src/main.tsx`의 `createRoot(...).render()` 이전, 또는 `src/app/App.tsx`의
-   최상위 `useEffect`.
-2. **`startKeepAliveAudio()`는 첫 사용자 제스처 핸들러 안에서** `soundEngine.init()`과
-   **같은 호출 지점**에 넣어야 한다 — `sound-engine.ts:188-191`의 `onEnterBackground()` 주석이
-   정확히 이 배선을 가리키고 있다("silent keep-alive `<audio>` ... is app-shell/native-plugin
-   territory ... nothing for the engine itself to do until that lands"). 믹서 UI에서
-   `soundEngine.init()`을 호출하는 지점(현재 `startPlayback`이 첫 배치 시 `soundEngine.load()`를
-   여는 흐름 — `src/mixer/store.ts:42`)이 유력한 후보이나, 정확한 훅 위치는 UI/오디오팀이 실제
-   "첫 제스처" 판정 로직을 갖고 있는 곳에서 결정해야 한다.
+1. **`initBackgroundAudio(soundEngine)`** — Task #15에서 `src/main.tsx`에 적용 완료(앱 시작 시
+   1회, `createRoot(...).render()` 이전).
+2. **`startKeepAliveAudio()`**는 여전히 첫 사용자 제스처 핸들러(=`soundEngine.init()`과 같은
+   호출 지점)에 연결이 필요 — `sound-engine.ts`의 `onEnterBackground()` 주석이 이 지점을
+   가리킨다. 정확한 훅 위치는 UI/오디오팀이 "첫 제스처" 판정 로직을 갖고 있는 곳에서 결정.
 
 ## 5. 서명 릴리스 빌드
 
@@ -121,10 +117,12 @@ npm run build:android
 ```
 
 실제 실행 결과(WSL2, /mnt/d 드라이브라 gradle이 느림 — 최초 빌드 8분 35초, gradle
-distribution 다운로드 포함):
+distribution 다운로드 포함; #12b 실아이콘 반영 후 재빌드는 2분 26초):
 
-- **AAB**: `android/app/build/outputs/bundle/release/app-release.aab` — 3,116,346 bytes (~3.0MB)
-- **APK**: `android/app/build/outputs/apk/release/app-release.apk` — 3,268,165 bytes (~3.1MB)
+- **AAB**: `android/app/build/outputs/bundle/release/app-release.aab` — 3,651,390 bytes (~3.5MB)
+- **APK**: `android/app/build/outputs/apk/release/app-release.apk` — 3,871,452 bytes (~3.7MB)
+- (#9 최초 빌드는 기본 Capacitor 플레이스홀더 아이콘 기준 AAB 3.0MB/APK 3.1MB였음 — #12b에서
+  실제 아이콘·스플래시로 교체하며 커진 것, 정상)
 
 서명 검증(둘 다 종료 코드 0):
 
@@ -139,13 +137,15 @@ jarsigner -verify app-release.aab
    받는다 — CA 체인 필요 없음.)
 ```
 
-`npm test`(68건) 회귀 없음 확인. `npm run typecheck` 통과.
+`npm test`(68건) 회귀 없음 확인(#9 시점). `npm run typecheck` 통과(#9, #12b 둘 다).
 
 ## 7. 알려진 제약 / 후속 작업
 
-1. **§4의 배선이 미적용 상태** — `src/mobile/`은 완성돼 있으나 실제 앱에 연결되지 않았다.
-   연결 전까지는 백그라운드 재생 기능이 실제로 동작하지 않는다.
-2. **알림 아이콘이 placeholder** — P6에서 실제 브랜드 아이콘으로 교체 필요.
+1. ~~`startKeepAliveAudio()` 미배선~~ — **#15에서 해소(e07b74f).** `main.tsx`의
+   `initBackgroundAudio(soundEngine)` + `Mixer.tsx` 첫 제스처 핸들러의
+   `Capacitor.isNativePlatform()` 가드 하 `startKeepAliveAudio()` 호출로 양쪽 모두 배선 완료.
+2. ~~알림 아이콘이 placeholder~~ — **#12b에서 해소.** `assets/icon.svg`의 실제 초승달 모티프로
+   교체 완료(§3).
 3. **무음 킵얼라이브의 신뢰성은 실기기 미검증** — `audio-engine.md` §8-1의 최대 리스크가 여전히
    열려있음. Android는 포그라운드 서비스로 프로세스 자체는 보장되지만, WebView 내 Web Audio
    컨텍스트가 Doze/앱 대기 모드에서 실제로 계속 렌더링하는지는 실기기 테스트 필요.
