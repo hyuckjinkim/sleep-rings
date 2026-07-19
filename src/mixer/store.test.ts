@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { useMixStore } from './store'
+import { soundEngine } from './engine/instance'
+import { catalog } from '../library/catalog'
+import type { Sound } from './types'
 
 beforeEach(() => {
   useMixStore.setState({
     current: { ...useMixStore.getState().current, placements: [] },
+    loadingIds: new Set(),
+    erroredIds: new Set(),
     presets: [],
     sleepEndsAt: null,
     sleeping: false,
@@ -54,6 +59,74 @@ describe('useMixStore', () => {
     const id = useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
     useMixStore.getState().removePlacement(id)
     expect(useMixStore.getState().current.placements).toHaveLength(0)
+  })
+
+  it('fades out instead of hard-stopping on remove (M2)', () => {
+    const id = useMixStore.getState().addPlacement('noise-white', 0.4, 1.2)
+    const stopSpy = vi.spyOn(soundEngine, 'stop')
+    useMixStore.getState().removePlacement(id)
+    expect(stopSpy).toHaveBeenCalledWith(id, expect.any(Number))
+    expect(stopSpy.mock.calls[0][1]).toBeGreaterThan(0)
+    stopSpy.mockRestore()
+  })
+})
+
+describe('load/play race (H1 regression)', () => {
+  it('does not play a placement that was removed while its sound was still loading', async () => {
+    let resolveLoad!: () => void
+    const loadSpy = vi.spyOn(soundEngine, 'load').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = () => resolve()
+        }),
+    )
+    const playSpy = vi.spyOn(soundEngine, 'play')
+
+    const id = useMixStore.getState().addPlacement('noise-white', 0.3, 0) // synth, available
+    useMixStore.getState().removePlacement(id) // removed before load() resolves
+
+    resolveLoad()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(playSpy).not.toHaveBeenCalled()
+
+    loadSpy.mockRestore()
+    playSpy.mockRestore()
+  })
+})
+
+describe('load failure (M1 regression)', () => {
+  const FAILING_FILE_SOUND: Sound = {
+    id: 'test-file-that-fails',
+    name: { ko: '테스트', en: 'Test' },
+    category: 'rain',
+    source: { kind: 'file', src: 'sounds/does-not-exist.m4a' },
+    license: { spdx: 'CC0-1.0', sourceName: 'test' },
+  }
+
+  beforeEach(() => {
+    catalog.push(FAILING_FILE_SOUND)
+  })
+  afterEach(() => {
+    const i = catalog.indexOf(FAILING_FILE_SOUND)
+    if (i >= 0) catalog.splice(i, 1)
+  })
+
+  it('clears loadingIds and marks the placement errored instead of leaving it stuck loading', async () => {
+    const loadSpy = vi.spyOn(soundEngine, 'load').mockRejectedValue(new Error('404'))
+
+    const id = useMixStore.getState().addPlacement(FAILING_FILE_SOUND.id, 0.3, 0)
+    expect(useMixStore.getState().loadingIds.has(id)).toBe(true)
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(useMixStore.getState().loadingIds.has(id)).toBe(false)
+    expect(useMixStore.getState().erroredIds.has(id)).toBe(true)
+
+    loadSpy.mockRestore()
   })
 })
 

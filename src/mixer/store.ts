@@ -23,6 +23,10 @@ export const DEFAULT_ORBIT_SPEED = 0.1
 // audio-engine.md §5 doesn't pin a number, just "gentle" — 60s is a reasonable sleep-app default.
 export const SLEEP_FADE_SEC = 60
 
+// audio-engine.md §5: individual placement add/remove should fade too, to avoid onset/offset
+// clicks on noise buffers. Short — this is a UI micro-fade, not the sleep-timer's gentle one.
+export const PLACEMENT_FADE_SEC = 0.2
+
 export function defaultOrbit(): Orbit {
   return { mode: 'random', shape: { kind: 'circle' }, speed: DEFAULT_ORBIT_SPEED, direction: randomDirection() }
 }
@@ -32,6 +36,23 @@ export function emptyMix(): Mix {
 }
 
 export type PlacementPatch = Partial<Omit<Placement, 'id' | 'soundId' | 'orbit'>> & { orbit?: Partial<Orbit> }
+
+function isStillPlaced(id: string): boolean {
+  return useMixStore.getState().current.placements.some((p) => p.id === id)
+}
+
+function clearLoading(id: string): void {
+  useMixStore.setState((s) => {
+    if (!s.loadingIds.has(id)) return s
+    const next = new Set(s.loadingIds)
+    next.delete(id)
+    return { loadingIds: next }
+  })
+}
+
+function markErrored(id: string): void {
+  useMixStore.setState((s) => ({ erroredIds: new Set(s.erroredIds).add(id) }))
+}
 
 /**
  * Start engine playback for a placement. Safe to call before the user's first gesture —
@@ -45,24 +66,36 @@ export function startPlayback(placement: Placement): void {
 
   if (sound.source.kind === 'synth') {
     // synth buffers render in-memory, effectively instant — no loading state needed.
-    void soundEngine.load(sound).then(() => soundEngine.play(placement))
+    void soundEngine.load(sound).then(() => {
+      // H1: placement may have been removed while load() was pending — don't resurrect it as
+      // an unstoppable ghost sound the store no longer has a reference to stop.
+      if (!isStillPlaced(placement.id)) return
+      soundEngine.play(placement)
+    })
   } else {
     // file sounds fetch+decode — show a loading state on the orb until play() starts.
     useMixStore.setState((s) => ({ loadingIds: new Set(s.loadingIds).add(placement.id) }))
-    void soundEngine.load(sound).then(() => {
-      soundEngine.play(placement)
-      useMixStore.setState((s) => {
-        const next = new Set(s.loadingIds)
-        next.delete(placement.id)
-        return { loadingIds: next }
+    void soundEngine
+      .load(sound)
+      .then(() => {
+        if (!isStillPlaced(placement.id)) return // H1, same as above
+        soundEngine.play(placement)
+        clearLoading(placement.id)
       })
-    })
+      .catch(() => {
+        // M1: fetch/decode failure (404 etc) — clear the loading look, surface an error look
+        // instead (same treatment level as a catalog "unavailable" entry), and never leave an
+        // unhandled rejection.
+        clearLoading(placement.id)
+        if (isStillPlaced(placement.id)) markErrored(placement.id)
+      })
   }
 }
 
 interface MixStore {
   current: Mix
   loadingIds: Set<string> // placements whose (file) sound hasn't finished loading yet
+  erroredIds: Set<string> // placements whose (file) sound failed to load (404/decode)
   presets: Mix[]
   sleepEndsAt: number | null // epoch ms, for the countdown UI
   sleeping: boolean // true once a sleep timer's fade+stop has completed
@@ -82,6 +115,7 @@ let sleepTimeout: ReturnType<typeof setTimeout> | undefined
 export const useMixStore = create<MixStore>((set, get) => ({
   current: emptyMix(),
   loadingIds: new Set(),
+  erroredIds: new Set(),
   presets: [],
   sleepEndsAt: null,
   sleeping: false,
@@ -121,12 +155,15 @@ export const useMixStore = create<MixStore>((set, get) => ({
     set((s) => {
       const loadingIds = new Set(s.loadingIds)
       loadingIds.delete(id)
+      const erroredIds = new Set(s.erroredIds)
+      erroredIds.delete(id)
       return {
         current: { ...s.current, placements: s.current.placements.filter((p) => p.id !== id), updatedAt: Date.now() },
         loadingIds,
+        erroredIds,
       }
     })
-    soundEngine.stop(id)
+    soundEngine.stop(id, PLACEMENT_FADE_SEC) // M2: fade out instead of a hard click
   },
 
   toggleLocked(id) {
@@ -144,7 +181,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
     if (!preset) return
     for (const p of get().current.placements) soundEngine.stop(p.id)
     const current: Mix = { ...preset, id: makeId('mix'), updatedAt: Date.now() }
-    set({ current, loadingIds: new Set(), sleepEndsAt: null, sleeping: false })
+    set({ current, loadingIds: new Set(), erroredIds: new Set(), sleepEndsAt: null, sleeping: false })
     clearTimeout(sleepTimeout)
     soundEngine.cancelSleep()
     for (const p of current.placements) startPlayback(p)

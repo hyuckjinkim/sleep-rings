@@ -47,18 +47,22 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   function beginInteraction(id: string) {
     interactingIds.add(id)
   }
-  function endInteraction(id: string) {
+  // L1 fix: only drop the live angle when the gesture actually committed a new one to the
+  // store (drag/swipe). store.angle is otherwise stale (orbit motion never writes it back —
+  // it only lives in liveAngles), so a blind delete here snapped taps/deselects back to the
+  // placement's original creation angle instead of wherever the orbit had actually spun it to.
+  function endInteraction(id: string, committedPosition = false) {
     interactingIds.delete(id)
-    liveAngles.delete(id) // resync from the just-committed store angle next frame
+    if (committedPosition) liveAngles.delete(id)
   }
 
-  // Freeze the orb behind an open control popover so its radius slider isn't fighting orbit motion.
+  // Freeze the orb behind an open control popover so its radius slider isn't fighting orbit
+  // motion. The popover never touches angle (see OrbControls.tsx), so no liveAngles reset here.
   useEffect(() => {
     if (!selectedId) return
     interactingIds.add(selectedId)
     return () => {
       interactingIds.delete(selectedId)
-      liveAngles.delete(selectedId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId])

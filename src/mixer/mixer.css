@@ -102,6 +102,14 @@
   box-shadow: none;
 }
 
+.mixer-orb.is-error {
+  /* M1: load failed (404/decode) — same dim treatment as loading, distinguished by a danger ring */
+  opacity: var(--so-state-idle-opacity, 0.55);
+  box-shadow: none;
+  outline: 2px solid var(--so-danger, #d45e68);
+  outline-offset: 3px;
+}
+
 .mixer-orb.is-locked {
   outline: var(--so-state-locked-ring-width, 2px) solid var(--so-text-secondary, #a8adc4);
   outline-offset: 3px;

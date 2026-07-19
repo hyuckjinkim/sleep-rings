@@ -20,6 +20,8 @@ export type PanQuality = 'hrtf' | 'stereo'
 
 const NOISE_SECONDS = 10
 const NOISE_COLORS: readonly NoiseColor[] = ['white', 'pink', 'brown', 'green']
+// audio-engine.md §5: individual placement onset should fade in too, not click straight to gain.
+const FADE_IN_SEC = 0.2
 
 interface LoadedSound {
   buffer: EngineAudioBuffer
@@ -96,7 +98,8 @@ export class SoundEngine {
     const nodes: PlacementNodes = { source, spatial, gain, quality: this.quality, placement, lastRampAt: -Infinity }
     this.active.set(placement.id, nodes)
 
-    gain.gain.value = this.computeGain(placement, this.quality)
+    gain.gain.value = 0
+    fadeTo(gain.gain, this.ctx.currentTime, this.computeGain(placement, this.quality), FADE_IN_SEC)
     this.applySpatial(nodes, placement, true)
 
     source.start()

@@ -20,7 +20,7 @@ interface OrbProps {
   selected: boolean
   onTap: (id: string) => void
   beginInteraction: (id: string) => void
-  endInteraction: (id: string) => void
+  endInteraction: (id: string, committedPosition?: boolean) => void
 }
 
 function fieldMetrics(fieldRef: RefObject<HTMLDivElement | null>) {
@@ -54,6 +54,7 @@ export function Orb({
   const removePlacement = useMixStore((s) => s.removePlacement)
   const loading = useMixStore((s) => s.loadingIds.has(placement.id))
   const sleeping = useMixStore((s) => s.sleeping)
+  const errored = useMixStore((s) => s.erroredIds.has(placement.id))
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gesture = useRef<{
@@ -113,6 +114,10 @@ export function Orb({
       }
     } else if (pointers.current.size === 2) {
       clearLongPress()
+      // L2 fix: drop the single-pointer drag state entirely (not just its timer). Otherwise
+      // if one finger lifts back to a single pointer, the stale gesture (with a grabOffset
+      // computed before the pinch started) revives and jumps the orb on the next move/release.
+      gesture.current = null
       const pts = [...pointers.current.values()]
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
       const currentEcc = placement.orbit.shape.kind === 'ellipse' ? placement.orbit.shape.eccentricity : 0
@@ -160,21 +165,22 @@ export function Orb({
     }
   }
 
-  function finishSinglePointer(e: React.PointerEvent<HTMLDivElement>) {
+  /** Returns true if a new radius/angle was actually committed to the store (drag/swipe). */
+  function finishSinglePointer(e: React.PointerEvent<HTMLDivElement>): boolean {
     const g = gesture.current
     clearLongPress()
     gesture.current = null
-    if (!g || g.longPressFired) return
+    if (!g || g.longPressFired) return false
 
     if (!g.moved) {
       onTap(placement.id)
-      return
+      return false
     }
 
     elRef.current?.classList.remove('is-delete-target')
     if (isDeleteZone(e.clientY)) {
       removePlacement(placement.id)
-      return
+      return false
     }
 
     const m = fieldMetrics(fieldRef)
@@ -195,6 +201,7 @@ export function Orb({
     } else {
       updatePlacement(placement.id, { radius, angle })
     }
+    return true
   }
 
   function finishPinch() {
@@ -207,10 +214,11 @@ export function Orb({
     const wasPinching = pointers.current.size === 2 && pinch.current != null
     pointers.current.delete(e.pointerId)
 
+    let committedPosition = false
     if (wasPinching) {
-      finishPinch()
+      finishPinch() // shape only — never touches radius/angle, no liveAngles resync needed
     } else if (pointers.current.size === 0) {
-      finishSinglePointer(e)
+      committedPosition = finishSinglePointer(e)
     }
 
     if (pointers.current.size === 0) {
@@ -218,8 +226,22 @@ export function Orb({
       // element is already visually at the just-committed position from the live drag/pinch
       // preview. Handing back to the parent's rAF loop (which reads fresh store state next
       // frame) avoids a one-frame snap-back-then-forward glitch on release.
-      endInteraction(placement.id)
+      endInteraction(placement.id, committedPosition)
     }
+  }
+
+  /** L3 fix: a cancelled gesture must not commit — revert instead of routing through pointerup. */
+  function handlePointerCancel(e: React.PointerEvent<HTMLDivElement>) {
+    pointers.current.delete(e.pointerId)
+    if (pointers.current.size > 0) return
+
+    clearLongPress()
+    gesture.current = null
+    pinch.current = null
+    elRef.current?.classList.remove('is-delete-target')
+    // No commit, no liveAngles reset: the parent's rAF loop resumes orbiting from wherever it
+    // was frozen at gesture-start (liveAngles was never touched during the live preview).
+    endInteraction(placement.id)
   }
 
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
@@ -237,12 +259,12 @@ export function Orb({
       }}
       // "sleeping" (post sleep-timer fade-out) reuses the loading look — both mean
       // "not audibly playing right now", visual-theme.md §3 only defines one dim state.
-      className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}${loading || sleeping ? ' is-loading' : ''}`}
+      className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}${loading || sleeping ? ' is-loading' : ''}${errored ? ' is-error' : ''}`}
       style={category ? ({ '--orb-color': `var(--so-orb-${category})` } as React.CSSProperties) : undefined}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onWheel={handleWheel}
       role="button"
       tabIndex={0}
