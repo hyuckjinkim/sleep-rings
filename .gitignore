@@ -7,6 +7,9 @@ coverage/
 .omc/
 .DS_Store
 
+# 사운드 파이프라인 원본 스테이징(수동/자동 다운로드 원본) — 최종 산출물은 public/sounds/ 에 커밋됨
+scripts/sounds/raw/
+
 # Capacitor native build outputs
 android/app/build/
 android/.gradle/

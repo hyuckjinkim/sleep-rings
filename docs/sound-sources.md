@@ -146,44 +146,44 @@
 검색: `https://freesound.org/search/?q=fan+hum+white+noise+background&f=license%3A%22Creative+Commons+0%22`
 - "Large Floor Fan - Steady Deep Hum - 2 Minutes" — FansAreCoolAndRelaxing16
 
-> **미확보(다음 라운드 필요):** ocean 카테고리의 Freesound 직접 검색(현재는 archive.org만), whispers/affirmations 대체안 검토(TTS 합성 여부는 별도 결정 필요 — 이번 조사 범위 밖).
+> **후속(Task #8, 2026-07-20 실행 완료):** ocean 카테고리 Freesound 직접 검색 완료(§3 반영), archive.org 후보 4건 개별 검증 — 전부 탈락(원저작자 불명 컴필레이션 또는 실제 라이선스 CC-BY-NC). whispers/affirmations/lucid dreaming 대체안(TTS 등)은 여전히 범위 밖.
 
-## 4. 다운로드 자동화 설계
+## 4. 다운로드 자동화 설계 · 구현
 
-### 4.1 Manifest JSON 스키마
+> **구현 완료.** 아래는 최종 구조 — 경로가 최초 설계(`scripts/sound-pipeline/`)에서 `scripts/sounds/`로 조정됐다.
+
+### 4.1 Manifest JSON 스키마 (구현됨: `scripts/sounds/manifest.json`)
 
 ```jsonc
-// docs/../scripts/sound-pipeline/manifest.json (예시 — 아직 미생성, 실제 다운로드 실행 시점에 채움)
-[
-  {
-    "id": "rain-window-01",              // 앱 내부 사운드 ID, kebab-case
-    "category": "rain",                  // 17개 카테고리 슬러그 중 하나
-    "title": "Rain Hitting Window [1]",  // 원제
-    "source": "freesound",               // freesound | archive.org | mixkit | manual
-    "sourceUrl": "https://freesound.org/people/SoundDesignForYou/sounds/xxxxxx/",
-    "downloadUrl": null,                 // 실제 다운로드 시 API 응답에서 채움 (previews-hq-mp3)
-    "license": "CC0-1.0",
-    "author": "SoundDesignForYou",
-    "dateAcquired": null,                // YYYY-MM-DD, 다운로드 실행일에 채움
-    "notes": "루프 후처리 필요"
-  }
-]
+{
+  "id": "rain-heavy-01",                // 앱 내부 사운드 ID, kebab-case
+  "category": "rain",                   // 17개 카테고리 슬러그 중 하나
+  "title": "Heavy Rain",                // 원제
+  "source": "manual",                   // manual(Freesound 등 사람이 받음) | archive.org(자동) | synthesized(파일 불필요)
+  "sourceUrl": "https://freesound.org/people/EricsSoundschmiede/sounds/666624/",
+  "license": "CC0-1.0",
+  "author": "EricsSoundschmiede",
+  "downloadUrl": null,                  // 자동 다운로드 시 채움
+  "dateAcquired": null,                 // YYYY-MM-DD, 다운로드 실행일에 채움
+  "notes": ""
+}
 ```
 
-### 4.2 Node 다운로드 스크립트 개요 (설계만, 미구현)
+실제 manifest는 25개 Freesound 항목(source: "manual") + 노이즈 4종·바이노럴 비트(source: "synthesized", 메타 기록만) + archive.org 검증 결과 메모(`_archiveOrgVerification` — 통과 항목 0건)를 담고 있다.
+
+### 4.2 Node 다운로드 스크립트 (구현됨)
 
 ```
-scripts/sound-pipeline/
-├── manifest.json          # 위 스키마, 사람이 큐레이션한 후보 목록
-├── download.mjs           # manifest를 읽어 raw/{category}/{id}.{ext} 로 저장
-└── .env (gitignore)       # FREESOUND_API_KEY=...
+scripts/sounds/
+├── manifest.json    # 위 스키마 실 데이터
+├── download.mjs     # archive.org 자동 다운로드(체크섬+재시도) — manual/synthesized는 스킵+안내
+├── process.mjs       # ffmpeg 후처리 → public/sounds/{category}/{id}.m4a
+└── raw/              # 다운로드 스테이징(.gitignore 처리됨)
 ```
 
-`download.mjs` 동작 개요:
-1. `source: "freesound"` 항목 → Freesound API `/apiv2/sounds/{id}/` 조회(토큰 인증만, OAuth 불필요) → `previews.preview-hq-mp3` URL로 파일 저장. **API는 후보 존재 확인용으로만 사용 — 실제 앱 번들용 최종 다운로드는 §1.2 권고에 따라 사람이 웹사이트에서 수동 실행하는 것을 기본값으로 함.**
-2. `source: "archive.org"` 항목 → `https://archive.org/download/{identifier}/{filename}` 직접 fetch (인증 불필요, 완전 자동화 가능). 단 §1.4의 검증 절차를 거친 항목만 manifest에 등재.
-3. `source: "mixkit"` / `source: "manual"` → 스크립트가 스킵하고 "수동 다운로드 필요: {title} ({sourceUrl})" 안내만 출력.
-4. 이미 `raw/{category}/{id}.*` 파일이 존재하면 스킵(멱등성).
+`download.mjs` 실행 결과(2026-07-20): 자동 다운로드 성공 0 / 실패 0 / 수동 대기 25 / 합성 대상 5. archive.org 항목이 manifest에 없어(§1.4 검증 결과 0건 통과) 자동 다운로드할 대상 자체가 없었음 — 코드는 `archiveIdentifier`/`archiveFilename` 필드가 있는 항목을 인증 없이 직접 fetch하도록 구현되어 있어 향후 검증 통과 항목이 생기면 바로 동작한다.
+
+Freesound 25건의 실제 다운로드 절차·URL·저장 경로는 `docs/sound-manual-downloads.md`에 정리했다(사용자 수동 단계).
 
 ### 4.3 오디오 후처리 (ffmpeg)
 
@@ -194,6 +194,8 @@ scripts/sound-pipeline/
 3. **포맷 변환 — ⚠️ 플랫폼 호환성 주의:** Capacitor iOS는 WKWebView(Safari 엔진)를 사용하며 **Web Audio `decodeAudioData`가 Ogg Vorbis를 지원하지 않는다.** 크로스플랫폼 호환을 위해 **OGG가 아니라 AAC(.m4a) 또는 MP3**로 변환해야 함.
    `ffmpeg -i looped.wav -c:a aac -b:a 96k -movflags +faststart out.m4a`
 4. 최종 산출물: `public/sounds/{category}/{id}.m4a`
+
+이 로직은 `scripts/sounds/process.mjs`에 구현됨. **⚠️ 블로커(2026-07-20 확인): 이 개발 환경에 ffmpeg가 설치되어 있지 않음**(`which ffmpeg` → not found). 지시에 따라 자동 설치는 시도하지 않았음 — `process.mjs`는 ffmpeg 부재를 감지하면 설치 안내만 출력하고 종료한다(exit 1). ffmpeg 설치(`sudo apt-get install ffmpeg` 등) 후 재실행하면 후처리가 진행됨. raw 원본 파일이 아직 하나도 없어(Freesound 수동 다운로드 대기 중) 어차피 이번 실행에서는 처리할 대상도 없었음.
 
 ### 4.4 용량 예산 (앱 번들 목표 <80MB)
 
