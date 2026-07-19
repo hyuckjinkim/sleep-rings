@@ -1,0 +1,98 @@
+/**
+ * SleepRings 디자인 토큰 — CSS 커스텀 프로퍼티.
+ * 사용법·팔레트 근거·대비 검증 결과: docs/design/visual-theme.md
+ *
+ * 네이밍 규칙: --so-<그룹>-<이름>. 그룹: bg/text/border/orb/state/accent/danger/
+ * space/radius/shadow/glow/font/duration/ease.
+ * :root에만 정의. 아직 어떤 컴포넌트도 import하지 않음(App.tsx 미수정, 빌드 영향 없음).
+ */
+
+:root {
+  /* ---- 배경 (딥 스페이스 다크, #0a0e1a 기준 확장) ---- */
+  --so-bg-void: #05070d; /* 최심부 — 풀블리드 배경 가장자리, 오브 위 아이콘 색으로도 사용 */
+  --so-bg-base: #0a0e1a; /* 앱 기본 배경 (기존 App.tsx와 동일값 유지) */
+  --so-bg-elevated: #12182b; /* 카드/패널/시트 */
+  --so-bg-overlay: #1a2238; /* 팝오버/모달 표면 */
+  --so-border-subtle: #232b45; /* 다크 표면 위 헤어라인 */
+
+  /* ---- 텍스트 ---- */
+  --so-text-primary: #f0f0f5; /* 기존 App.tsx와 동일값 유지 */
+  --so-text-secondary: #a8adc4;
+  --so-text-tertiary: #6b7290;
+  --so-text-disabled: #454b66;
+
+  /* ---- 카테고리 오브 색 (13종, docs/design/architecture.md의 Category와 1:1) ----
+     전부 S54% L60% 고정, hue만 변경 — 채도/명도를 통일해 오브 간 시각적 무게를 균등하게 하고
+     대비비를 일괄 검증 가능하게 함(저자극: 네온 아님, 파스텔에 가까운 중채도). */
+  --so-orb-water: #62b5d0;
+  --so-orb-ocean: #6299d0;
+  --so-orb-rain: #6278d0;
+  --so-orb-binaural: #7462d0;
+  --so-orb-music: #9562d0;
+  --so-orb-lucid: #b662d0;
+  --so-orb-whispers: #d062c9;
+  --so-orb-asmr: #d062a2;
+  --so-orb-animals: #d09962;
+  --so-orb-camping: #d0be62;
+  --so-orb-nature: #62d074;
+  --so-orb-ambient: #62d0a8;
+  --so-orb-noise: #d07462;
+
+  /* ---- 오브 상태 변조 (색 자체는 안 바꾸고 알파/글로우로 상태 표현) ---- */
+  --so-state-idle-opacity: 0.55; /* 대기 오브: 흐리게, 글로우 없음 */
+  --so-state-playing-opacity: 1;
+  --so-state-glow-alpha: 35%; /* color-mix()와 조합해 재생 중 오브 글로우에 사용 */
+  --so-state-locked-ring-width: 2px; /* 고정 상태: 색 변경 대신 링 테두리로 표시 */
+
+  /* ---- 오브 외 UI 강조색 ---- */
+  --so-accent: #93a5c8; /* 중립 문라이트 블루 — 재생/타이머 등 범용 인터랙션, 어떤 카테고리 색과도 안 겹치도록 저채도 */
+  --so-danger: #d45e68; /* 하단 드래그 삭제 존 피드백 전용 */
+
+  /* ---- 간격 (4px 기준) ---- */
+  --so-space-1: 4px;
+  --so-space-2: 8px;
+  --so-space-3: 12px;
+  --so-space-4: 16px;
+  --so-space-5: 24px;
+  --so-space-6: 32px;
+  --so-space-7: 48px;
+  --so-space-8: 64px;
+
+  /* ---- 반경 ---- */
+  --so-radius-sm: 6px;
+  --so-radius-md: 12px;
+  --so-radius-lg: 20px;
+  --so-radius-full: 9999px; /* 오브·원형 컨트롤 */
+
+  /* ---- 타이포 스케일 ---- */
+  --so-font-family: system-ui, sans-serif; /* 기존 App.tsx와 동일값 유지 */
+  --so-font-size-xs: 0.75rem;
+  --so-font-size-sm: 0.875rem;
+  --so-font-size-base: 1rem;
+  --so-font-size-md: 1.25rem;
+  --so-font-size-lg: 1.75rem;
+  --so-font-size-xl: 2.5rem;
+
+  /* ---- 그림자 / 글로우 ----
+     오브 글로우는 카테고리 색과 조합: 예)
+     box-shadow: 0 0 var(--so-glow-blur-md) color-mix(in srgb, var(--so-orb-water) var(--so-state-glow-alpha), transparent); */
+  --so-shadow-panel: 0 8px 24px rgb(0 0 0 / 40%);
+  --so-glow-blur-sm: 12px;
+  --so-glow-blur-md: 24px;
+  --so-glow-blur-lg: 40px;
+
+  /* ---- 모션 (UI 크롬 전환 전용 — 궤도 자체 각속도는 store의 Orbit.speed가 엔진에서 구동,
+     CSS 타이밍이 아님. docs/design/visual-theme.md §모션 참고) ---- */
+  --so-duration-fast: 150ms;
+  --so-duration-base: 300ms;
+  --so-duration-slow: 600ms;
+  --so-ease-gentle: cubic-bezier(0.33, 0, 0.2, 1); /* 느리게 감속하는 완만한 이징 — 수면 친화 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --so-duration-fast: 0ms;
+    --so-duration-base: 0ms;
+    --so-duration-slow: 0ms;
+  }
+}
