@@ -1,12 +1,24 @@
 import { test, expect } from '@playwright/test'
 
 test('drag a sound from the palette onto the field, reposition it, then delete it', async ({ page }) => {
+  const consoleErrors: string[] = []
+  const pageErrors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text())
+  })
+  page.on('pageerror', (err) => pageErrors.push(err.message))
+
   await page.goto('/')
 
   const field = page.locator('.mixer-field')
   // App defaults to Korean, so target the palette by position rather than a locale-specific label.
   const paletteItem = page.locator('.mixer-palette-item').first()
   await expect(paletteItem).toBeVisible()
+  await expect(paletteItem).toBeEnabled() // first catalog entry is a synth noise, always available
+
+  // Sounds with no real audio asset yet are shown locked, not draggable.
+  const lockedItem = page.locator('.mixer-palette-item:disabled').first()
+  await expect(lockedItem).toBeVisible()
 
   const fieldBox = await field.boundingBox()
   const chipBox = await paletteItem.boundingBox()
@@ -23,6 +35,9 @@ test('drag a sound from the palette onto the field, reposition it, then delete i
 
   const orb = page.locator('.mixer-orb')
   await expect(orb).toHaveCount(1)
+  // Synth sound: engine.load()+play() resolve near-instantly with a real AudioContext —
+  // the orb should reach the "playing" look (not stuck dimmed/loading).
+  await expect(orb).not.toHaveClass(/is-loading/)
   const placedBox = await orb.boundingBox()
   if (!placedBox) throw new Error('orb not placed')
 
@@ -46,4 +61,7 @@ test('drag a sound from the palette onto the field, reposition it, then delete i
   await page.mouse.up()
 
   await expect(orb).toHaveCount(0)
+
+  expect(consoleErrors, `console errors: ${consoleErrors.join('; ')}`).toEqual([])
+  expect(pageErrors, `page errors: ${pageErrors.join('; ')}`).toEqual([])
 })
