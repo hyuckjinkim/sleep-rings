@@ -18,3 +18,7 @@ ios/App/Pods/
 *.keystore
 *.jks
 keystore.properties
+
+# Playwright
+test-results/
+playwright-report/
