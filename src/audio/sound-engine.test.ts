@@ -184,6 +184,31 @@ describe('SoundEngine', () => {
     vi.useRealTimers()
   })
 
+  it('scheduleSleep() invokes fadeOutAll() with the configured fade duration exactly at duration-fadeSec', async () => {
+    vi.useFakeTimers()
+    const fadeSpy = vi.spyOn(engine, 'fadeOutAll')
+    engine.scheduleSleep(10, 2)
+
+    vi.advanceTimersByTime(7999)
+    expect(fadeSpy).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1) // crosses the duration-fadeSec (8s) mark
+    expect(fadeSpy).toHaveBeenCalledTimes(1)
+    expect(fadeSpy).toHaveBeenCalledWith(2)
+    vi.useRealTimers()
+  })
+
+  it('cancelSleep() before the fade delay prevents fadeOutAll() from ever firing', async () => {
+    vi.useFakeTimers()
+    const fadeSpy = vi.spyOn(engine, 'fadeOutAll')
+    engine.scheduleSleep(10, 2)
+    vi.advanceTimersByTime(5000)
+    engine.cancelSleep()
+    vi.advanceTimersByTime(10000)
+    expect(fadeSpy).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
   it('cancelSleep() clears pending timers', async () => {
     vi.useFakeTimers()
     await engine.load(NOISE_SOUND)

@@ -12,5 +12,11 @@ export default defineConfig({
     // 파일 직렬 실행으로 워커 동시 스폰 경합 제거 (vitest 4: poolOptions 대신 top-level)
     pool: 'threads',
     fileParallelism: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/setupTests.ts', 'src/main.tsx', 'src/vite-env.d.ts'],
+    },
   },
 })
