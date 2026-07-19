@@ -3,5 +3,21 @@
     "title": "Sleep Mixer",
     "subtitle": "Night sound mixer",
     "toggleLanguage": "한국어"
+  },
+  "mixer": {
+    "field": {
+      "label": "Orbit mixer field",
+      "deleteZone": "Drop here to delete"
+    },
+    "palette": {
+      "label": "Sound palette"
+    },
+    "controls": {
+      "close": "Close",
+      "volume": "Volume",
+      "lock": "Lock position",
+      "unlock": "Unlock",
+      "delete": "Delete"
+    }
   }
 }

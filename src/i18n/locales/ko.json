@@ -3,5 +3,21 @@
     "title": "Sleep Mixer",
     "subtitle": "야간 사운드 믹서",
     "toggleLanguage": "English"
+  },
+  "mixer": {
+    "field": {
+      "label": "오빗 믹서 필드",
+      "deleteZone": "여기로 놓으면 삭제"
+    },
+    "palette": {
+      "label": "사운드 팔레트"
+    },
+    "controls": {
+      "close": "닫기",
+      "volume": "볼륨",
+      "lock": "위치 고정",
+      "unlock": "고정 해제",
+      "delete": "삭제"
+    }
   }
 }
