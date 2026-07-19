@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Capacitor } from '@capacitor/core'
 import { OrbitField } from './OrbitField'
 import { Palette } from './Palette'
 import { OrbControls } from './OrbControls'
@@ -8,6 +9,7 @@ import { soundName } from '../library/catalog'
 import { useMixStore } from './store'
 import { restoreMix, subscribeAutoSave } from '../sleep/persistence'
 import { SleepControls } from '../sleep/SleepControls'
+import { startKeepAliveAudio } from '../mobile'
 import type { Locale } from './types'
 import './mixer.css'
 
@@ -29,6 +31,10 @@ export function Mixer() {
     if (engineInitialized) return
     engineInitialized = true
     void soundEngine.init()
+    // Native only: the silent keep-alive <audio> is purely an iOS/Android background-audio
+    // trick (docs/android-build.md §4) — on plain web it would just show a spurious "tab is
+    // playing audio" indicator for no benefit.
+    if (Capacitor.isNativePlatform()) startKeepAliveAudio()
   }
 
   return (

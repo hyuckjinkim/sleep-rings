@@ -88,6 +88,7 @@
   font-size: var(--so-font-size-xs, 0.65rem);
   text-align: center;
   line-height: 1.1;
+  word-break: keep-all; /* Korean label mid-word wraps ("노이 즈") without this */
   padding: var(--so-space-1, 0.25rem);
   cursor: grab;
   user-select: none;
