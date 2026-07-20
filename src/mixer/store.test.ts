@@ -12,6 +12,7 @@ beforeEach(() => {
     presets: [],
     sleepEndsAt: null,
     sleeping: false,
+    lastRemoved: null,
   })
 })
 
@@ -68,6 +69,64 @@ describe('useMixStore', () => {
     expect(stopSpy).toHaveBeenCalledWith(id, expect.any(Number))
     expect(stopSpy.mock.calls[0][1]).toBeGreaterThan(0)
     stopSpy.mockRestore()
+  })
+
+  it('adding a placement clears the sleeping flag (B17 regression)', () => {
+    useMixStore.setState({ sleeping: true })
+    useMixStore.getState().addPlacement('noise-white', 0.4, 1.2)
+    expect(useMixStore.getState().sleeping).toBe(false)
+  })
+
+  it('sets the master volume, clamped, and forwards it to the engine', () => {
+    const setVolumeSpy = vi.spyOn(soundEngine, 'setMasterVolume')
+    useMixStore.getState().setMasterVolume(0.5)
+    expect(useMixStore.getState().current.masterVolume).toBe(0.5)
+    expect(setVolumeSpy).toHaveBeenCalledWith(0.5)
+
+    useMixStore.getState().setMasterVolume(5) // out of range, must clamp
+    expect(useMixStore.getState().current.masterVolume).toBe(1)
+    setVolumeSpy.mockRestore()
+  })
+})
+
+describe('undo (B7)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('restores the most recently removed placement', () => {
+    const id = useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
+    useMixStore.getState().removePlacement(id)
+    expect(useMixStore.getState().current.placements).toHaveLength(0)
+    expect(useMixStore.getState().lastRemoved).toMatchObject({ id, soundId: 'pink-noise' })
+
+    useMixStore.getState().restoreLastRemoved()
+    expect(useMixStore.getState().current.placements).toMatchObject([{ id, soundId: 'pink-noise' }])
+    expect(useMixStore.getState().lastRemoved).toBeNull()
+  })
+
+  it('only keeps a single slot — removing a second placement drops the first from the undo buffer', () => {
+    const idA = useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
+    const idB = useMixStore.getState().addPlacement('noise-white', 0.2, 0.5)
+    useMixStore.getState().removePlacement(idA)
+    useMixStore.getState().removePlacement(idB)
+
+    expect(useMixStore.getState().lastRemoved?.id).toBe(idB)
+    useMixStore.getState().restoreLastRemoved()
+    expect(useMixStore.getState().current.placements.map((p) => p.id)).toEqual([idB])
+  })
+
+  it('expires the undo buffer after the timeout', () => {
+    const id = useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
+    useMixStore.getState().removePlacement(id)
+    vi.advanceTimersByTime(5000)
+
+    expect(useMixStore.getState().lastRemoved).toBeNull()
+    useMixStore.getState().restoreLastRemoved() // no-op once expired
+    expect(useMixStore.getState().current.placements).toHaveLength(0)
   })
 })
 

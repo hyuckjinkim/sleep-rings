@@ -37,18 +37,41 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0.6rem;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   background: var(--so-bg-elevated, #12182b);
-  color: var(--so-text-secondary, #a8adc4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
+  filter: drop-shadow(0 0 8px rgba(240, 240, 245, 0.35));
   pointer-events: none;
   z-index: 0; /* orbs always render above the head */
+}
+
+/* B16: radius guide rings (visual-theme.md §4) — neutral, decorative, below orbs/head. */
+.orbit-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mixer-field-hint {
+  position: absolute;
+  top: 62%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  margin: 0;
+  text-align: center;
+  color: var(--so-text-tertiary, #6b7290);
+  font-size: var(--so-font-size-xs, 0.75rem);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .mixer-field-delete-zone {
@@ -65,8 +88,14 @@
   justify-content: center;
   padding-bottom: var(--so-space-2, 0.5rem);
   font-size: var(--so-font-size-xs, 0.75rem);
-  opacity: 0.6;
+  opacity: 0; /* B11: only shown while actually dragging an orb, via .is-visible */
   pointer-events: none;
+  user-select: none; /* B15 */
+  transition: opacity var(--so-duration-fast, 150ms) var(--so-ease-gentle, ease);
+}
+
+.mixer-field-delete-zone.is-visible {
+  opacity: 0.6;
 }
 
 .mixer-orb {
@@ -116,6 +145,12 @@
   outline-offset: 3px;
 }
 
+.mixer-orb.is-pending-lock {
+  /* B8: dashed + dimmer than the solid is-locked ring — reads as "building up", not "locked yet" */
+  outline: 2px dashed var(--so-text-tertiary, #6b7290);
+  outline-offset: 3px;
+}
+
 .mixer-orb.is-selected {
   box-shadow:
     0 0 0 3px var(--so-accent, #93a5c8),
@@ -132,11 +167,15 @@
   gap: var(--so-space-2, 0.5rem);
   overflow-x: auto;
   padding: var(--so-space-2, 0.5rem);
+  /* B19: fade the right edge so a partially-cut-off chip reads as "scroll for more", not "layout broke" */
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
 }
 
 .mixer-palette-item {
   flex: 0 0 auto;
-  padding: var(--so-space-2, 0.5rem) var(--so-space-3, 0.75rem);
+  min-height: 44px; /* B4 */
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
   border-radius: var(--so-radius-full, 999px);
   border: none;
   /* visual-theme.md §6: low-saturation category tint, not the full orb color */
@@ -153,6 +192,8 @@
   left: 0;
   right: 0;
   bottom: 0;
+  max-height: 80vh; /* the orbit-mode/speed/shape rows can push this tall on short viewports */
+  overflow-y: auto;
   background: var(--so-bg-overlay, #1a2238);
   border-top: 1px solid var(--so-border-subtle, #232b45);
   border-radius: var(--so-radius-lg, 20px) var(--so-radius-lg, 20px) 0 0;
@@ -167,13 +208,20 @@
     transform var(--so-duration-base, 300ms) var(--so-ease-gentle, ease);
 }
 
+.mixer-controls-divider {
+  border: none;
+  border-top: 1px solid var(--so-border-subtle, #232b45);
+  margin: 0;
+}
+
 .mixer-controls-row {
   display: flex;
   align-items: center;
   gap: var(--so-space-3, 0.75rem);
 }
 
-.mixer-controls-row input[type='range'] {
+.mixer-controls-row input[type='range'],
+.mixer-master input[type='range'] {
   flex: 1;
   accent-color: var(--so-accent, #93a5c8);
 }
@@ -186,7 +234,8 @@
 }
 
 .mixer-sleep-timer,
-.mixer-presets-save {
+.mixer-presets-save,
+.mixer-master {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -195,8 +244,11 @@
 
 .mixer-sleep-timer button,
 .mixer-presets-save button,
-.mixer-presets-list button {
-  padding: var(--so-space-1, 0.25rem) var(--so-space-3, 0.75rem);
+.mixer-presets-list button,
+.mixer-controls-row button {
+  min-height: 44px; /* B4 */
+  min-width: 44px;
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
   border-radius: var(--so-radius-full, 999px);
   border: 1px solid var(--so-border-subtle, #232b45);
   background: var(--so-bg-elevated, #12182b);
@@ -244,4 +296,26 @@
 
 .mixer-presets-list li span {
   flex: 1;
+}
+
+.mixer-master label {
+  color: var(--so-text-secondary, #a8adc4);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+/* B7: single-slot "undo delete" toast, dismisses itself after store.ts's UNDO_TIMEOUT_MS. */
+.mixer-undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--so-space-5, 1.5rem) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 10;
+  min-height: 44px;
+  background: var(--so-bg-overlay, #1a2238);
+  color: var(--so-text-primary, #f0f0f5);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  border-radius: var(--so-radius-full, 999px);
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
+  font-size: var(--so-font-size-sm, 0.875rem);
 }

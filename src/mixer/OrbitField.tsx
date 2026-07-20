@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
@@ -33,6 +33,11 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   const liveAngles = useRef(new Map<string, number>()).current
   const nextFlipAt = useRef(new Map<string, number>()).current
   const interactingIds = useRef(new Set<string>()).current
+  // B11: the delete zone should only be visible while an orb is actually being dragged, not
+  // just because a popover is open (that path adds to interactingIds separately below via
+  // beginInteraction/endInteraction's own dragCount, never touched by the selectedId effect).
+  const dragCount = useRef(0)
+  const [isDragging, setIsDragging] = useState(false)
 
   function registerEl(id: string, el: HTMLDivElement | null) {
     if (el) {
@@ -46,6 +51,8 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
 
   function beginInteraction(id: string) {
     interactingIds.add(id)
+    dragCount.current += 1
+    setIsDragging(true)
   }
   // L1 fix: only drop the live angle when the gesture actually committed a new one to the
   // store (drag/swipe). store.angle is otherwise stale (orbit motion never writes it back —
@@ -54,6 +61,8 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   function endInteraction(id: string, committedPosition = false) {
     interactingIds.delete(id)
     if (committedPosition) liveAngles.delete(id)
+    dragCount.current = Math.max(0, dragCount.current - 1)
+    if (dragCount.current === 0) setIsDragging(false)
   }
 
   // Freeze the orb behind an open control popover so its radius slider isn't fighting orbit
@@ -117,9 +126,21 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   }, [])
 
   return (
-    <div className="mixer-field" ref={fieldRef} aria-label={t('mixer.field.label')}>
+    <div className="mixer-field" ref={fieldRef} role="region" aria-label={t('mixer.field.label')}>
+      {/* B16: 25/50/75% radius guides (100% is already the field's own border), per
+          visual-theme.md §4 — pure decoration, opacity rises toward the center for depth. */}
+      <div className="orbit-ring" style={{ width: '25%', height: '25%', opacity: 0.5 }} aria-hidden="true" />
+      <div className="orbit-ring" style={{ width: '50%', height: '50%', opacity: 0.4 }} aria-hidden="true" />
+      <div className="orbit-ring" style={{ width: '75%', height: '75%', opacity: 0.3 }} aria-hidden="true" />
+      {placements.length === 0 && <p className="mixer-field-hint">{t('mixer.field.hint')}</p>}
       <div className="mixer-field-head" aria-hidden="true">
-        🌙
+        {/* B5: was a literal 🌙 emoji — unreliable cold-start rendering and no visual tie to
+            assets/icon.svg. Same subtract-circle crescent technique, inlined so no asset path
+            is needed. The second circle is filled with the head's own background to "cut out". */}
+        <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
+          <circle cx="50" cy="50" r="42" fill="var(--so-text-primary, #f0f0f5)" />
+          <circle cx="64" cy="38" r="38" fill="var(--so-bg-elevated, #12182b)" />
+        </svg>
       </div>
       {placements.map((p) => (
         <Orb
@@ -136,7 +157,7 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
           endInteraction={endInteraction}
         />
       ))}
-      <div className="mixer-field-delete-zone" aria-hidden="true">
+      <div className={`mixer-field-delete-zone${isDragging ? ' is-visible' : ''}`} aria-hidden="true">
         {t('mixer.field.deleteZone')}
       </div>
     </div>

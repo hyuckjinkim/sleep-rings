@@ -2,6 +2,7 @@
 // owns the state shape/mutations and never imports this file, so store.test.ts stays
 // localStorage-free. This module reads/writes and pokes the store via its public API.
 import { emptyMix, startPlayback, useMixStore } from '../mixer/store'
+import { soundEngine } from '../mixer/engine/instance'
 import type { Mix } from '../mixer/types'
 
 const CURRENT_SCHEMA = 1
@@ -56,6 +57,7 @@ export function restoreMix(): void {
   const mix = loadMix()
   const presets = loadPresets()
   useMixStore.setState({ current: mix, presets })
+  soundEngine.setMasterVolume(mix.masterVolume) // restore the saved master volume, not just display it
   for (const placement of mix.placements) startPlayback(placement)
 }
 

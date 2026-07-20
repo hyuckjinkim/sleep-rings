@@ -19,7 +19,9 @@
   --so-text-primary: #f0f0f5; /* 기존 App.tsx와 동일값 유지 */
   --so-text-secondary: #a8adc4;
   --so-text-tertiary: #6b7290;
-  --so-text-disabled: #454b66;
+  /* B12: raised from #454b66 (2.06:1 measured against --so-bg-elevated) so a disabled control
+     stays legible in a dark room instead of vanishing entirely. */
+  --so-text-disabled: #5c6386;
 
   /* ---- 카테고리 오브 색 (13종, docs/design/architecture.md의 Category와 1:1) ----
      전부 S54% L60% 고정, hue만 변경 — 채도/명도를 통일해 오브 간 시각적 무게를 균등하게 하고
@@ -95,4 +97,24 @@
     --so-duration-base: 0ms;
     --so-duration-slow: 0ms;
   }
+}
+
+/* B21: token-based focus ring — previously relied on the browser's auto outline, which is
+   near-invisible on several dark button backgrounds in this UI. */
+:is(button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--so-accent, #93a5c8);
+  outline-offset: 2px;
+}
+
+/* B6: was a completely unstyled native <button> — a stray white rectangle at the top of a
+   dark screen. Matches the tone already used by the sleep-timer/preset buttons. */
+.app-lang-toggle {
+  min-height: 44px;
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: var(--so-bg-elevated, #12182b);
+  color: var(--so-text-secondary, #a8adc4);
+  font-size: var(--so-font-size-sm, 0.875rem);
+  cursor: pointer;
 }

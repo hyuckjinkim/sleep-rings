@@ -15,12 +15,15 @@ function formatRemaining(ms: number): string {
 export function SleepControls() {
   const { t } = useTranslation()
   const sleepEndsAt = useMixStore((s) => s.sleepEndsAt)
+  const sleeping = useMixStore((s) => s.sleeping)
   const startSleepTimer = useMixStore((s) => s.startSleepTimer)
   const cancelSleepTimer = useMixStore((s) => s.cancelSleepTimer)
   const presets = useMixStore((s) => s.presets)
   const savePreset = useMixStore((s) => s.savePreset)
   const loadPreset = useMixStore((s) => s.loadPreset)
   const deletePreset = useMixStore((s) => s.deletePreset)
+  const masterVolume = useMixStore((s) => s.current.masterVolume)
+  const setMasterVolume = useMixStore((s) => s.setMasterVolume)
   const [presetName, setPresetName] = useState('')
   const [now, setNow] = useState(Date.now())
 
@@ -39,13 +42,29 @@ export function SleepControls() {
 
   return (
     <div className="mixer-sleep" aria-label={t('mixer.sleep.title')}>
+      <div className="mixer-master">
+        <label htmlFor="master-volume">{t('mixer.master.volume')}</label>
+        <input
+          id="master-volume"
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(masterVolume * 100)}
+          onChange={(e) => setMasterVolume(Number(e.target.value) / 100)}
+        />
+        <span>{Math.round(masterVolume * 100)}%</span>
+      </div>
+
       <div className="mixer-sleep-timer">
         {PRESET_MINUTES.map((minutes) => (
           <button key={minutes} type="button" onClick={() => startSleepTimer(minutes)}>
             {t('mixer.sleep.minutes', { minutes })}
           </button>
         ))}
-        <button type="button" onClick={cancelSleepTimer} disabled={!sleepEndsAt}>
+        {/* B3: disabled={!sleepEndsAt} couldn't distinguish "no timer set" from "timer just
+            finished" — both zero out sleepEndsAt, but only the first should disable "Off".
+            B17 keeps `sleeping` in sync elsewhere so this only needs the one extra check. */}
+        <button type="button" onClick={cancelSleepTimer} disabled={!sleepEndsAt && !sleeping}>
           {t('mixer.sleep.off')}
         </button>
         {sleepEndsAt && (

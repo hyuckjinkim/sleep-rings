@@ -16,11 +16,13 @@ import './mixer.css'
 let engineInitialized = false
 
 export function Mixer() {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const fieldRef = useRef<HTMLDivElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const locale = (i18n.language === 'en' ? 'en' : 'ko') as Locale
   const selectedSoundId = useMixStore((s) => s.current.placements.find((p) => p.id === selectedId)?.soundId)
+  const lastRemoved = useMixStore((s) => s.lastRemoved)
+  const restoreLastRemoved = useMixStore((s) => s.restoreLastRemoved)
 
   useEffect(() => {
     restoreMix()
@@ -45,6 +47,11 @@ export function Mixer() {
       <SleepControls />
       {selectedId && selectedSoundId && (
         <OrbControls placementId={selectedId} label={soundName(selectedSoundId, locale)} onClose={() => setSelectedId(null)} />
+      )}
+      {lastRemoved && (
+        <button type="button" className="mixer-undo-toast" onClick={restoreLastRemoved}>
+          {t('mixer.undo.restore')}
+        </button>
       )}
     </div>
   )

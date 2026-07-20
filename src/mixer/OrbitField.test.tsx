@@ -34,6 +34,7 @@ beforeEach(() => {
     presets: [],
     sleepEndsAt: null,
     sleeping: false,
+    lastRemoved: null,
   })
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(FIELD_RECT)
   vi.useFakeTimers()

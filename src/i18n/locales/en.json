@@ -7,7 +7,8 @@
   "mixer": {
     "field": {
       "label": "Orbit mixer field",
-      "deleteZone": "Drop here to delete"
+      "deleteZone": "Drop here to delete",
+      "hint": "Tap a sound to place it"
     },
     "palette": {
       "label": "Sound palette"
@@ -17,7 +18,17 @@
       "volume": "Volume",
       "lock": "Lock position",
       "unlock": "Unlock",
-      "delete": "Delete"
+      "delete": "Delete",
+      "orbitFixed": "Fix orbit",
+      "orbitRandom": "Randomize orbit",
+      "orbitSpeed": "Orbit speed",
+      "orbitShape": "Orbit shape"
+    },
+    "master": {
+      "volume": "Master volume"
+    },
+    "undo": {
+      "restore": "Undo delete"
     },
     "sleep": {
       "title": "Sleep timer",

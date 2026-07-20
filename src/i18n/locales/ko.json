@@ -7,7 +7,8 @@
   "mixer": {
     "field": {
       "label": "오빗 믹서 필드",
-      "deleteZone": "여기로 놓으면 삭제"
+      "deleteZone": "여기로 놓으면 삭제",
+      "hint": "사운드를 탭해 놓아보세요"
     },
     "palette": {
       "label": "사운드 팔레트"
@@ -17,7 +18,17 @@
       "volume": "볼륨",
       "lock": "위치 고정",
       "unlock": "고정 해제",
-      "delete": "삭제"
+      "delete": "삭제",
+      "orbitFixed": "궤도 고정",
+      "orbitRandom": "랜덤 궤도로",
+      "orbitSpeed": "궤도 속도",
+      "orbitShape": "궤도 모양"
+    },
+    "master": {
+      "volume": "마스터 볼륨"
+    },
+    "undo": {
+      "restore": "삭제 취소"
     },
     "sleep": {
       "title": "슬립 타이머",

@@ -85,6 +85,7 @@ beforeEach(() => {
     presets: [],
     sleepEndsAt: null,
     sleeping: false,
+    lastRemoved: null,
   })
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(FIELD_RECT)
 })
@@ -118,7 +119,7 @@ describe('Orb gestures', () => {
     const orb = screen.getByRole('button')
 
     fireEvent.pointerDown(orb, { pointerId: 1, clientX: 100, clientY: 50 })
-    vi.advanceTimersByTime(500)
+    vi.advanceTimersByTime(700) // B8: LONG_PRESS_MS 500→700 튜닝 반영
     expect(getPlacement(placement.id)?.locked).toBe(true)
 
     fireEvent.pointerUp(orb, { pointerId: 1, clientX: 100, clientY: 50 })
@@ -188,5 +189,47 @@ describe('Orb gestures', () => {
     fireEvent.pointerUp(orb, { pointerId: 1, clientX: 180, clientY: 180 })
     expect(getPlacement(placement.id)).toMatchObject({ radius: 0.5, angle: 0 })
     expect(onTap).not.toHaveBeenCalled() // stale gesture was null, so release isn't read as a tap either
+  })
+
+  it('Enter opens the control popover via keyboard (B1 regression)', () => {
+    const placement = addTestPlacement()
+    render(<SelectionHarness placement={placement} />)
+    const orb = screen.getByRole('button')
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    orb.focus()
+    fireEvent.keyDown(orb, { key: 'Enter' })
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('Space opens the control popover via keyboard (B1 regression)', () => {
+    const placement = addTestPlacement()
+    render(<SelectionHarness placement={placement} />)
+    const orb = screen.getByRole('button')
+
+    fireEvent.keyDown(orb, { key: ' ' })
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('Delete removes the placement via keyboard (B1 regression)', () => {
+    const placement = addTestPlacement()
+    render(<OrbHarness placement={placement} onTap={vi.fn()} beginInteraction={vi.fn()} endInteraction={vi.fn()} />)
+    const orb = screen.getByRole('button')
+
+    fireEvent.keyDown(orb, { key: 'Delete' })
+
+    expect(getPlacement(placement.id)).toBeUndefined()
+  })
+
+  it('a wheel scroll adjusts orbit eccentricity via a non-passive native listener (B10 regression)', () => {
+    const placement = addTestPlacement()
+    render(<OrbHarness placement={placement} onTap={vi.fn()} beginInteraction={vi.fn()} endInteraction={vi.fn()} />)
+    const orb = screen.getByRole('button')
+
+    fireEvent.wheel(orb, { deltaY: 100 })
+
+    expect(getPlacement(placement.id)?.orbit.shape).toMatchObject({ kind: 'ellipse', eccentricity: 0.08 })
   })
 })

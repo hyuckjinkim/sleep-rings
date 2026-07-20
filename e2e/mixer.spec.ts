@@ -64,3 +64,21 @@ test('drag a sound from the palette onto the field, reposition it, then delete i
   expect(consoleErrors, `console errors: ${consoleErrors.join('; ')}`).toEqual([])
   expect(pageErrors, `page errors: ${pageErrors.join('; ')}`).toEqual([])
 })
+
+test('keyboard-only: add a sound with Enter and open its control popover with Enter (B1 regression)', async ({ page }) => {
+  await page.goto('/')
+
+  // Focused activation (Enter on a native <button>) rather than .click() — this is the actual
+  // keyboard path a screen-reader/switch/keyboard-only user relies on.
+  const paletteItem = page.locator('.mixer-palette-item').first()
+  await paletteItem.focus()
+  await page.keyboard.press('Enter')
+
+  const orb = page.locator('.mixer-orb')
+  await expect(orb).toHaveCount(1)
+
+  await orb.focus()
+  await page.keyboard.press('Enter')
+
+  await expect(page.locator('[role="dialog"]')).toBeVisible()
+})

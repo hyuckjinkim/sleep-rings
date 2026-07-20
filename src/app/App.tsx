@@ -26,7 +26,9 @@ export function App() {
     >
       <h1>{t('app.title')}</h1>
       <p>{t('app.subtitle')}</p>
-      <button onClick={toggleLanguage}>{t('app.toggleLanguage')}</button>
+      <button className="app-lang-toggle" onClick={toggleLanguage}>
+        {t('app.toggleLanguage')}
+      </button>
       <Mixer />
     </main>
   )

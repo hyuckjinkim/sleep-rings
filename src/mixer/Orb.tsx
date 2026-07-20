@@ -4,7 +4,7 @@ import { DEFAULT_ORBIT_SPEED, useMixStore } from './store'
 import { angleDelta, clamp, polarToUnit, unitToPolar } from './geometry'
 import type { Category, OrbitShape, Placement } from './types'
 
-const LONG_PRESS_MS = 500
+const LONG_PRESS_MS = 700 // B8: 500ms fired too easily on a careful mid-drag pause; 700ms + the is-pending-lock cue below give more room to tell "hesitating" from "locking".
 const SWIPE_MAX_MS = 300
 const SWIPE_MIN_ANGLE = 0.2 // rad, ~11.5deg
 const MOVE_THRESHOLD_ANGLE = 0.02
@@ -32,7 +32,8 @@ function clientToUnit(clientX: number, clientY: number, m: { cx: number; cy: num
   return { x: (clientX - m.cx) / m.r, y: (clientY - m.cy) / m.r }
 }
 
-function shapeForEccentricity(eccentricity: number): OrbitShape {
+// Exported for reuse by the orbit-shape slider in OrbControls.tsx (pinch-inaccessible fallback).
+export function shapeForEccentricity(eccentricity: number): OrbitShape {
   return eccentricity < 0.05 ? { kind: 'circle' } : { kind: 'ellipse', eccentricity, tilt: 0 }
 }
 
@@ -74,6 +75,22 @@ export function Orb({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // B10: React registers onWheel as a passive listener, so preventDefault() inside it is a
+  // no-op that also spams the console every scroll tick. A native listener registered with
+  // { passive: false } is the only way to actually suppress background page scroll here.
+  useEffect(() => {
+    const el = elRef.current
+    if (!el) return
+    function onWheelNative(e: WheelEvent) {
+      e.preventDefault()
+      const currentEcc = placement.orbit.shape.kind === 'ellipse' ? placement.orbit.shape.eccentricity : 0
+      const eccentricity = clamp(currentEcc + (e.deltaY > 0 ? 0.08 : -0.08), 0, 0.85)
+      updatePlacement(placement.id, { orbit: { shape: shapeForEccentricity(eccentricity) } })
+    }
+    el.addEventListener('wheel', onWheelNative, { passive: false })
+    return () => el.removeEventListener('wheel', onWheelNative)
+  }, [placement, updatePlacement])
+
   function setLiveTransform(radius: number, angle: number, shape: OrbitShape) {
     const el = elRef.current
     const field = fieldRef.current
@@ -88,6 +105,7 @@ export function Orb({
       window.clearTimeout(gesture.current.longPressTimer)
       gesture.current.longPressTimer = null
     }
+    elRef.current?.classList.remove('is-pending-lock')
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -108,10 +126,12 @@ export function Orb({
         moved: false,
         longPressFired: false,
         longPressTimer: window.setTimeout(() => {
+          elRef.current?.classList.remove('is-pending-lock')
           if (gesture.current) gesture.current.longPressFired = true
           toggleLocked(placement.id)
         }, LONG_PRESS_MS),
       }
+      elRef.current?.classList.add('is-pending-lock') // B8: visible cue while the hold is building up to a lock
     } else if (pointers.current.size === 2) {
       clearLongPress()
       // L2 fix: drop the single-pointer drag state entirely (not just its timer). Otherwise
@@ -244,11 +264,17 @@ export function Orb({
     endInteraction(placement.id)
   }
 
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
-    e.preventDefault()
-    const currentEcc = placement.orbit.shape.kind === 'ellipse' ? placement.orbit.shape.eccentricity : 0
-    const eccentricity = clamp(currentEcc + (e.deltaY > 0 ? 0.08 : -0.08), 0, 0.85)
-    updatePlacement(placement.id, { orbit: { shape: shapeForEccentricity(eccentricity) } })
+  // B1: Orb was role="button" tabIndex={0} with no onKeyDown — completely unreachable by
+  // keyboard. Enter/Space mirrors the tap-to-open-popover gesture; Delete/Backspace mirrors
+  // the delete-zone drag (the undo toast in store.ts's removePlacement covers both).
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onTap(placement.id)
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault()
+      removePlacement(placement.id)
+    }
   }
 
   return (
@@ -265,7 +291,7 @@ export function Orb({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
-      onWheel={handleWheel}
+      onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
       aria-label={label}
