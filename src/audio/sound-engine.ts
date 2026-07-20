@@ -3,9 +3,10 @@
 //
 // Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> destination.
 import type { NoiseColor, Placement, Sound } from '../data/types'
+import { renderBinauralBuffer } from './binaural'
 import { fadeTo } from './fade'
 import { createAudioBufferLoader } from './loader'
-import { renderNoiseBuffer } from './noise'
+import { NOISE_BUFFER_SECONDS, renderNoiseBuffer } from './noise'
 import { MAX_DISTANCE, RAMP_SEC, REF_DISTANCE, angleToPosition, fallbackGain, fallbackPan, shouldApplyRamp } from './spatial'
 import type {
   EngineAudioBuffer,
@@ -19,24 +20,35 @@ import type {
 export type PanQuality = 'hrtf' | 'stereo'
 
 const NOISE_SECONDS = 10
-const NOISE_COLORS: readonly NoiseColor[] = ['white', 'pink', 'brown', 'green']
+const NOISE_COLORS: readonly NoiseColor[] = ['white', 'pink', 'brown', 'green', 'rain', 'wind', 'waves', 'stream']
+const BINAURAL_SECONDS = 10
 // audio-engine.md §5: individual placement onset should fade in too, not click straight to gain.
 const FADE_IN_SEC = 0.2
+// ponytail: no real mobile-WebView HRTF budget measurement yet (design doc §8 open question #2)
+// — a flat active-placement-count heuristic is the cheap safety net. One-way (no upgrade back to
+// HRTF once downgraded): hysteresis isn't worth the complexity for a rare "you piled on too many
+// sounds" edge case.
+const HRTF_AUTO_DOWNGRADE_THRESHOLD = 8
 
 interface LoadedSound {
   buffer: EngineAudioBuffer
   loopStart?: number
   loopEnd?: number
+  // Binaural beats bake hard L/R separation into the buffer itself — routing them through a
+  // Panner/StereoPanner would collapse or reposition that separation, so they skip the spatial
+  // node entirely (docs/design/audio-engine.md gap notes, E3 §6).
+  panBypass?: boolean
 }
 
 interface PlacementNodes {
   source: EngineBufferSourceNode
-  spatial: EnginePannerNode | EngineStereoPannerNode
+  spatial: EnginePannerNode | EngineStereoPannerNode | null
   gain: EngineGainNode
   quality: PanQuality
   placement: Placement
   lastRampAt: number
   lastGain: number
+  panBypass: boolean
 }
 
 function createDefaultAudioContext(): EngineAudioContext {
@@ -48,6 +60,7 @@ export class SoundEngine {
   private readonly loadFile: (url: string) => Promise<EngineAudioBuffer>
   private readonly sounds = new Map<string, LoadedSound>()
   private readonly noiseBuffers = new Map<NoiseColor, EngineAudioBuffer>()
+  private readonly binauralBuffers = new Map<string, EngineAudioBuffer>() // keyed "carrierHz:beatHz" — presets share buffers, same as noise colors
   private readonly active = new Map<string, PlacementNodes>()
   private quality: PanQuality = 'hrtf'
   private sleepFadeTimer?: ReturnType<typeof setTimeout>
@@ -65,11 +78,16 @@ export class SoundEngine {
     for (const color of NOISE_COLORS) this.renderAndCacheNoise(color)
   }
 
-  /** Load a catalog sound (fetch+decode for files, cached buffer for synth noise). Idempotent. */
+  /** Load a catalog sound (fetch+decode for files, cached buffer for synth/binaural). Idempotent. */
   async load(sound: Sound): Promise<void> {
     if (this.sounds.has(sound.id)) return
     if (sound.source.kind === 'synth') {
       this.sounds.set(sound.id, { buffer: this.renderAndCacheNoise(sound.source.generator) })
+      return
+    }
+    if (sound.source.kind === 'binaural') {
+      const buffer = this.renderAndCacheBinaural(sound.source.carrierHz, sound.source.beatHz)
+      this.sounds.set(sound.id, { buffer, panBypass: true })
       return
     }
     const buffer = await this.loadFile(sound.source.src)
@@ -90,21 +108,35 @@ export class SoundEngine {
     if (loaded.loopStart !== undefined) source.loopStart = loaded.loopStart
     if (loaded.loopEnd !== undefined) source.loopEnd = loaded.loopEnd
 
-    const spatial = this.buildSpatialNode(this.quality)
+    const panBypass = loaded.panBypass === true
+    const spatial = panBypass ? null : this.buildSpatialNode(this.quality)
     const gain = this.ctx.createGain()
-    source.connect(spatial)
-    spatial.connect(gain)
+    source.connect(spatial ?? gain)
+    if (spatial) spatial.connect(gain)
     gain.connect(this.master)
 
-    const target = this.computeGain(placement, this.quality)
-    const nodes: PlacementNodes = { source, spatial, gain, quality: this.quality, placement, lastRampAt: -Infinity, lastGain: target }
+    const target = this.computeGain(placement, this.quality, panBypass)
+    const nodes: PlacementNodes = {
+      source,
+      spatial,
+      gain,
+      quality: this.quality,
+      placement,
+      lastRampAt: -Infinity,
+      lastGain: target,
+      panBypass,
+    }
     this.active.set(placement.id, nodes)
 
     gain.gain.value = 0
     fadeTo(gain.gain, this.ctx.currentTime, target, FADE_IN_SEC)
-    this.applySpatial(nodes, placement, true)
+    if (!panBypass) this.applySpatial(nodes, placement, true)
 
     source.start()
+
+    if (this.quality === 'hrtf' && this.active.size > HRTF_AUTO_DOWNGRADE_THRESHOLD) {
+      this.setPanQuality('stereo')
+    }
   }
 
   /** Stop a placement, optionally fading out first, then tear down its node chain. */
@@ -128,12 +160,12 @@ export class SoundEngine {
     // MEDIUM-1: OrbitField calls this every rAF frame while a placement orbits. A raw
     // `.value =` assignment is an immediate automation event that cancels any in-flight ramp
     // (e.g. play()'s fade-in) — only touch it when the gain actually changed.
-    const g = this.computeGain(placement, nodes.quality)
+    const g = this.computeGain(placement, nodes.quality, nodes.panBypass)
     if (g !== nodes.lastGain) {
       nodes.gain.gain.value = g
       nodes.lastGain = g
     }
-    if (!placement.locked) this.applySpatial(nodes, placement, false)
+    if (!nodes.panBypass && !placement.locked) this.applySpatial(nodes, placement, false)
   }
 
   setMasterVolume(v: number): void {
@@ -145,8 +177,10 @@ export class SoundEngine {
     if (q === this.quality) return
     this.quality = q
     for (const nodes of this.active.values()) {
+      if (nodes.panBypass) continue // binaural has no spatial node to rewire — hard L/R survives quality switches untouched
+
       nodes.source.disconnect()
-      nodes.spatial.disconnect()
+      nodes.spatial?.disconnect()
 
       const spatial = this.buildSpatialNode(q)
       nodes.source.connect(spatial)
@@ -155,7 +189,7 @@ export class SoundEngine {
       nodes.spatial = spatial
       nodes.quality = q
       nodes.lastRampAt = -Infinity
-      nodes.lastGain = this.computeGain(nodes.placement, q)
+      nodes.lastGain = this.computeGain(nodes.placement, q, false)
       nodes.gain.gain.value = nodes.lastGain
       this.applySpatial(nodes, nodes.placement, true)
     }
@@ -190,6 +224,7 @@ export class SoundEngine {
   inspect(placementId: string): { gain: number; pan: { x: number; z: number } } | null {
     const nodes = this.active.get(placementId)
     if (!nodes) return null
+    if (nodes.panBypass) return { gain: nodes.gain.gain.value, pan: { x: 0, z: 0 } } // hard L/R is baked into the buffer, not a spatial node
     if (nodes.quality === 'hrtf') {
       const panner = nodes.spatial as EnginePannerNode
       return { gain: nodes.gain.gain.value, pan: { x: panner.positionX.value, z: panner.positionZ.value } }
@@ -213,14 +248,25 @@ export class SoundEngine {
     this.active.clear()
     this.sounds.clear()
     this.noiseBuffers.clear()
+    this.binauralBuffers.clear()
     void this.ctx.close()
   }
 
   private renderAndCacheNoise(color: NoiseColor): EngineAudioBuffer {
     const cached = this.noiseBuffers.get(color)
     if (cached) return cached
-    const buffer = renderNoiseBuffer(this.ctx, color, this.ctx.sampleRate, NOISE_SECONDS)
+    const seconds = NOISE_BUFFER_SECONDS[color] ?? NOISE_SECONDS
+    const buffer = renderNoiseBuffer(this.ctx, color, this.ctx.sampleRate, seconds)
     this.noiseBuffers.set(color, buffer)
+    return buffer
+  }
+
+  private renderAndCacheBinaural(carrierHz: number, beatHz: number): EngineAudioBuffer {
+    const key = `${carrierHz}:${beatHz}`
+    const cached = this.binauralBuffers.get(key)
+    if (cached) return cached
+    const buffer = renderBinauralBuffer(this.ctx, carrierHz, beatHz, this.ctx.sampleRate, BINAURAL_SECONDS)
+    this.binauralBuffers.set(key, buffer)
     return buffer
   }
 
@@ -235,10 +281,22 @@ export class SoundEngine {
     return panner
   }
 
-  /** GainNode carries user trim always; in stereo fallback it also carries radius distance attenuation. */
-  private computeGain(placement: Placement, quality: PanQuality): number {
+  /**
+   * GainNode carries user trim always. In HRTF mode the PannerNode itself does radius->distance
+   * attenuation physically; in stereo fallback (and always for panBypass, which has no Panner at
+   * all) that attenuation has to be computed here instead via fallbackGain. On top of that,
+   * `orbit.volumeCurve` (E3 §1) layers an optional angle-based modulation — independent of
+   * spatial mode, so it applies the same way to bypass (binaural) placements too.
+   */
+  private computeGain(placement: Placement, quality: PanQuality, panBypass: boolean): number {
     if (placement.muted) return 0
-    return quality === 'stereo' ? placement.volume * fallbackGain(placement.radius) : placement.volume
+    const base = quality === 'stereo' || panBypass ? placement.volume * fallbackGain(placement.radius) : placement.volume
+    const curve = placement.orbit.volumeCurve
+    if (!curve || curve.depth <= 0) return base
+    const depth = Math.min(1, Math.max(0, curve.depth))
+    const phase = curve.phase ?? 0
+    const mod = 1 - depth / 2 + (depth / 2) * Math.cos(placement.angle - phase)
+    return base * mod
   }
 
   private applySpatial(nodes: PlacementNodes, placement: Placement, force: boolean): void {
@@ -264,7 +322,7 @@ export class SoundEngine {
       // already stopped/never started — nothing further to clean up on the source
     }
     nodes.source.disconnect()
-    nodes.spatial.disconnect()
+    nodes.spatial?.disconnect()
     nodes.gain.disconnect()
   }
 }

@@ -18,10 +18,13 @@ export type Category =
   | 'ambient'
   | 'camping'
 
-export type NoiseColor = 'white' | 'pink' | 'brown' | 'green'
+// Covers every pre-rendered-buffer synth generator noise.ts knows how to bake, not just literal
+// noise "colors" — rain/wind/waves/stream ride the same synth pipeline (E3 §7).
+export type NoiseColor = 'white' | 'pink' | 'brown' | 'green' | 'rain' | 'wind' | 'waves' | 'stream'
 
 export type SoundSource =
   | { kind: 'synth'; generator: NoiseColor }
+  | { kind: 'binaural'; carrierHz: number; beatHz: number }
   | { kind: 'file'; src: string; loopStart?: number; loopEnd?: number }
 
 export interface LicenseRef {
@@ -48,6 +51,10 @@ export interface Orbit {
   shape: OrbitShape
   speed: number
   direction: 1 | -1
+  /** Angle-based gain modulation ("volume swells as it passes a point"). Optional and off by
+   * default — undefined behaves exactly like before (no persistence migration needed).
+   * depth: 0..1 modulation strength. phase: radians, defaults to 0 if omitted. */
+  volumeCurve?: { depth: number; phase?: number }
 }
 
 export interface Placement {

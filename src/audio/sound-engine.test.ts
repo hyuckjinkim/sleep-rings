@@ -21,6 +21,14 @@ const FILE_SOUND: Sound = {
   license: { spdx: 'CC0-1.0', sourceName: 'Freesound' },
 }
 
+const BINAURAL_SOUND: Sound = {
+  id: 'binaural-delta',
+  name: { ko: '바이노럴 델타', en: 'Binaural Delta' },
+  category: 'binaural',
+  source: { kind: 'binaural', carrierHz: 200, beatHz: 2 },
+  license: { spdx: 'no-license-required', sourceName: 'synth' },
+}
+
 function placement(overrides: Partial<Placement> = {}): Placement {
   return {
     id: 'p1',
@@ -47,10 +55,10 @@ describe('SoundEngine', () => {
     engine = new SoundEngine(ctx)
   })
 
-  it('init() resumes the context and pre-renders all four noise colors', async () => {
+  it('init() resumes the context and pre-renders all eight noise/nature colors', async () => {
     await engine.init()
     expect(ctx.resume).toHaveBeenCalled()
-    expect(ctx.createBuffer).toHaveBeenCalledTimes(4)
+    expect(ctx.createBuffer).toHaveBeenCalledTimes(8)
   })
 
   it('load() is idempotent for synth sounds (does not re-render the buffer)', async () => {
@@ -270,5 +278,94 @@ describe('SoundEngine', () => {
     engine.dispose()
     expect(engine.inspect('p1')).toBeNull()
     expect(ctx.close).toHaveBeenCalled()
+  })
+
+  describe('orbit.volumeCurve gain modulation (E3 §1)', () => {
+    it('depth=0 (or absent) behaves exactly like before regardless of angle', async () => {
+      await engine.load(NOISE_SOUND)
+      const orbit = { mode: 'fixed' as const, shape: { kind: 'circle' as const }, speed: 0, direction: 1 as const, volumeCurve: { depth: 0 } }
+      engine.play(placement({ volume: 1, angle: 0, orbit }))
+      const before = engine.inspect('p1')!.gain
+      ctx.currentTime += THROTTLE_SEC
+      engine.setPlacement(placement({ volume: 1, angle: Math.PI, orbit }))
+      expect(engine.inspect('p1')!.gain).toBeCloseTo(before)
+    })
+
+    it('depth>0 modulates gain by angle relative to phase: full gain at phase, minimum at opposite phase', async () => {
+      await engine.load(NOISE_SOUND)
+      const orbit = { mode: 'fixed' as const, shape: { kind: 'circle' as const }, speed: 0, direction: 1 as const, volumeCurve: { depth: 1, phase: 0 } }
+      engine.play(placement({ volume: 1, angle: 0, orbit })) // angle === phase
+      const atPhase = engine.inspect('p1')!.gain
+      ctx.currentTime += THROTTLE_SEC
+      engine.setPlacement(placement({ volume: 1, angle: Math.PI, orbit })) // opposite phase
+      const atOppositePhase = engine.inspect('p1')!.gain
+
+      expect(atPhase).toBeCloseTo(1)
+      expect(atOppositePhase).toBeCloseTo(0)
+    })
+  })
+
+  describe('binaural playback bypasses the spatial (pan) node (E3 §6)', () => {
+    it('load() renders a shared stereo buffer instead of fetching a file', async () => {
+      await engine.load(BINAURAL_SOUND)
+      expect(ctx.createBuffer).toHaveBeenCalledWith(2, expect.any(Number), expect.any(Number))
+    })
+
+    it('play() creates no Panner/StereoPanner at all', async () => {
+      await engine.load(BINAURAL_SOUND)
+      engine.play(placement({ soundId: 'binaural-delta', angle: Math.PI / 2, radius: 0.5 }))
+      expect(ctx.createPanner).not.toHaveBeenCalled()
+      expect(ctx.createStereoPanner).not.toHaveBeenCalled()
+    })
+
+    it('inspect() reports a fixed centered pan regardless of angle — hard L/R lives in the buffer, not a pan node', async () => {
+      await engine.load(BINAURAL_SOUND)
+      engine.play(placement({ soundId: 'binaural-delta', angle: Math.PI / 2, radius: 0 }))
+      expect(engine.inspect('p1')!.pan).toEqual({ x: 0, z: 0 })
+    })
+
+    it('gain still falls off with radius even without a PannerNode to do it physically', async () => {
+      await engine.load(BINAURAL_SOUND)
+      engine.play(placement({ soundId: 'binaural-delta', radius: 0, volume: 1 }))
+      const centerGain = engine.inspect('p1')!.gain
+      engine.stop('p1')
+      engine.play(placement({ soundId: 'binaural-delta', radius: 1, volume: 1 }))
+      const edgeGain = engine.inspect('p1')!.gain
+      expect(edgeGain).toBeLessThan(centerGain)
+    })
+
+    it('setPanQuality() does not rewire a binaural placement\'s chain', async () => {
+      await engine.load(BINAURAL_SOUND)
+      engine.play(placement({ soundId: 'binaural-delta' }))
+      engine.setPanQuality('stereo')
+      expect(ctx.createStereoPanner).not.toHaveBeenCalled()
+      expect(engine.inspect('p1')!.pan).toEqual({ x: 0, z: 0 })
+    })
+  })
+
+  describe('HRTF auto-downgrade past the active-placement threshold (E3 §8)', () => {
+    it('stays on HRTF panning at or below the threshold (8 active placements)', async () => {
+      await engine.load(NOISE_SOUND)
+      for (let i = 0; i < 8; i++) engine.play(placement({ id: `p${i}`, angle: 0, radius: 0.5 }))
+      // angle=0 gives a nonzero z position under HRTF (angleToPosition); stereo fallback is always z=0.
+      expect(engine.inspect('p7')!.pan.z).not.toBe(0)
+      expect(ctx.createStereoPanner).not.toHaveBeenCalled()
+    })
+
+    it('auto-downgrades every active chain to stereo once the threshold is exceeded (9th placement)', async () => {
+      await engine.load(NOISE_SOUND)
+      for (let i = 0; i < 9; i++) engine.play(placement({ id: `p${i}`, angle: 0, radius: 0.5 }))
+      expect(engine.inspect('p0')!.pan.z).toBe(0) // earlier placements got rewired too, not just the new one
+      expect(engine.inspect('p8')!.pan.z).toBe(0)
+      expect(ctx.createStereoPanner).toHaveBeenCalledTimes(9)
+    })
+
+    it('never auto-upgrades back to HRTF once downgraded (no hysteresis)', async () => {
+      await engine.load(NOISE_SOUND)
+      for (let i = 0; i < 9; i++) engine.play(placement({ id: `p${i}`, angle: 0, radius: 0.5 }))
+      for (let i = 0; i < 9; i++) engine.stop(`p${i}`)
+      engine.play(placement({ id: 'p-new', angle: 0, radius: 0.5 }))
+      expect(engine.inspect('p-new')!.pan.z).toBe(0) // still stereo, even though only 1 placement is active now
+    })
   })
 })
