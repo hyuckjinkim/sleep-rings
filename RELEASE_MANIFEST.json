@@ -1,6 +1,23 @@
 {
-  "current_version": "0.1.0",
+  "current_version": "0.2.0",
   "releases": [
+    {
+      "version": "0.2.0",
+      "release_date": "2026-07-20",
+      "description": "QA·고도화 사이클 — 6패스 QA(기능·디자인·UX·전문표준·정합성·보안)로 백로그 22건 도출·반영, 코어 고도화(궤도 경로별 볼륨 변화·바이노럴 합성·필터드 자연음 4종·HRTF 자동 강등), 키보드 접근성(WCAG 2.1.1)·마스터볼륨·궤도 컨트롤 확장. opus 리뷰 승인(C0/H0), 파일별 단독 검증 117 테스트·E2E 5",
+      "branches": {
+        "main": "dd10e91"
+      },
+      "changelog": {
+        "main": [
+          "feat(mixer): volumeCurve UI 배선 완결 — 팝오버 토글+depth 슬라이더, fade-in 가드 (dd10e91)",
+          "feat(audio): E3 코어 고도화 — 궤도 경로별 볼륨 변화, 바이노럴 비트 합성, 필터드 자연음 4종(RMS 정규화), HRTF 자동 강등 (5dfa153)",
+          "feat(polish): QA 백로그 P1·P2 + UI 4종 — 키보드 접근성(B1/B2), 해제버튼·sleeping 동기화, 44px 타겟, 마스터볼륨·fixed·속도·모양 컨트롤 (5e267aa)",
+          "docs(qa): 종합 QA 보고서 — 6패스 종합, 백로그 B1~B22 (a8a5e5b)",
+          "docs: v0.2.0 고도화 스코프 확정 — 카탈로그 실물 불일치 교정 (631a81e)"
+        ]
+      }
+    },
     {
       "version": "0.1.0",
       "release_date": "2026-07-20",
