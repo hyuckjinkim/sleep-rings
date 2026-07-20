@@ -22,7 +22,10 @@
       "orbitFixed": "Fix orbit",
       "orbitRandom": "Randomize orbit",
       "orbitSpeed": "Orbit speed",
-      "orbitShape": "Orbit shape"
+      "orbitShape": "Orbit shape",
+      "volumeCurveOn": "Turn on volume swell",
+      "volumeCurveOff": "Turn off volume swell",
+      "volumeCurveDepth": "Swell depth"
     },
     "master": {
       "volume": "Master volume"

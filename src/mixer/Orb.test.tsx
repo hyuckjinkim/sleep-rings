@@ -232,4 +232,18 @@ describe('Orb gestures', () => {
 
     expect(getPlacement(placement.id)?.orbit.shape).toMatchObject({ kind: 'ellipse', eccentricity: 0.08 })
   })
+
+  it('turning on the volume-swell toggle sets orbit.volumeCurve on the placement (E5a regression)', () => {
+    const placement = addTestPlacement()
+    render(<SelectionHarness placement={placement} />)
+    const orb = screen.getByRole('button')
+    fireEvent.pointerDown(orb, { pointerId: 1, clientX: 100, clientY: 50 })
+    fireEvent.pointerUp(orb, { pointerId: 1, clientX: 100, clientY: 50 }) // tap opens the popover
+
+    fireEvent.click(screen.getByRole('button', { name: '볼륨 파동 켜기' }))
+    expect(getPlacement(placement.id)?.orbit.volumeCurve).toEqual({ depth: 0.5 })
+
+    fireEvent.click(screen.getByRole('button', { name: '볼륨 파동 끄기' }))
+    expect(getPlacement(placement.id)?.orbit.volumeCurve).toBeUndefined()
+  })
 })

@@ -15,6 +15,10 @@ interface OrbControlsProps {
 const MAX_ORBIT_SPEED = 0.3
 const MAX_ECCENTRICITY = 0.85
 
+// E5a: default depth when the "volume swell" toggle is first turned on (v020-review.md MEDIUM-1
+// — the engine/math side was already done in E3, this just gives it a UI path).
+const DEFAULT_VOLUME_CURVE_DEPTH = 0.5
+
 /** Tap popover: volume (radius remap), lock toggle, delete, orbit mode/speed/shape. Bottom sheet, mobile-first. */
 export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const { t } = useTranslation()
@@ -43,6 +47,8 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const volumePercent = Math.round(radiusToVolume(placement.radius) * 100)
   const eccentricity = placement.orbit.shape.kind === 'ellipse' ? placement.orbit.shape.eccentricity : 0
   const isFixed = placement.orbit.mode === 'fixed'
+  const curveDepth = placement.orbit.volumeCurve?.depth ?? 0
+  const hasCurve = curveDepth > 0
 
   return (
     <div
@@ -124,6 +130,32 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
           }
         />
       </div>
+      <div className="mixer-controls-row">
+        <button
+          type="button"
+          aria-pressed={hasCurve}
+          onClick={() =>
+            updatePlacement(placementId, {
+              orbit: { volumeCurve: hasCurve ? undefined : { depth: DEFAULT_VOLUME_CURVE_DEPTH } },
+            })
+          }
+        >
+          {hasCurve ? t('mixer.controls.volumeCurveOff') : t('mixer.controls.volumeCurveOn')}
+        </button>
+      </div>
+      {hasCurve && (
+        <div className="mixer-controls-row">
+          <label htmlFor="orb-curve-depth">{t('mixer.controls.volumeCurveDepth')}</label>
+          <input
+            id="orb-curve-depth"
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(curveDepth * 100)}
+            onChange={(e) => updatePlacement(placementId, { orbit: { volumeCurve: { depth: Number(e.target.value) / 100 } } })}
+          />
+        </div>
+      )}
     </div>
   )
 }

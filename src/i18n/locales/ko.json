@@ -22,7 +22,10 @@
       "orbitFixed": "궤도 고정",
       "orbitRandom": "랜덤 궤도로",
       "orbitSpeed": "궤도 속도",
-      "orbitShape": "궤도 모양"
+      "orbitShape": "궤도 모양",
+      "volumeCurveOn": "볼륨 파동 켜기",
+      "volumeCurveOff": "볼륨 파동 끄기",
+      "volumeCurveDepth": "파동 강도"
     },
     "master": {
       "volume": "마스터 볼륨"

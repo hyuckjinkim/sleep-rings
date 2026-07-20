@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Placement, Sound } from '../data/types'
-import { SoundEngine } from './sound-engine'
+import { FADE_IN_SEC, SoundEngine } from './sound-engine'
 import { THROTTLE_SEC } from './spatial'
 import { createMockAudioContext } from './test-support/mock-audio-context'
 import type { EngineAudioContext } from './web-audio-types'
@@ -296,12 +296,33 @@ describe('SoundEngine', () => {
       const orbit = { mode: 'fixed' as const, shape: { kind: 'circle' as const }, speed: 0, direction: 1 as const, volumeCurve: { depth: 1, phase: 0 } }
       engine.play(placement({ volume: 1, angle: 0, orbit })) // angle === phase
       const atPhase = engine.inspect('p1')!.gain
-      ctx.currentTime += THROTTLE_SEC
+      // Past FADE_IN_SEC — the fade-in guard below only suppresses the curve during the ramp
+      // itself, so this needs to clear that window to observe modulation (see the dedicated
+      // fade-in-guard test for what happens *inside* the window).
+      ctx.currentTime += FADE_IN_SEC
       engine.setPlacement(placement({ volume: 1, angle: Math.PI, orbit })) // opposite phase
       const atOppositePhase = engine.inspect('p1')!.gain
 
       expect(atPhase).toBeCloseTo(1)
       expect(atOppositePhase).toBeCloseTo(0)
+    })
+
+    it('suppresses the curve while play()\'s fade-in ramp is in flight, so it cannot fight the ramp (MEDIUM-1 follow-up)', async () => {
+      await engine.load(NOISE_SOUND)
+      const orbit = { mode: 'fixed' as const, shape: { kind: 'circle' as const }, speed: 0, direction: 1 as const, volumeCurve: { depth: 1, phase: 0 } }
+      engine.play(placement({ volume: 1, angle: 0, orbit })) // angle === phase, so base and modulated targets coincide here
+      expect(engine.inspect('p1')!.gain).toBeCloseTo(1)
+
+      // Still inside the fade-in window. In the real app OrbitField calls setPlacement on every
+      // rAF frame while orbiting — this angle would swing gain to ~0 if the curve applied here.
+      ctx.currentTime += THROTTLE_SEC
+      engine.setPlacement(placement({ volume: 1, angle: Math.PI, orbit })) // opposite phase
+      expect(engine.inspect('p1')!.gain).toBeCloseTo(1) // curve suppressed — ramp target undisturbed
+
+      // Past the fade-in window, modulation resumes normally.
+      ctx.currentTime += FADE_IN_SEC
+      engine.setPlacement(placement({ volume: 1, angle: Math.PI, orbit }))
+      expect(engine.inspect('p1')!.gain).toBeCloseTo(0)
     })
   })
 

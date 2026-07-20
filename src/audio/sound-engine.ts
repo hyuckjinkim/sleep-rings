@@ -23,7 +23,8 @@ const NOISE_SECONDS = 10
 const NOISE_COLORS: readonly NoiseColor[] = ['white', 'pink', 'brown', 'green', 'rain', 'wind', 'waves', 'stream']
 const BINAURAL_SECONDS = 10
 // audio-engine.md §5: individual placement onset should fade in too, not click straight to gain.
-const FADE_IN_SEC = 0.2
+// Exported so tests can advance ctx.currentTime past it deliberately (sound-engine.test.ts).
+export const FADE_IN_SEC = 0.2
 // ponytail: no real mobile-WebView HRTF budget measurement yet (design doc §8 open question #2)
 // — a flat active-placement-count heuristic is the cheap safety net. One-way (no upgrade back to
 // HRTF once downgraded): hysteresis isn't worth the complexity for a rare "you piled on too many
@@ -49,6 +50,7 @@ interface PlacementNodes {
   lastRampAt: number
   lastGain: number
   panBypass: boolean
+  fadeInEndsAt: number // MEDIUM-1 follow-up: volumeCurve is suppressed until ctx.currentTime passes this
 }
 
 function createDefaultAudioContext(): EngineAudioContext {
@@ -115,7 +117,10 @@ export class SoundEngine {
     if (spatial) spatial.connect(gain)
     gain.connect(this.master)
 
-    const target = this.computeGain(placement, this.quality, panBypass)
+    // MEDIUM-1 follow-up (v020-review.md): the fade-in ramp's own target must be curve-free —
+    // otherwise the very placement being modulated could start its fade already offset by
+    // whatever angle it happened to spawn at, instead of settling at its plain volume.
+    const target = this.computeGain(placement, this.quality, panBypass, true)
     const nodes: PlacementNodes = {
       source,
       spatial,
@@ -125,6 +130,7 @@ export class SoundEngine {
       lastRampAt: -Infinity,
       lastGain: target,
       panBypass,
+      fadeInEndsAt: this.ctx.currentTime + FADE_IN_SEC,
     }
     this.active.set(placement.id, nodes)
 
@@ -160,7 +166,15 @@ export class SoundEngine {
     // MEDIUM-1: OrbitField calls this every rAF frame while a placement orbits. A raw
     // `.value =` assignment is an immediate automation event that cancels any in-flight ramp
     // (e.g. play()'s fade-in) — only touch it when the gain actually changed.
-    const g = this.computeGain(placement, nodes.quality, nodes.panBypass)
+    //
+    // MEDIUM-1 follow-up: once volumeCurve has a real UI path, an orbiting curved placement
+    // changes its computed gain on essentially every frame (angle keeps moving) — without this,
+    // the "only touch it when changed" guard above would stop protecting anything, and every
+    // frame during play()'s 0.2s fade-in would re-fire an immediate write that cancels the ramp.
+    // Suppressing just the curve term (not the whole gain path) during that window lets the ramp
+    // finish undisturbed while still honoring real volume/mute changes made in the meantime.
+    const suppressCurve = this.ctx.currentTime < nodes.fadeInEndsAt
+    const g = this.computeGain(placement, nodes.quality, nodes.panBypass, suppressCurve)
     if (g !== nodes.lastGain) {
       nodes.gain.gain.value = g
       nodes.lastGain = g
@@ -288,11 +302,11 @@ export class SoundEngine {
    * `orbit.volumeCurve` (E3 §1) layers an optional angle-based modulation — independent of
    * spatial mode, so it applies the same way to bypass (binaural) placements too.
    */
-  private computeGain(placement: Placement, quality: PanQuality, panBypass: boolean): number {
+  private computeGain(placement: Placement, quality: PanQuality, panBypass: boolean, suppressCurve = false): number {
     if (placement.muted) return 0
     const base = quality === 'stereo' || panBypass ? placement.volume * fallbackGain(placement.radius) : placement.volume
     const curve = placement.orbit.volumeCurve
-    if (!curve || curve.depth <= 0) return base
+    if (suppressCurve || !curve || curve.depth <= 0) return base
     const depth = Math.min(1, Math.max(0, curve.depth))
     const phase = curve.phase ?? 0
     const mod = 1 - depth / 2 + (depth / 2) * Math.cos(placement.angle - phase)
