@@ -7,6 +7,7 @@ import type { Mix, Placement, Orbit } from './types'
 import { soundEngine } from './engine/instance'
 import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
+import { hapticTap } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
 
 // B7: how long the "undo delete" toast stays available after a removal.
 const UNDO_TIMEOUT_MS = 5000
@@ -135,6 +136,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   lastRemovedAll: null,
 
   addPlacement(soundId, radius, angle) {
+    hapticTap()
     soundEngine.onEnterForeground() // MEDIUM-2: re-resume if a completed sleep timer suspended the context
     const placement: Placement = {
       id: makeId('p'),
@@ -168,6 +170,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   removePlacement(id) {
+    hapticTap()
     const removed = get().current.placements.find((p) => p.id === id) ?? null
     set((s) => {
       const loadingIds = new Set(s.loadingIds)
@@ -236,6 +239,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   toggleLocked(id) {
+    hapticTap()
     const p = get().current.placements.find((p) => p.id === id)
     if (p) get().updatePlacement(id, { locked: !p.locked })
   },

@@ -1,11 +1,5 @@
 import { test, expect } from '@playwright/test'
 
-// Same reason as mixer.spec.ts: the category-tab toolbar pushes the palette strip below the
-// default 720px viewport, and raw page.mouse coordinates don't auto-scroll to reach it.
-// TODO(D2): revert to the default viewport once the header/control-group rework reclaims that
-// vertical space (docs/design/visual-theme-v2.md G1/G4).
-test.use({ viewport: { width: 1280, height: 900 } })
-
 test('sleep timer presets are visible', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('.mixer-sleep-timer button').first()).toBeVisible()

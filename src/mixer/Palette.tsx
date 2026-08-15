@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
 import { TAU, unitToPolar } from './geometry'
 import { catalog, isAvailable } from '../library/catalog'
+import { SoundIcon } from '../icons/SoundIcon'
 import type { Category, Locale, Sound } from './types'
 
 const DRAG_THRESHOLD_PX = 4
@@ -115,7 +116,8 @@ function PaletteItem({ sound, label, available, fieldRef, stripRef, addPlacement
       onPointerCancel={handlePointerUp}
       onClick={handleClick}
     >
-      {label}
+      <SoundIcon soundId={sound.id} category={sound.category} className="so-icon--sm" />
+      <span>{label}</span>
     </button>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { DEFAULT_ORBIT_SPEED, useMixStore } from './store'
 import { angleDelta, clamp, polarToUnit, unitToPolar } from './geometry'
+import { SoundIcon } from '../icons/SoundIcon'
 import type { Category, OrbitShape, Placement } from './types'
 
 const LONG_PRESS_MS = 700 // B8: 500ms fired too easily on a careful mid-drag pause; 700ms + the is-pending-lock cue below give more room to tell "hesitating" from "locking".
@@ -297,7 +298,7 @@ export function Orb({
       aria-label={label}
       aria-pressed={placement.locked}
     >
-      {label}
+      <SoundIcon soundId={placement.soundId} category={category} />
     </div>
   )
 }

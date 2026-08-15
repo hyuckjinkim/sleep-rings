@@ -60,5 +60,13 @@
       "load": "Load",
       "delete": "Delete"
     }
+  },
+  "screen": {
+    "dim": {
+      "title": "Auto-dim screen",
+      "off": "Off",
+      "minutes": "After {{minutes}} min",
+      "hint": "Tap to wake the screen"
+    }
   }
 }

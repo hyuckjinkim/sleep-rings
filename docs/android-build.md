@@ -151,3 +151,84 @@ jarsigner -verify app-release.aab
    컨텍스트가 Doze/앱 대기 모드에서 실제로 계속 렌더링하는지는 실기기 테스트 필요.
 4. **`versionCode`/`versionName`은 `1`/`"1.0"` 그대로** — `RELEASE_MANIFEST.json`과의 동기화는
    범위 밖(팀 리드 관리 영역).
+
+## 8. 화면 자동 꺼짐 + 플랫폼 기능 (Task B3, v0.3.0)
+
+`.omc/research/platform-capabilities.md` §1/§3의 결론(iOS/Android 둘 다 앱이 화면을 직접 끄는 API
+없음)을 그대로 따라 구현했다. `src/screen/`(신규) + `src/mobile/`에 추가.
+
+### 화면 자동 꺼짐 — 암전 오버레이 + Wake Lock 해제
+
+- **`src/screen/store.ts`**: 무동작(포인터/키 입력 없음) N분(5/10/30/사용안함) 후
+  `dimmed: true`로 전환하는 zustand 스토어. 슬립 타이머(`src/mixer/store.ts`의
+  `startSleepTimer`)와 완전히 독립 — 이쪽은 `soundEngine`을 전혀 import하지 않아서, 암전이
+  오디오를 건드릴 방법 자체가 없다(구조적으로 보장).
+- **`src/screen/wake-lock.ts`**: 네이티브 플러그인 없이 표준 **Screen Wake Lock API**만 사용.
+  `@capacitor-community/keep-awake`는 Cap8 미지원(R3 확인)이고, Cap-go 포크를 붙이는 것보다
+  — 이 기능의 진짜 보장은 암전 오버레이 쪽이고 wake-lock은 OLED 패널의 실제 절전을 돕는
+  best-effort 보조일 뿐이라 — 의존성 추가가 정당화되지 않는다고 판단(YAGNI). 브라우저/WebView
+  미지원 시 전부 조용히 no-op(`'wakeLock' in navigator` 가드).
+- **`src/screen/ScreenDimOverlay.tsx`**: `position:fixed; inset:0; background:#000` 풀스크린
+  오버레이. `pointerdown/pointermove/keydown/touchstart` + `visibilitychange`로 활동을
+  감지해 타이머를 리셋하고, 암전 중이면 즉시 해제한다.
+- **`src/screen/ScreenDimSettings.tsx`**: 5/10/30/사용안함 선택 UI.
+- **배선 완료**: 두 컴포넌트 모두 `src/sleep/SleepControls.tsx`(이 워커 소유)에서 이미
+  렌더링 중 — `App.tsx`는 건드리지 않았다. `ScreenDimOverlay`가 `position:fixed`라 트리상
+  위치는 무관하게 항상 뷰포트 전체를 덮는다. 리드가 원하면 나중에 `App.tsx` 루트로 옮겨도
+  되지만 필수는 아니다(이미 실동작 확인, 아래 검증 참조).
+- **영속화**: `src/screen/persistence.ts`, localStorage 키 `so.screenDim`,
+  `src/sleep/persistence.ts`와 동일한 `{version, value}` 스키마 규약.
+
+### 잠금화면 미디어 컨트롤 — 네이티브 플러그인 대신 표준 Media Session API
+
+- **`src/mobile/media-session.ts`**: `@capgo/capacitor-media-session` 같은 플러그인을 붙이지
+  않고 `navigator.mediaSession`(표준 API)만 사용. 재생/정지만 요구사항이고, Android Chromium
+  WebView(전 버전)와 iOS 15+ WKWebView 양쪽이 이미 커버하므로 플러그인이 주는 추가 이득이
+  없다고 판단(YAGNI) — R3가 제시한 두 옵션(플러그인 vs 웹 API) 중 웹 API를 채택.
+  `BackgroundAudioTarget`(`background-audio.ts`가 이미 정의한 구조적 인터페이스)을 그대로
+  재사용해 play→`onEnterForeground()`, pause→`onEnterBackground()`에 매핑.
+  `'mediaSession' in navigator` 가드로 미지원 플랫폼은 no-op.
+- **배선 필요(리드 또는 App/main 소유자)**: `main.tsx`의 `initBackgroundAudio(soundEngine)`
+  바로 아래에 `initMediaSession(soundEngine, t('app.title'))` 한 줄 추가. (`soundEngine`이
+  이미 `BackgroundAudioTarget` 구조를 만족하므로 추가 어댑터 불필요.)
+
+### 햅틱 — 채택, 기본 ON + 전역 스위치
+
+- **`@capacitor/haptics@8.0.2`** 설치(공식 코어 플러그인, 기존 `@capacitor/*` 8.x 스택과
+  정합). `src/mobile/haptics.ts`: `hapticTap()`은 항상 `ImpactStyle.Light`만 사용(다른
+  강도는 야간 앱에 과함) + `localStorage`(`so.hapticsEnabled`, 기본 on) 전역 on/off. 미지원
+  플랫폼(웹)에서는 `Haptics.impact()` 호출이 실패해도 catch로 삼켜 무해.
+- **배선 필요(`src/mixer/store.ts` 소유자)**: 이 워커는 `src/mixer/**`를 건드릴 수 없어
+  직접 연결하지 못했다. 정확히 3곳에 `hapticTap()` 한 줄씩 추가하면 된다 —
+  `addPlacement()`(오브 배치 성공 시), `removePlacement()`/`restoreLastRemoved()`(삭제·복원),
+  `toggleLocked()`(고정 토글). `import { hapticTap } from '../mobile/haptics'` 한 줄 + 각
+  액션 끝에 `hapticTap()` 호출.
+
+### 화면 방향 잠금 — 세로 고정 권고, 매니페스트 한 줄이 정답 (미구현)
+
+`src/mixer/mixer.css`의 필드가 `width: min(92vw, 420px)`로 사실상 정사각형 고정 크기라
+가로모드(예: 812×375)에서는 세로 여백이 부족해 `App.tsx`의 세로 스택 레이아웃(제목+마스터볼륨+
+슬립타이머+믹서필드+팔레트)이 잘리거나 과도한 스크롤이 생긴다 — **세로 고정이 적절하다.**
+
+R3가 확인했듯 가장 확실한 방법은 플러그인이 아니라 `AndroidManifest.xml`의
+`android:screenOrientation="portrait"` 한 줄(전체 앱 고정, 플러그인 불필요) — 이 파일은
+`android/**`라 이 워커가 건드릴 수 없다. 리드 또는 android 소유자가 MainActivity의
+`<activity>` 태그에 추가하면 끝. Screen Orientation Web API(`screen.orientation.lock()`)는
+WebView에서 fullscreen 컨텍스트 없이는 신뢰할 수 없어(주요 브라우저의 일반적 제약) 채택하지
+않았다.
+
+### 검증
+
+- 단위 테스트 3개 파일, 각 파일 단독 실행으로 통과 확인: `src/screen/store.test.ts`(가상
+  타이머로 무동작 타이머 로직 5건), `src/screen/persistence.test.ts`(영속화 왕복 6건),
+  `src/screen/wake-lock.test.ts`(no-op 가드 포함 3건) — 총 14건.
+- `npm run typecheck`, `npm run build` 통과.
+- E2E 신규 `e2e/screen-dim.spec.ts`: 사운드 배치 → 암전 타이머 발동(테스트 전용
+  `window.__SO_TEST_DIM_MS__` 오버라이드로 800ms 대기, 실사용자 경로엔 절대 등장하지 않는
+  전역) → 오버레이 표시 확인 → **오브가 `is-loading` 클래스를 얻지 않음을 확인(=재생 지속,
+  B17 패턴이 이미 이 클래스를 "정지 상태" 신호로 씀)** → 탭(`pointerdown`)으로 즉시 복귀 →
+  오브 재생 지속 재확인. 통과.
+- 기존 E2E 8개 중 7개 유지 통과, `mixer.spec.ts`의 "category tabs" 1건은 이 워커 범위 밖 —
+  `git status`로 확인한바 `src/library/catalog.ts`/`src/mixer/Palette.tsx`가 다른 워커가
+  동시 작업 중인 파일이라 카탈로그 항목 수 변경과 그 테스트 기대값이 아직 안 맞은 상태로
+  보임(이 워커는 해당 파일들을 전혀 건드리지 않았음).

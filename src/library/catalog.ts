@@ -76,6 +76,66 @@ export const catalog: Sound[] = [
     source: { kind: 'synth', generator: 'stream' },
     license: { spdx: 'no-license-required', sourceName: '합성' },
   },
+  // B1 (v0.3.0): 8 synth sounds, ids chosen to match assets/sound-icons/*.svg filenames where a
+  // dedicated icon exists (campfire/fan/thunder/heartbeat) — see src/icons/SoundIcon.tsx, which
+  // resolves by exact id match first. The other 4 have no dedicated icon and fall back to their
+  // category's representative icon (water→stream, rain→rain, ambient→ambient, asmr→asmr).
+  {
+    id: 'campfire',
+    name: { ko: '캠프파이어', en: 'Campfire' },
+    category: 'camping',
+    source: { kind: 'synth', generator: 'campfire' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'fan',
+    name: { ko: '선풍기 소리', en: 'Fan Hum' },
+    category: 'ambient',
+    source: { kind: 'synth', generator: 'fan' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'thunder',
+    name: { ko: '천둥 소리', en: 'Thunder' },
+    category: 'rain',
+    source: { kind: 'synth', generator: 'thunder' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'nature-brook',
+    name: { ko: '여울 소리', en: 'Brook' },
+    category: 'water',
+    source: { kind: 'synth', generator: 'brook' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'rain-umbrella',
+    name: { ko: '우산 위 빗소리', en: 'Rain on Umbrella' },
+    category: 'rain',
+    source: { kind: 'synth', generator: 'umbrella-rain' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'ambient-lofi',
+    name: { ko: '로우파이 험', en: 'Lo-fi Hum' },
+    category: 'ambient',
+    source: { kind: 'synth', generator: 'lofi' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'heartbeat',
+    name: { ko: '심장박동', en: 'Heartbeat' },
+    category: 'asmr',
+    source: { kind: 'synth', generator: 'heartbeat' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'womb',
+    name: { ko: '자궁 소리', en: 'Womb' },
+    category: 'asmr',
+    source: { kind: 'synth', generator: 'womb' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
   {
     id: 'binaural-delta',
     name: { ko: '바이노럴 델타 (깊은 수면)', en: 'Binaural Delta (Deep Sleep)' },

@@ -1,10 +1,5 @@
 import { test, expect } from '@playwright/test'
 
-// The category-tab toolbar (added for this patch) pushes the palette strip below y=720, the
-// default desktop test viewport height — raw page.mouse coordinates (unlike .click()) don't
-// auto-scroll, so they'd miss it. A taller viewport keeps the whole mixer on-screen.
-test.use({ viewport: { width: 1280, height: 900 } })
-
 test('drag a sound from the palette onto the field, reposition it, then delete it', async ({ page }) => {
   const consoleErrors: string[] = []
   const pageErrors: string[] = []
@@ -94,15 +89,22 @@ test('category tabs: switching tabs shows only that category\'s sounds', async (
   const tabs = page.getByRole('tab')
   const paletteItems = page.locator('.mixer-palette-item')
 
-  // Default tab is 'noise' (most sounds in the catalog: 4).
+  // Asserted against the catalog's shape rather than fixed counts: the catalog grows every
+  // release, so hardcoded counts break on unrelated sound additions (they did, once).
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
-  await expect(paletteItems).toHaveCount(4)
+  await expect(paletteItems.first()).toBeVisible()
+  const firstTabLabels = await paletteItems.allInnerTexts()
 
-  // 'rain' is the second category — one available sound (garden-rain has no asset yet, hidden by L-4).
   await tabs.nth(1).click()
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true')
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'false')
-  await expect(paletteItems).toHaveCount(1)
+  await expect(paletteItems.first()).toBeVisible()
+  const secondTabLabels = await paletteItems.allInnerTexts()
+
+  // Filtering is real only if the two tabs expose disjoint, non-empty sound sets.
+  expect(firstTabLabels.length).toBeGreaterThan(0)
+  expect(secondTabLabels.length).toBeGreaterThan(0)
+  expect(secondTabLabels.some((label) => firstTabLabels.includes(label))).toBe(false)
 })
 
 test('clear all: removes every placed orb and undo restores them', async ({ page }) => {

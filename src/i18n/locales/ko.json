@@ -60,5 +60,13 @@
       "load": "불러오기",
       "delete": "삭제"
     }
+  },
+  "screen": {
+    "dim": {
+      "title": "화면 자동 꺼짐",
+      "off": "사용 안 함",
+      "minutes": "{{minutes}}분 후",
+      "hint": "탭하면 화면이 켜져요"
+    }
   }
 }

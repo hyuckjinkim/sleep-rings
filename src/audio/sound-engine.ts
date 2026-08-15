@@ -20,7 +20,24 @@ import type {
 export type PanQuality = 'hrtf' | 'stereo'
 
 const NOISE_SECONDS = 10
-const NOISE_COLORS: readonly NoiseColor[] = ['white', 'pink', 'brown', 'green', 'rain', 'wind', 'waves', 'stream']
+const NOISE_COLORS: readonly NoiseColor[] = [
+  'white',
+  'pink',
+  'brown',
+  'green',
+  'rain',
+  'wind',
+  'waves',
+  'stream',
+  'campfire',
+  'fan',
+  'thunder',
+  'brook',
+  'umbrella-rain',
+  'lofi',
+  'heartbeat',
+  'womb',
+]
 const BINAURAL_SECONDS = 10
 // audio-engine.md §5: individual placement onset should fade in too, not click straight to gain.
 // Exported so tests can advance ctx.currentTime past it deliberately (sound-engine.test.ts).

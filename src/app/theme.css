@@ -152,3 +152,13 @@
   font-size: var(--so-font-size-sm, 0.875rem);
   cursor: pointer;
 }
+
+/* v2 G1: header shrink — the language toggle moves off the stacked flow into the top-right
+   corner as a compact icon button (44px target kept, padding trimmed to fit the label glyph). */
+.app-lang-toggle--icon {
+  position: absolute;
+  top: var(--so-space-3, 0.75rem);
+  right: var(--so-space-3, 0.75rem);
+  min-width: 44px;
+  padding: var(--so-space-2, 0.5rem);
+}
