@@ -5,6 +5,8 @@ import { useMixStore } from './store'
 import { TAU, unitToPolar } from './geometry'
 import { catalog, isAvailable } from '../library/catalog'
 import { SoundIcon } from '../icons/SoundIcon'
+import { canUseSound, requiredPlan, usePlanStore } from '../plan'
+import type { Plan } from '../plan'
 import type { Category, Locale, Sound } from './types'
 
 const DRAG_THRESHOLD_PX = 4
@@ -27,18 +29,32 @@ export function classifyDrag(dx: number, dy: number, threshold = DRAG_THRESHOLD_
   return Math.abs(dx) > Math.abs(dy) ? 'pan' : 'place'
 }
 
+/** B2: a locked-padlock badge for plan-gated chips. Inline SVG (no new asset file — this is a
+    UI-only concern, not a sound icon) so it stays decoupled from assets/sound-icons. */
+function LockBadge() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" className="mixer-palette-lock">
+      <rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  )
+}
+
 interface PaletteItemProps {
   sound: Sound
   label: string
-  available: boolean
+  available: boolean // asset availability (catalog.ts's isAvailable — unrelated to plan)
+  planLocked: boolean // B2: locked by the current plan, not by a missing asset
+  lockedLabel: string // accessible name override while planLocked (mentions the upgrade requirement)
   fieldRef: RefObject<HTMLDivElement | null>
   stripRef: RefObject<HTMLDivElement | null>
   addPlacement: (soundId: string, radius: number, angle: number) => string
+  onLockedTap: (sound: Sound) => void
 }
 
 /** Drag a catalog chip onto the field to add it as a new orb, or drag it sideways to pan the
     palette strip. Pointer Events cover touch+mouse. */
-function PaletteItem({ sound, label, available, fieldRef, stripRef, addPlacement }: PaletteItemProps) {
+function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRef, stripRef, addPlacement, onLockedTap }: PaletteItemProps) {
   const chipRef = useRef<HTMLButtonElement | null>(null)
   const drag = useRef<{ startX: number; startY: number; lastX: number } | null>(null)
   const intent = useRef<DragIntent>('tap') // decided on first move past DRAG_THRESHOLD_PX
@@ -85,6 +101,10 @@ function PaletteItem({ sound, label, available, fieldRef, stripRef, addPlacement
     if (!rect) return
     const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
     if (!inside) return
+    if (planLocked) {
+      onLockedTap(sound)
+      return
+    }
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
     const r = rect.width / 2
@@ -100,6 +120,10 @@ function PaletteItem({ sound, label, available, fieldRef, stripRef, addPlacement
       suppressClick.current = false
       return
     }
+    if (planLocked) {
+      onLockedTap(sound)
+      return
+    }
     addPlacement(sound.id, 0.25 + Math.random() * 0.5, Math.random() * TAU)
   }
 
@@ -107,8 +131,13 @@ function PaletteItem({ sound, label, available, fieldRef, stripRef, addPlacement
     <button
       ref={chipRef}
       type="button"
-      className="mixer-palette-item"
+      className={planLocked ? 'mixer-palette-item is-plan-locked' : 'mixer-palette-item'}
       disabled={!available}
+      // B2: intentionally NOT aria-disabled — this chip stays genuinely operable (tapping it
+      // opens the upgrade sheet), and aria-disabled tells assistive tech + tools like Playwright's
+      // toBeEnabled() that activation is a no-op, which would be false here. The lock is
+      // conveyed via the accessible name instead (visible text stays via the icon+label below).
+      aria-label={planLocked ? lockedLabel : undefined}
       style={{ '--orb-color': `var(--so-orb-${sound.category})` } as React.CSSProperties}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -118,7 +147,31 @@ function PaletteItem({ sound, label, available, fieldRef, stripRef, addPlacement
     >
       <SoundIcon soundId={sound.id} category={sound.category} className="so-icon--sm" />
       <span>{label}</span>
+      {planLocked && <LockBadge />}
     </button>
+  )
+}
+
+interface UpgradeSheetProps {
+  label: string
+  plan: Plan
+  onClose: () => void
+}
+
+/** B2: minimal informational sheet — no purchase button, since RevenueCat isn't wired up yet
+    (roadmap-v030.md §2 defers the real IAP; src/plan/purchase-adapter.ts is the stub). Just tells
+    the user what tier unlocks the sound they tapped. */
+function UpgradeSheet({ label, plan, onClose }: UpgradeSheetProps) {
+  const { t } = useTranslation()
+  return (
+    <div className="mixer-upgrade-backdrop" onClick={onClose}>
+      <div className="mixer-upgrade-sheet" role="dialog" aria-modal="true" aria-label={t('plan.upgrade.title')} onClick={(e) => e.stopPropagation()}>
+        <p>{t('plan.upgrade.body', { sound: label, tier: t(`plan.tier.${plan}`) })}</p>
+        <button type="button" onClick={onClose}>
+          {t('plan.upgrade.close')}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -128,7 +181,10 @@ export function Palette({ fieldRef }: PaletteProps) {
   const addPlacement = useMixStore((s) => s.addPlacement)
   const hasPlacements = useMixStore((s) => s.current.placements.length > 0)
   const clearAll = useMixStore((s) => s.clearAll)
+  const layerLimitNotice = useMixStore((s) => s.layerLimitNotice)
+  const plan = usePlanStore((s) => s.plan)
   const stripRef = useRef<HTMLDivElement | null>(null)
+  const [upgradeSound, setUpgradeSound] = useState<Sound | null>(null)
 
   // Categories are derived from whatever the catalog actually contains (no hardcoded list),
   // in first-appearance order. The default tab is whichever category has the most sounds.
@@ -154,6 +210,8 @@ export function Palette({ fieldRef }: PaletteProps) {
   // the tab itself would make it look like the category doesn't exist. Within the tab, L-4's
   // hide-unavailable-entirely rule still applies as long as it leaves at least one sound visible;
   // it only falls back to showing (disabled) entries when hiding them would empty the tab.
+  // B2: plan-locked sounds are a *different* kind of unavailable — they stay visible always
+  // (owner policy ③), so they're never subject to the L-4 filter above, only to asset availability.
   const soundsInTab = useMemo(() => {
     const inCategory = catalog.filter((s) => s.category === activeCategory)
     const available = inCategory.filter((s) => isAvailable(s.id))
@@ -199,18 +257,33 @@ export function Palette({ fieldRef }: PaletteProps) {
         )}
       </div>
       <div ref={stripRef} id="mixer-tabpanel" className="mixer-palette" role="tabpanel" aria-labelledby={`mixer-tab-${activeCategory}`}>
-        {soundsInTab.map((sound) => (
-          <PaletteItem
-            key={sound.id}
-            sound={sound}
-            label={sound.name[locale]}
-            available={isAvailable(sound.id)}
-            fieldRef={fieldRef}
-            stripRef={stripRef}
-            addPlacement={addPlacement}
-          />
-        ))}
+        {soundsInTab.map((sound) => {
+          const planLocked = isAvailable(sound.id) && !canUseSound(sound.id, plan)
+          const label = sound.name[locale]
+          return (
+            <PaletteItem
+              key={sound.id}
+              sound={sound}
+              label={label}
+              available={isAvailable(sound.id)}
+              planLocked={planLocked}
+              lockedLabel={`${label} — ${t('plan.upgrade.title')}`}
+              fieldRef={fieldRef}
+              stripRef={stripRef}
+              addPlacement={addPlacement}
+              onLockedTap={setUpgradeSound}
+            />
+          )
+        })}
       </div>
+      {layerLimitNotice && (
+        <p className="mixer-layer-notice" role="status">
+          {t(`plan.layerLimit.${layerLimitNotice.outcome}`)}
+        </p>
+      )}
+      {upgradeSound && (
+        <UpgradeSheet label={upgradeSound.name[locale]} plan={requiredPlan(upgradeSound.id)} onClose={() => setUpgradeSound(null)} />
+      )}
     </div>
   )
 }

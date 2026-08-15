@@ -257,6 +257,19 @@
   cursor: not-allowed;
 }
 
+/* B2: a plan-locked chip is a different situation from :disabled above (asset missing) — it
+   stays fully tappable (opens the upgrade sheet), just visually flagged with a lighter dim and a
+   lock badge instead of the "not ready yet" idle look. */
+.mixer-palette-item.is-plan-locked {
+  opacity: 0.82;
+  border: 1px solid var(--so-border-subtle, #232b45);
+}
+
+.mixer-palette-lock {
+  color: var(--so-text-secondary, #a8adc4);
+  flex: 0 0 auto;
+}
+
 .mixer-controls {
   position: fixed;
   left: 0;
@@ -415,4 +428,65 @@
   padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
   box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
   font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+/* B2: transient layer-cap notice, dismissed by store.ts's own timeout. Offset above
+   .mixer-undo-toast's slot so the rare case of both appearing at once doesn't fully overlap. */
+.mixer-layer-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--so-space-5, 1.5rem) * 2.5 + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 10;
+  margin: 0;
+  max-width: 80vw;
+  text-align: center;
+  background: var(--so-bg-overlay, #1a2238);
+  color: var(--so-text-primary, #f0f0f5);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  border-radius: var(--so-radius-full, 999px);
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+/* B2: minimal upgrade sheet — tap a locked chip to see which tier unlocks it. No purchase
+   button yet (src/plan/purchase-adapter.ts is a stub until RevenueCat lands). */
+.mixer-upgrade-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 50%);
+}
+
+.mixer-upgrade-sheet {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--so-space-3, 0.75rem);
+  background: var(--so-bg-overlay, #1a2238);
+  color: var(--so-text-primary, #f0f0f5);
+  border-top: 1px solid var(--so-border-subtle, #232b45);
+  border-radius: var(--so-radius-lg, 20px) var(--so-radius-lg, 20px) 0 0;
+  box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
+  padding: var(--so-space-4, 1rem);
+  padding-bottom: calc(var(--so-space-4, 1rem) + env(safe-area-inset-bottom, 0px));
+}
+
+.mixer-upgrade-sheet p {
+  margin: 0;
+}
+
+.mixer-upgrade-sheet button {
+  align-self: flex-end;
+  min-height: 44px;
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: none;
+  background: var(--so-bg-elevated, #12182b);
+  color: var(--so-text-primary, #f0f0f5);
 }

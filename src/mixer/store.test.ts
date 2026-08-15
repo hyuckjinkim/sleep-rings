@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { useMixStore } from './store'
 import { soundEngine } from './engine/instance'
 import { catalog } from '../library/catalog'
+import { usePlanStore } from '../plan'
 import type { Sound } from './types'
 
 beforeEach(() => {
@@ -14,7 +15,9 @@ beforeEach(() => {
     sleeping: false,
     lastRemoved: null,
     lastRemovedAll: null,
+    layerLimitNotice: null,
   })
+  usePlanStore.setState({ plan: 'free' })
 })
 
 describe('useMixStore', () => {
@@ -309,5 +312,84 @@ describe('sleep timer', () => {
     expect(resumeSpy).toHaveBeenCalled()
 
     resumeSpy.mockRestore()
+  })
+})
+
+describe('B2: plan gate', () => {
+  it('startPlayback (via addPlacement) refuses a sound the current plan does not allow', () => {
+    const playSpy = vi.spyOn(soundEngine, 'play')
+    // 'heartbeat' requires tier2000; default plan here is 'free' (see beforeEach).
+    useMixStore.getState().addPlacement('heartbeat', 0.3, 0)
+    expect(playSpy).not.toHaveBeenCalled()
+    playSpy.mockRestore()
+  })
+
+  it('allows the sound once the plan is upgraded', async () => {
+    usePlanStore.getState().setPlan('tier2000')
+    const playSpy = vi.spyOn(soundEngine, 'play')
+    useMixStore.getState().addPlacement('heartbeat', 0.3, 0)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(playSpy).toHaveBeenCalled()
+    playSpy.mockRestore()
+  })
+})
+
+describe('B2: layer cap', () => {
+  it('free plan (max 3): a 4th placement replaces the oldest unlocked one instead of stacking', () => {
+    const idA = useMixStore.getState().addPlacement('noise-white', 0.1, 0)
+    useMixStore.getState().addPlacement('noise-pink', 0.2, 1)
+    useMixStore.getState().addPlacement('noise-brown', 0.3, 2)
+    expect(useMixStore.getState().current.placements).toHaveLength(3)
+
+    const idD = useMixStore.getState().addPlacement('noise-green', 0.4, 3)
+    const placements = useMixStore.getState().current.placements
+    expect(placements).toHaveLength(3) // still capped, not 4
+    expect(placements.some((p) => p.id === idA)).toBe(false) // oldest was replaced
+    expect(placements.some((p) => p.id === idD)).toBe(true) // new one made it in
+    expect(useMixStore.getState().layerLimitNotice).toMatchObject({ soundId: 'noise-green', outcome: 'replaced' })
+  })
+
+  it('skips locked orbs when choosing what to replace', () => {
+    const idA = useMixStore.getState().addPlacement('noise-white', 0.1, 0)
+    useMixStore.getState().toggleLocked(idA) // lock the oldest — it must survive
+    useMixStore.getState().addPlacement('noise-pink', 0.2, 1)
+    useMixStore.getState().addPlacement('noise-brown', 0.3, 2)
+
+    useMixStore.getState().addPlacement('noise-green', 0.4, 3)
+    const ids = useMixStore.getState().current.placements.map((p) => p.id)
+    expect(ids).toContain(idA) // locked orb untouched
+  })
+
+  it('when every orb is locked, the new sound is not placed and the notice says so', () => {
+    const idA = useMixStore.getState().addPlacement('noise-white', 0.1, 0)
+    const idB = useMixStore.getState().addPlacement('noise-pink', 0.2, 1)
+    const idC = useMixStore.getState().addPlacement('noise-brown', 0.3, 2)
+    for (const id of [idA, idB, idC]) useMixStore.getState().toggleLocked(id)
+
+    const result = useMixStore.getState().addPlacement('noise-green', 0.4, 3)
+    expect(result).toBe('')
+    expect(useMixStore.getState().current.placements).toHaveLength(3)
+    expect(useMixStore.getState().layerLimitNotice).toMatchObject({ soundId: 'noise-green', outcome: 'blocked' })
+  })
+
+  it('a higher plan raises the cap', () => {
+    usePlanStore.getState().setPlan('tier2000') // max 5
+    for (let i = 0; i < 5; i++) useMixStore.getState().addPlacement('noise-white', 0.1 * i, i)
+    expect(useMixStore.getState().current.placements).toHaveLength(5)
+  })
+})
+
+describe('B2: preset slot cap', () => {
+  it('free plan (max 3): a 4th save replaces the oldest preset instead of refusing', () => {
+    useMixStore.getState().addPlacement('noise-white', 0.1, 0)
+    useMixStore.getState().savePreset('one')
+    useMixStore.getState().savePreset('two')
+    useMixStore.getState().savePreset('three')
+    expect(useMixStore.getState().presets.map((p) => p.name)).toEqual(['one', 'two', 'three'])
+
+    useMixStore.getState().savePreset('four')
+    expect(useMixStore.getState().presets).toHaveLength(3) // still capped
+    expect(useMixStore.getState().presets.map((p) => p.name)).toEqual(['two', 'three', 'four'])
   })
 })

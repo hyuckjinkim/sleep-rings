@@ -8,6 +8,7 @@ import { render, screen, cleanup, fireEvent, within } from '@testing-library/rea
 import '../i18n'
 import { Palette, classifyDrag } from './Palette'
 import { useMixStore } from './store'
+import { usePlanStore } from '../plan'
 
 const FIELD_RECT = { left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200, x: 0, y: 0 } as DOMRect
 
@@ -31,7 +32,9 @@ beforeEach(() => {
     sleeping: false,
     lastRemoved: null,
     lastRemovedAll: null,
+    layerLimitNotice: null,
   })
+  usePlanStore.setState({ plan: 'free' })
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(FIELD_RECT)
 })
 
@@ -106,6 +109,55 @@ describe('Palette clear all', () => {
 
     useMixStore.getState().restoreLastRemovedAll()
     expect(useMixStore.getState().current.placements).toHaveLength(2)
+  })
+})
+
+describe('Palette plan lock (B2)', () => {
+  it('a plan-locked sound stays visible and genuinely enabled, distinct from an unavailable one', () => {
+    render(<PaletteHarness />)
+    // 'binaural' is the last tab; all 3 of its sounds require tier5000, and the free plan is
+    // the default in this test file's beforeEach.
+    fireEvent.click(screen.getAllByRole('tab').at(-1)!)
+    const chip = firstChip()
+
+    // Genuinely enabled (not aria-disabled either) — the chip must stay real-tappable to open the
+    // upgrade sheet, unlike an asset-unavailable chip which uses native :disabled.
+    expect(chip).toBeEnabled()
+    expect(chip).not.toHaveAttribute('aria-disabled')
+    expect(chip.className).toContain('is-plan-locked')
+    expect(chip).toHaveAccessibleName(/업그레이드/)
+  })
+
+  it('tapping a plan-locked chip opens the upgrade sheet instead of placing an orb', () => {
+    render(<PaletteHarness />)
+    fireEvent.click(screen.getAllByRole('tab').at(-1)!)
+    const chip = firstChip()
+
+    fireEvent.click(chip)
+
+    expect(useMixStore.getState().current.placements).toHaveLength(0)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('a sound the plan does allow places normally with no lock styling', () => {
+    render(<PaletteHarness />)
+    const chip = firstChip() // default tab is 'noise', all free-tier
+
+    expect(chip).not.toHaveAttribute('aria-disabled')
+    fireEvent.click(chip)
+    expect(useMixStore.getState().current.placements).toHaveLength(1)
+  })
+})
+
+describe('Palette layer limit notice (B2)', () => {
+  it('renders the store notice text when the layer cap replaces an orb', () => {
+    useMixStore.getState().addPlacement('noise-white', 0.1, 0)
+    useMixStore.getState().addPlacement('noise-pink', 0.2, 1)
+    useMixStore.getState().addPlacement('noise-brown', 0.3, 2)
+    useMixStore.getState().addPlacement('noise-green', 0.4, 3) // free plan cap is 3 — this replaces
+
+    render(<PaletteHarness />)
+    expect(screen.getByRole('status')).toBeInTheDocument()
   })
 })
 

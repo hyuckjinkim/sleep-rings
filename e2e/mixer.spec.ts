@@ -144,3 +144,34 @@ test('palette panning: a horizontal drag on a chip scrolls the strip without pla
   expect(after).not.toBe(before)
   await expect(page.locator('.mixer-orb')).toHaveCount(0)
 })
+
+test('plan gate (B2): a locked sound stays visible with an upgrade prompt, and the layer cap swaps the oldest orb', async ({ page }) => {
+  await page.goto('/')
+
+  // 'binaural' (last tab) requires the 5,000원 tier for all 3 of its sounds — the default plan
+  // (no localStorage override) is free, so the first chip must be locked but still visible/tappable.
+  await page.getByRole('tab').last().click()
+  const lockedChip = page.locator('.mixer-palette-item').first()
+  await expect(lockedChip).toBeVisible()
+  await expect(lockedChip).toBeEnabled() // genuinely tappable — native :disabled stays reserved for missing-asset chips (L-4)
+  await expect(lockedChip).toHaveClass(/is-plan-locked/)
+
+  await lockedChip.click()
+  await expect(page.locator('.mixer-upgrade-sheet')).toBeVisible()
+  await expect(page.locator('.mixer-orb')).toHaveCount(0) // tapping a locked chip never places an orb
+  await page.locator('.mixer-upgrade-sheet button').click()
+  await expect(page.locator('.mixer-upgrade-sheet')).toHaveCount(0)
+
+  // Free plan's layer cap is 3 — a 4th placement replaces the oldest orb instead of stacking or
+  // silently failing.
+  await page.getByRole('tab').first().click() // 'noise' — all free-tier
+  const freeChip = page.locator('.mixer-palette-item').first()
+  await freeChip.click()
+  await freeChip.click()
+  await freeChip.click()
+  await expect(page.locator('.mixer-orb')).toHaveCount(3)
+
+  await freeChip.click()
+  await expect(page.locator('.mixer-orb')).toHaveCount(3) // still capped, not 4
+  await expect(page.locator('.mixer-layer-notice')).toBeVisible()
+})

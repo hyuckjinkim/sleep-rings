@@ -68,5 +68,22 @@
       "minutes": "After {{minutes}} min",
       "hint": "Tap to wake the screen"
     }
+  },
+  "plan": {
+    "tier": {
+      "free": "Free",
+      "tier2000": "the ₩2,000 plan",
+      "tier5000": "the ₩5,000 plan",
+      "tier10000": "the ₩10,000 plan (coming soon)"
+    },
+    "upgrade": {
+      "title": "Upgrade needed",
+      "body": "{{sound}} is available from {{tier}}.",
+      "close": "OK"
+    },
+    "layerLimit": {
+      "replaced": "Layers are full — replaced the oldest sound.",
+      "blocked": "Every orb is locked, so nothing could be replaced. Unlock one or upgrade."
+    }
   }
 }

@@ -8,6 +8,7 @@ import { soundEngine } from './engine/instance'
 import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
 import { hapticTap } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
+import { canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
 const UNDO_TIMEOUT_MS = 5000
@@ -67,7 +68,10 @@ function markErrored(id: string): void {
  */
 export function startPlayback(placement: Placement): void {
   const sound = catalog.find((s) => s.id === placement.soundId)
-  if (!sound || !isAvailable(sound.id)) return
+  // B2: plan gate lives here (not just in Palette's click handler) so every path that can queue a
+  // placement — add, undo restore, preset load, boot restore — is covered by one check, including
+  // a downgrade scenario where a saved mix/preset references a sound the current plan no longer allows.
+  if (!sound || !isAvailable(sound.id) || !canUseSound(sound.id, getPlan())) return
 
   if (sound.source.kind === 'synth') {
     // synth buffers render in-memory, effectively instant — no loading state needed.
@@ -97,6 +101,15 @@ export function startPlayback(placement: Placement): void {
   }
 }
 
+// B2: what addPlacement did when the plan's layer cap was already reached. 'replaced' — the
+// oldest unlocked orb was swapped out so the tap still "worked"; 'blocked' — every orb was
+// locked, so there was nothing safe to swap and the new sound wasn't placed. Either way this is
+// guidance for the UI to surface, not a hard rejection with no explanation.
+export interface LayerLimitNotice {
+  soundId: string
+  outcome: 'replaced' | 'blocked'
+}
+
 interface MixStore {
   current: Mix
   loadingIds: Set<string> // placements whose (file) sound hasn't finished loading yet
@@ -106,6 +119,7 @@ interface MixStore {
   sleeping: boolean // true once a sleep timer's fade+stop has completed
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
   lastRemovedAll: Placement[] | null // clear-all undo buffer, same single-slot/timeout shape as lastRemoved
+  layerLimitNotice: LayerLimitNotice | null // B2: transient, cleared after UNDO_TIMEOUT_MS
   addPlacement(soundId: string, radius: number, angle: number): string
   updatePlacement(id: string, patch: PlacementPatch): void
   removePlacement(id: string): void
@@ -124,6 +138,7 @@ interface MixStore {
 let sleepTimeout: ReturnType<typeof setTimeout> | undefined
 let undoTimeout: ReturnType<typeof setTimeout> | undefined
 let undoAllTimeout: ReturnType<typeof setTimeout> | undefined
+let layerLimitTimeout: ReturnType<typeof setTimeout> | undefined
 
 export const useMixStore = create<MixStore>((set, get) => ({
   current: emptyMix(),
@@ -134,6 +149,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   sleeping: false,
   lastRemoved: null,
   lastRemovedAll: null,
+  layerLimitNotice: null,
 
   addPlacement(soundId, radius, angle) {
     hapticTap()
@@ -147,10 +163,42 @@ export const useMixStore = create<MixStore>((set, get) => ({
       locked: false,
       volume: 1,
     }
+
+    // B2: don't hard-block once the plan's layer cap is hit — a night user reaching for the field
+    // in the dark shouldn't get a dead tap. Swap out the oldest *unlocked* orb instead (locked
+    // orbs are an explicit user choice, never auto-removed); only if every orb is locked is there
+    // nothing safe to replace, and the new sound doesn't get placed.
+    const existing = get().current.placements
+    const limit = maxLayers(getPlan())
+    let placements = existing
+    let notice: LayerLimitNotice | null = null
+    if (existing.length >= limit) {
+      const oldest = existing.find((p) => !p.locked)
+      if (oldest) {
+        soundEngine.stop(oldest.id, PLACEMENT_FADE_SEC)
+        placements = existing.filter((p) => p.id !== oldest.id)
+        notice = { soundId, outcome: 'replaced' }
+      } else {
+        clearTimeout(layerLimitTimeout)
+        set({ layerLimitNotice: { soundId, outcome: 'blocked' } })
+        layerLimitTimeout = setTimeout(() => {
+          set((s) => (s.layerLimitNotice?.soundId === soundId ? { layerLimitNotice: null } : s))
+        }, UNDO_TIMEOUT_MS)
+        return ''
+      }
+    }
+
     set((s) => ({
-      current: { ...s.current, placements: [...s.current.placements, placement], updatedAt: Date.now() },
+      current: { ...s.current, placements: [...placements, placement], updatedAt: Date.now() },
       sleeping: false, // B17: audio resumes via onEnterForeground() above — the visual state must follow
+      layerLimitNotice: notice,
     }))
+    clearTimeout(layerLimitTimeout)
+    if (notice) {
+      layerLimitTimeout = setTimeout(() => {
+        set((s) => (s.layerLimitNotice === notice ? { layerLimitNotice: null } : s))
+      }, UNDO_TIMEOUT_MS)
+    }
     startPlayback(placement)
     return placement.id
   },
@@ -252,7 +300,15 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   savePreset(name) {
     const preset: Mix = { ...get().current, id: makeId('preset'), name, updatedAt: Date.now() }
-    set((s) => ({ presets: [...s.presets, preset] }))
+    const limit = maxPresets(getPlan())
+    set((s) => {
+      // B2: same non-blocking principle as the layer cap — once the slot count is full, saving
+      // replaces the oldest preset (FIFO) instead of refusing the save. Presets have no "locked"
+      // concept to preserve, so there's no equivalent to the layer cap's "everything's locked,
+      // can't do anything" dead end here.
+      const presets = s.presets.length >= limit ? s.presets.slice(1) : s.presets
+      return { presets: [...presets, preset] }
+    })
   },
 
   loadPreset(id) {
