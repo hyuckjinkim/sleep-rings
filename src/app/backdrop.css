@@ -1,0 +1,91 @@
+/* 앱 전역 배경 레이어. 토큰: src/app/theme.css, 근거·통합 절차: docs/design/visual-theme-v2.md §2.
+ *
+ * DOM은 <div class="so-backdrop" aria-hidden="true" /> 한 장뿐이고, 별/그레인은 ::before/::after로
+ * 얹는다. 셋 다 position:fixed + pointer-events:none이라 레이아웃·히트테스트에 관여하지 않는다.
+ *
+ * 통합 전제: App.tsx의 <main> 인라인 style에서 `background`를 제거해야 이 레이어가 보인다.
+ * (현재 main이 --so-bg-base로 불투명하게 덮고 있어 z-index:-1 레이어가 가려진다.)
+ *
+ * 성능: 그라데이션·별·그레인 전부 정적이다. 애니메이션은 재생 중 .is-playing 한 클래스에서만
+ * transform/opacity로 돌고(컴포지터 전용, 리페인트 없음), blur 필터는 한 곳도 쓰지 않는다. */
+
+.so-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* 첫 레이어가 위에 그려진다 — 비네트를 맨 앞에 둬야 가장자리에서 오로라까지 함께 어두워진다. */
+  background:
+    radial-gradient(125% 100% at 50% 38%, transparent 42%, var(--so-bg-void) 100%),
+    radial-gradient(
+      70% 55% at 22% 12%,
+      color-mix(in srgb, var(--so-aurora-1) var(--so-aurora-alpha-1), transparent) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      65% 50% at 82% 88%,
+      color-mix(in srgb, var(--so-aurora-2) var(--so-aurora-alpha-2), transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      85% 60% at 50% 42%,
+      color-mix(in srgb, var(--so-aurora-3) var(--so-aurora-alpha-3), transparent) 0%,
+      transparent 70%
+    ),
+    var(--so-bg-base);
+}
+
+/* 별. data URI는 색을 토큰화할 수 없으므로 이미지를 mask로 쓰고 색은 background-color로 준다 —
+   덕분에 별빛도 --so-text-secondary 한 곳에서 관리된다. 타일 하나(360px)를 반복하므로
+   GPU 텍스처 1장으로 전체 화면을 덮는다. */
+.so-backdrop::before,
+.so-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.so-backdrop::before {
+  background-color: var(--so-text-secondary);
+  opacity: var(--so-star-opacity);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='28' cy='46' r='.9' opacity='.75'/%3E%3Ccircle cx='96' cy='18' r='.6' opacity='.45'/%3E%3Ccircle cx='163' cy='72' r='1.1' opacity='.9'/%3E%3Ccircle cx='233' cy='30' r='.7' opacity='.5'/%3E%3Ccircle cx='311' cy='58' r='.85' opacity='.7'/%3E%3Ccircle cx='58' cy='128' r='.65' opacity='.5'/%3E%3Ccircle cx='196' cy='146' r='.9' opacity='.65'/%3E%3Ccircle cx='276' cy='118' r='.6' opacity='.4'/%3E%3Ccircle cx='18' cy='206' r='1' opacity='.8'/%3E%3Ccircle cx='121' cy='232' r='.7' opacity='.55'/%3E%3Ccircle cx='244' cy='214' r='.85' opacity='.7'/%3E%3Ccircle cx='338' cy='188' r='.6' opacity='.45'/%3E%3Ccircle cx='74' cy='296' r='.9' opacity='.7'/%3E%3Ccircle cx='176' cy='318' r='.65' opacity='.5'/%3E%3Ccircle cx='288' cy='284' r='1.05' opacity='.85'/%3E%3C/g%3E%3C/svg%3E");
+  mask-repeat: repeat;
+  mask-size: 360px 360px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='28' cy='46' r='.9' opacity='.75'/%3E%3Ccircle cx='96' cy='18' r='.6' opacity='.45'/%3E%3Ccircle cx='163' cy='72' r='1.1' opacity='.9'/%3E%3Ccircle cx='233' cy='30' r='.7' opacity='.5'/%3E%3Ccircle cx='311' cy='58' r='.85' opacity='.7'/%3E%3Ccircle cx='58' cy='128' r='.65' opacity='.5'/%3E%3Ccircle cx='196' cy='146' r='.9' opacity='.65'/%3E%3Ccircle cx='276' cy='118' r='.6' opacity='.4'/%3E%3Ccircle cx='18' cy='206' r='1' opacity='.8'/%3E%3Ccircle cx='121' cy='232' r='.7' opacity='.55'/%3E%3Ccircle cx='244' cy='214' r='.85' opacity='.7'/%3E%3Ccircle cx='338' cy='188' r='.6' opacity='.45'/%3E%3Ccircle cx='74' cy='296' r='.9' opacity='.7'/%3E%3Ccircle cx='176' cy='318' r='.65' opacity='.5'/%3E%3Ccircle cx='288' cy='284' r='1.05' opacity='.85'/%3E%3C/g%3E%3C/svg%3E");
+  -webkit-mask-repeat: repeat;
+  -webkit-mask-size: 360px 360px;
+}
+
+/* 필름 그레인. 8bit 다크 그라데이션은 넓은 면적에서 반드시 밴딩(계단 띠)이 보이는데,
+   미세 노이즈 한 겹이 그 경계를 흩어 없앤다. feTurbulence는 최초 1회만 래스터라이즈된다. */
+.so-backdrop::after {
+  background-color: var(--so-text-tertiary);
+  opacity: var(--so-grain-opacity);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+  mask-repeat: repeat;
+  mask-size: 160px 160px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: repeat;
+  -webkit-mask-size: 160px 160px;
+}
+
+/* 재생 중 호흡. 오로라 레이어 한 장만 아주 느리게 부풀었다 가라앉는다.
+   밝기 변화는 opacity 0.92↔1 — "튀지 않는다"가 요구사항이므로 진폭을 여기서 넘기지 말 것. */
+@keyframes so-breathe {
+  50% {
+    opacity: 0.92;
+    transform: scale(var(--so-breath-scale));
+  }
+}
+
+.so-backdrop.is-playing {
+  will-change: transform, opacity;
+  animation: so-breathe var(--so-breath-duration) var(--so-ease-gentle) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .so-backdrop.is-playing {
+    animation: none;
+    will-change: auto;
+  }
+}
