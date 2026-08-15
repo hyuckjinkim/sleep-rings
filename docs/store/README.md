@@ -3,7 +3,7 @@
 ## 파일
 
 - `listing-ko.md` / `listing-en.md` — App Store·Play Store 공용 등록 문구 초안(앱명·서브타이틀·설명·키워드·카테고리·스크린샷 캡션)
-- `privacy-policy-ko.md` / `privacy-policy-en.md` — 개인정보처리방침(수집 데이터 없음, 전부 로컬 저장)
+- `privacy-policy-ko.md` / `privacy-policy-en.md` — 개인정보처리방침(믹스·프리셋은 전부 로컬 저장 / 배너 광고 SDK가 광고 식별자를 처리 — `docs/ads-setup.md` 참고)
 - `screenshots/{ios,android}/01~04-*.png` — 자동 캡처 스크린샷(아래 스크립트로 재생성)
 
 ## 스크린샷 재생성

@@ -4,4 +4,8 @@
     <string name="title_activity_main">SleepRings</string>
     <string name="package_name">com.sleeprings.app</string>
     <string name="custom_url_scheme">com.sleeprings.app</string>
+    <!-- AdMob (docs/ads-setup.md) — Google's official test App ID. Replace with the real AdMob
+         App ID (ca-app-pub-...~...) once issued; ad UNIT IDs live in src/ads/ad-config.ts, this is
+         the separate per-app ID AdMob requires in native config. -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
 </resources>
