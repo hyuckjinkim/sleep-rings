@@ -39,8 +39,8 @@ Set a sleep timer and the mix fades out gently before playback stops. Name and s
 **Never loses your night**
 Your mix auto-saves, so reopening the app picks up right where you left off. Playback works without a network connection.
 
-**Completely free**
-No ads, no in-app purchases, no subscriptions — every feature is free.
+**Generous free tier**
+Most sounds (12 of 19) plus orbit mixing, the sleep timer, presets and auto-dim are free. The free tier shows a banner ad (never on the playback screen); optional monthly subscriptions remove ads and unlock more sounds and layers.
 
 ## Keywords (App Store, ≤100 chars, comma-separated, no spaces)
 

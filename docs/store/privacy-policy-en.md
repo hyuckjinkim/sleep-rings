@@ -10,6 +10,8 @@ SleepRings ("the App") has no sign-up, login, or account, and sends no user data
 The App itself collects no personal information. However, the banner ad SDK (Google AdMob) processes advertising identifiers (iOS: IDFA, Android: Advertising ID) and device/network information for ad delivery and measurement — this is collected and processed by Google directly, not by the App.
 
 ## Information Stored on Your Device
+- **Subscription tier**: your selected plan (free or paid tier) is stored on the device only. Payments are handled by the App Store / Google Play; this app never receives or stores payment details.
+
 
 The following is stored only in local storage on your device and is never transmitted anywhere:
 
