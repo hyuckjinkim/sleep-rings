@@ -11,7 +11,23 @@
       "hint": "사운드를 탭해 놓아보세요"
     },
     "palette": {
-      "label": "사운드 팔레트"
+      "label": "사운드 팔레트",
+      "clearAll": "모두 제거"
+    },
+    "category": {
+      "water": "물소리",
+      "rain": "비",
+      "ocean": "파도",
+      "nature": "자연",
+      "animals": "동물",
+      "whispers": "속삭임",
+      "asmr": "ASMR",
+      "music": "음악",
+      "binaural": "바이노럴",
+      "lucid": "루시드",
+      "noise": "노이즈",
+      "ambient": "앰비언트",
+      "camping": "캠핑"
     },
     "controls": {
       "close": "닫기",

@@ -104,10 +104,13 @@ interface MixStore {
   sleepEndsAt: number | null // epoch ms, for the countdown UI
   sleeping: boolean // true once a sleep timer's fade+stop has completed
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
+  lastRemovedAll: Placement[] | null // clear-all undo buffer, same single-slot/timeout shape as lastRemoved
   addPlacement(soundId: string, radius: number, angle: number): string
   updatePlacement(id: string, patch: PlacementPatch): void
   removePlacement(id: string): void
   restoreLastRemoved(): void
+  clearAll(): void
+  restoreLastRemovedAll(): void
   toggleLocked(id: string): void
   setMasterVolume(volume: number): void
   savePreset(name: string): void
@@ -119,6 +122,7 @@ interface MixStore {
 
 let sleepTimeout: ReturnType<typeof setTimeout> | undefined
 let undoTimeout: ReturnType<typeof setTimeout> | undefined
+let undoAllTimeout: ReturnType<typeof setTimeout> | undefined
 
 export const useMixStore = create<MixStore>((set, get) => ({
   current: emptyMix(),
@@ -128,6 +132,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   sleepEndsAt: null,
   sleeping: false,
   lastRemoved: null,
+  lastRemovedAll: null,
 
   addPlacement(soundId, radius, angle) {
     soundEngine.onEnterForeground() // MEDIUM-2: re-resume if a completed sleep timer suspended the context
@@ -198,6 +203,38 @@ export const useMixStore = create<MixStore>((set, get) => ({
     startPlayback(removed)
   },
 
+  // "모두 제거": stop+fade every placement and snapshot them for one undo, same shape as the
+  // single-delete undo above. A confirm dialog would interrupt a half-asleep user reaching for
+  // the field at night; an undo toast (matching the existing B7 pattern) is safer to misfire on.
+  clearAll() {
+    const placements = get().current.placements
+    if (placements.length === 0) return
+    for (const p of placements) soundEngine.stop(p.id, PLACEMENT_FADE_SEC)
+    clearTimeout(undoTimeout) // a bulk clear supersedes any pending single-delete undo
+    clearTimeout(undoAllTimeout)
+    set({
+      current: { ...get().current, placements: [], updatedAt: Date.now() },
+      loadingIds: new Set(),
+      erroredIds: new Set(),
+      lastRemoved: null,
+      lastRemovedAll: placements,
+    })
+    undoAllTimeout = setTimeout(() => {
+      set((s) => (s.lastRemovedAll === placements ? { lastRemovedAll: null } : s))
+    }, UNDO_TIMEOUT_MS)
+  },
+
+  restoreLastRemovedAll() {
+    const removed = get().lastRemovedAll
+    if (!removed) return
+    clearTimeout(undoAllTimeout)
+    set((s) => ({
+      current: { ...s.current, placements: [...s.current.placements, ...removed], updatedAt: Date.now() },
+      lastRemovedAll: null,
+    }))
+    for (const p of removed) startPlayback(p)
+  },
+
   toggleLocked(id) {
     const p = get().current.placements.find((p) => p.id === id)
     if (p) get().updatePlacement(id, { locked: !p.locked })
@@ -220,9 +257,18 @@ export const useMixStore = create<MixStore>((set, get) => ({
     soundEngine.onEnterForeground() // MEDIUM-2
     for (const p of get().current.placements) soundEngine.stop(p.id, PLACEMENT_FADE_SEC) // L-1: fade, not a hard cut
     const current: Mix = { ...preset, id: makeId('mix'), updatedAt: Date.now() }
-    set({ current, loadingIds: new Set(), erroredIds: new Set(), sleepEndsAt: null, sleeping: false, lastRemoved: null })
+    set({
+      current,
+      loadingIds: new Set(),
+      erroredIds: new Set(),
+      sleepEndsAt: null,
+      sleeping: false,
+      lastRemoved: null,
+      lastRemovedAll: null,
+    })
     clearTimeout(sleepTimeout)
     clearTimeout(undoTimeout) // a preset swap invalidates any pending undo from the previous mix
+    clearTimeout(undoAllTimeout)
     soundEngine.cancelSleep()
     for (const p of current.placements) startPlayback(p)
   },

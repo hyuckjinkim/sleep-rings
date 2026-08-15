@@ -11,7 +11,23 @@
       "hint": "Tap a sound to place it"
     },
     "palette": {
-      "label": "Sound palette"
+      "label": "Sound palette",
+      "clearAll": "Clear all"
+    },
+    "category": {
+      "water": "Water",
+      "rain": "Rain",
+      "ocean": "Ocean",
+      "nature": "Nature",
+      "animals": "Animals",
+      "whispers": "Whispers",
+      "asmr": "ASMR",
+      "music": "Music",
+      "binaural": "Binaural",
+      "lucid": "Lucid",
+      "noise": "Noise",
+      "ambient": "Ambient",
+      "camping": "Camping"
     },
     "controls": {
       "close": "Close",

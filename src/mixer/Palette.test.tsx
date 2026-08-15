@@ -4,9 +4,9 @@
 import { useRef } from 'react'
 import type { RefObject } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
 import '../i18n'
-import { Palette } from './Palette'
+import { Palette, classifyDrag } from './Palette'
 import { useMixStore } from './store'
 
 const FIELD_RECT = { left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200, x: 0, y: 0 } as DOMRect
@@ -30,6 +30,7 @@ beforeEach(() => {
     sleepEndsAt: null,
     sleeping: false,
     lastRemoved: null,
+    lastRemovedAll: null,
   })
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(FIELD_RECT)
 })
@@ -39,10 +40,14 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+function firstChip() {
+  return within(screen.getByRole('tabpanel')).getAllByRole('button')[0]
+}
+
 describe('Palette click-to-add', () => {
   it('a plain click with no drag adds a placement (B2 regression)', () => {
     render(<PaletteHarness />)
-    const chip = screen.getAllByRole('button')[0]
+    const chip = firstChip()
 
     fireEvent.click(chip)
 
@@ -51,13 +56,70 @@ describe('Palette click-to-add', () => {
 
   it('a real drag-drop onto the field is not double-counted by the click handler', () => {
     render(<PaletteHarness />)
-    const chip = screen.getAllByRole('button')[0]
+    const chip = firstChip()
 
+    // Vertical movement classifies as 'place' (see classifyDrag), matching a drag onto the field.
     fireEvent.pointerDown(chip, { pointerId: 1, clientX: 10, clientY: 10 })
-    fireEvent.pointerMove(chip, { pointerId: 1, clientX: 100, clientY: 100 })
-    fireEvent.pointerUp(chip, { pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerMove(chip, { pointerId: 1, clientX: 10, clientY: 100 })
+    fireEvent.pointerUp(chip, { pointerId: 1, clientX: 10, clientY: 100 })
     fireEvent.click(chip) // the browser fires this after pointerup on the same element regardless of movement
 
     expect(useMixStore.getState().current.placements).toHaveLength(1)
+  })
+})
+
+describe('Palette category tabs', () => {
+  it('defaults to the category with the most sounds and switches on tab click', () => {
+    render(<PaletteHarness />)
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+
+    const secondTab = tabs[1]
+    fireEvent.click(secondTab)
+    expect(secondTab).toHaveAttribute('aria-selected', 'true')
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('ArrowRight on a tab moves selection and focus to the next tab', () => {
+    render(<PaletteHarness />)
+    const tabs = screen.getAllByRole('tab')
+    tabs[0].focus()
+    fireEvent.keyDown(tabs[0], { key: 'ArrowRight' })
+
+    expect(screen.getAllByRole('tab')[1]).toHaveAttribute('aria-selected', 'true')
+  })
+})
+
+describe('Palette clear all', () => {
+  it('is not rendered when the field has no placements', () => {
+    render(<PaletteHarness />)
+    expect(screen.queryByText('모두 제거')).not.toBeInTheDocument()
+  })
+
+  it('clears every placement and restores them on undo', () => {
+    useMixStore.getState().addPlacement('noise-white', 0.4, 1.2)
+    useMixStore.getState().addPlacement('noise-pink', 0.2, 0.5)
+    render(<PaletteHarness />)
+
+    fireEvent.click(screen.getByText('모두 제거'))
+    expect(useMixStore.getState().current.placements).toHaveLength(0)
+
+    useMixStore.getState().restoreLastRemovedAll()
+    expect(useMixStore.getState().current.placements).toHaveLength(2)
+  })
+})
+
+describe('classifyDrag', () => {
+  it('stays a tap under the movement threshold', () => {
+    expect(classifyDrag(1, 1)).toBe('tap')
+  })
+
+  it('classifies horizontal-dominant movement as a pan', () => {
+    expect(classifyDrag(20, 2)).toBe('pan')
+  })
+
+  it('classifies vertical/diagonal movement as a field placement', () => {
+    expect(classifyDrag(2, 20)).toBe('place')
+    expect(classifyDrag(-10, 10)).toBe('place') // equal magnitude ties go to 'place'
   })
 })

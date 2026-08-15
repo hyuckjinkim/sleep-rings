@@ -13,6 +13,7 @@ beforeEach(() => {
     sleepEndsAt: null,
     sleeping: false,
     lastRemoved: null,
+    lastRemovedAll: null,
   })
 })
 
@@ -126,6 +127,53 @@ describe('undo (B7)', () => {
 
     expect(useMixStore.getState().lastRemoved).toBeNull()
     useMixStore.getState().restoreLastRemoved() // no-op once expired
+    expect(useMixStore.getState().current.placements).toHaveLength(0)
+  })
+})
+
+describe('clear all', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('removes every placement and restores them all on undo', () => {
+    const idA = useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
+    const idB = useMixStore.getState().addPlacement('noise-white', 0.2, 0.5)
+    useMixStore.getState().clearAll()
+
+    expect(useMixStore.getState().current.placements).toHaveLength(0)
+    expect(useMixStore.getState().lastRemovedAll).toHaveLength(2)
+
+    useMixStore.getState().restoreLastRemovedAll()
+    expect(useMixStore.getState().current.placements.map((p) => p.id).sort()).toEqual([idA, idB].sort())
+    expect(useMixStore.getState().lastRemovedAll).toBeNull()
+  })
+
+  it('is a no-op on an empty field', () => {
+    useMixStore.getState().clearAll()
+    expect(useMixStore.getState().lastRemovedAll).toBeNull()
+  })
+
+  it('supersedes a pending single-delete undo', () => {
+    const id = useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
+    useMixStore.getState().removePlacement(id)
+    expect(useMixStore.getState().lastRemoved).not.toBeNull()
+
+    useMixStore.getState().addPlacement('noise-white', 0.2, 0.5)
+    useMixStore.getState().clearAll()
+    expect(useMixStore.getState().lastRemoved).toBeNull()
+  })
+
+  it('expires the undo buffer after the timeout', () => {
+    useMixStore.getState().addPlacement('pink-noise', 0.4, 1.2)
+    useMixStore.getState().clearAll()
+    vi.advanceTimersByTime(5000)
+
+    expect(useMixStore.getState().lastRemovedAll).toBeNull()
+    useMixStore.getState().restoreLastRemovedAll() // no-op once expired
     expect(useMixStore.getState().current.placements).toHaveLength(0)
   })
 })

@@ -23,6 +23,8 @@ export function Mixer() {
   const selectedSoundId = useMixStore((s) => s.current.placements.find((p) => p.id === selectedId)?.soundId)
   const lastRemoved = useMixStore((s) => s.lastRemoved)
   const restoreLastRemoved = useMixStore((s) => s.restoreLastRemoved)
+  const lastRemovedAll = useMixStore((s) => s.lastRemovedAll)
+  const restoreLastRemovedAll = useMixStore((s) => s.restoreLastRemovedAll)
 
   useEffect(() => {
     restoreMix()
@@ -48,8 +50,8 @@ export function Mixer() {
       {selectedId && selectedSoundId && (
         <OrbControls placementId={selectedId} label={soundName(selectedSoundId, locale)} onClose={() => setSelectedId(null)} />
       )}
-      {lastRemoved && (
-        <button type="button" className="mixer-undo-toast" onClick={restoreLastRemoved}>
+      {(lastRemovedAll || lastRemoved) && (
+        <button type="button" className="mixer-undo-toast" onClick={lastRemovedAll ? restoreLastRemovedAll : restoreLastRemoved}>
           {t('mixer.undo.restore')}
         </button>
       )}

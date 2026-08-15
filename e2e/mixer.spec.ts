@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test'
 
+// The category-tab toolbar (added for this patch) pushes the palette strip below y=720, the
+// default desktop test viewport height — raw page.mouse coordinates (unlike .click()) don't
+// auto-scroll, so they'd miss it. A taller viewport keeps the whole mixer on-screen.
+test.use({ viewport: { width: 1280, height: 900 } })
+
 test('drag a sound from the palette onto the field, reposition it, then delete it', async ({ page }) => {
   const consoleErrors: string[] = []
   const pageErrors: string[] = []
@@ -81,4 +86,59 @@ test('keyboard-only: add a sound with Enter and open its control popover with En
   await page.keyboard.press('Enter')
 
   await expect(page.locator('[role="dialog"]')).toBeVisible()
+})
+
+test('category tabs: switching tabs shows only that category\'s sounds', async ({ page }) => {
+  await page.goto('/')
+
+  const tabs = page.getByRole('tab')
+  const paletteItems = page.locator('.mixer-palette-item')
+
+  // Default tab is 'noise' (most sounds in the catalog: 4).
+  await expect(tabs.first()).toHaveAttribute('aria-selected', 'true')
+  await expect(paletteItems).toHaveCount(4)
+
+  // 'rain' is the second category — one available sound (garden-rain has no asset yet, hidden by L-4).
+  await tabs.nth(1).click()
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true')
+  await expect(tabs.first()).toHaveAttribute('aria-selected', 'false')
+  await expect(paletteItems).toHaveCount(1)
+})
+
+test('clear all: removes every placed orb and undo restores them', async ({ page }) => {
+  await page.goto('/')
+
+  const paletteItem = page.locator('.mixer-palette-item').first()
+  await paletteItem.click()
+  await paletteItem.click()
+  await expect(page.locator('.mixer-orb')).toHaveCount(2)
+
+  const clearAll = page.getByRole('button', { name: '모두 제거' })
+  await clearAll.click()
+  await expect(page.locator('.mixer-orb')).toHaveCount(0)
+  await expect(clearAll).toHaveCount(0) // hidden again once the field is empty
+
+  await page.locator('.mixer-undo-toast').click()
+  await expect(page.locator('.mixer-orb')).toHaveCount(2)
+})
+
+test('palette panning: a horizontal drag on a chip scrolls the strip without placing an orb', async ({ page }) => {
+  await page.goto('/')
+
+  // 'binaural' (last tab) has long labels that overflow the strip, guaranteeing scroll room.
+  await page.getByRole('tab').last().click()
+  const strip = page.locator('#mixer-tabpanel')
+  const chip = page.locator('.mixer-palette-item').first()
+  const chipBox = await chip.boundingBox()
+  if (!chipBox) throw new Error('missing chip bounding box')
+
+  const before = await strip.evaluate((el) => el.scrollLeft)
+  await page.mouse.move(chipBox.x + chipBox.width / 2, chipBox.y + chipBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(chipBox.x - 150, chipBox.y + chipBox.height / 2, { steps: 12 })
+  await page.mouse.up()
+  const after = await strip.evaluate((el) => el.scrollLeft)
+
+  expect(after).not.toBe(before)
+  await expect(page.locator('.mixer-orb')).toHaveCount(0)
 })
