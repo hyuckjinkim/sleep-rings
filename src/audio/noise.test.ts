@@ -184,15 +184,7 @@ describe('v0.4.0 premium generators hold their loudness at the real 48kHz playba
   const NATURE_TARGET_RMS = 0.12
   const PROD_RATE = 48000
 
-  it.each([
-    ['birds', () => generateBirdsNoise(PROD_RATE * 10, PROD_RATE)],
-    ['crickets', () => generateCricketsNoise(PROD_RATE * 10, PROD_RATE)],
-    ['city-rain', () => generateCityRainNoise(PROD_RATE * 10, PROD_RATE)],
-    ['train', () => generateTrainNoise(PROD_RATE * NOISE_BUFFER_SECONDS.train!, PROD_RATE)],
-    ['singing-bowl', () => generateSingingBowlNoise(PROD_RATE * NOISE_BUFFER_SECONDS['singing-bowl']!, PROD_RATE)],
-    ['blizzard', () => generateBlizzardNoise(PROD_RATE * NOISE_BUFFER_SECONDS.blizzard!, PROD_RATE)],
-  ] as const)('%s stays within 20%% of the target at 48kHz', (_name, generate) => {
-    const samples = generate()
+  function measure(samples: Float32Array): { rms: number; peak: number } {
     let sumSq = 0
     let peak = 0
     for (let i = 0; i < samples.length; i++) {
@@ -201,7 +193,52 @@ describe('v0.4.0 premium generators hold their loudness at the real 48kHz playba
       const abs = Math.abs(s)
       if (abs > peak) peak = abs
     }
-    const measured = Math.sqrt(sumSq / samples.length)
+    return { rms: Math.sqrt(sumSq / samples.length), peak }
+  }
+
+  // `peak <= 1` is not a real assertion for these: normalizeRms clamps its scale factor so the
+  // peak lands at exactly 1.0, which means a clamped (and therefore quieter-than-target) render
+  // passes that check every time. `peak < 0.999` is what actually detects the clamp firing.
+  const NO_CLAMP_PEAK = 0.999
+
+  it.each([
+    ['crickets', () => generateCricketsNoise(PROD_RATE * 10, PROD_RATE)],
+    ['city-rain', () => generateCityRainNoise(PROD_RATE * 10, PROD_RATE)],
+    ['blizzard', () => generateBlizzardNoise(PROD_RATE * NOISE_BUFFER_SECONDS.blizzard!, PROD_RATE)],
+  ] as const)('%s hits the target at 48kHz without the clip clamp firing', (_name, generate) => {
+    const { rms: measured, peak } = measure(generate())
+    expect(measured).toBeGreaterThan(NATURE_TARGET_RMS * 0.8)
+    expect(measured).toBeLessThan(NATURE_TARGET_RMS * 1.2)
+    expect(peak).toBeLessThan(NO_CLAMP_PEAK)
+  })
+
+  // birds triggers chirps from Math.random, so a single render says little: the reviewer measured
+  // 1/20 outside the band and 2/20 clamped, which a one-shot check would miss ~90% of the time.
+  // 20 trials, worst case asserted (.omc/reviews/v040-review.md HIGH-4).
+  it('birds holds its loudness across 20 seeds at 48kHz', () => {
+    let worstRms = Infinity
+    let bestRms = 0
+    let worstPeak = 0
+    for (let trial = 0; trial < 20; trial++) {
+      const { rms: r, peak } = measure(generateBirdsNoise(PROD_RATE * 10, PROD_RATE))
+      if (r < worstRms) worstRms = r
+      if (r > bestRms) bestRms = r
+      if (peak > worstPeak) worstPeak = peak
+    }
+    expect(worstRms).toBeGreaterThan(NATURE_TARGET_RMS * 0.8)
+    expect(bestRms).toBeLessThan(NATURE_TARGET_RMS * 1.2)
+    expect(worstPeak).toBeLessThan(NO_CLAMP_PEAK)
+  })
+
+  // train/singing-bowl are measurably at the clamp already (peak pinned to 1.0, RMS ~-0.7dB under
+  // target). That's safe, not silent breakage — but it means their loudness is capped by headroom
+  // rather than matched, so only the band is asserted here. Retuning their raw gain is the fix if
+  // this ever drifts further; recorded in RELEASE_MANIFEST 0.4.1 notes.
+  it.each([
+    ['train', () => generateTrainNoise(PROD_RATE * NOISE_BUFFER_SECONDS.train!, PROD_RATE)],
+    ['singing-bowl', () => generateSingingBowlNoise(PROD_RATE * NOISE_BUFFER_SECONDS['singing-bowl']!, PROD_RATE)],
+  ] as const)('%s stays within the band at 48kHz (known to sit at the clamp)', (_name, generate) => {
+    const { rms: measured, peak } = measure(generate())
     expect(measured).toBeGreaterThan(NATURE_TARGET_RMS * 0.8)
     expect(measured).toBeLessThan(NATURE_TARGET_RMS * 1.2)
     expect(peak).toBeLessThanOrEqual(1)
