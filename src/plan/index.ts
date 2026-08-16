@@ -1,5 +1,6 @@
 export type { Plan } from './types'
 export { usePlanStore, getPlan } from './store'
 export { canUseSound, requiredPlan, maxLayers, maxPresets } from './tiers'
-export type { PurchaseAdapter } from './purchase-adapter'
-export { localMockPurchaseAdapter } from './purchase-adapter'
+export type { PurchaseAdapter, PurchaseOffering } from './purchase-adapter'
+export { localMockPurchaseAdapter, getPurchaseAdapter, isPurchaseAvailable, isPurchaseCancelled } from './purchase-adapter'
+export { FALLBACK_PRICE } from './purchase-config'

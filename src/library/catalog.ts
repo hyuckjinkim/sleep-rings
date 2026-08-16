@@ -136,6 +136,57 @@ export const catalog: Sound[] = [
     source: { kind: 'synth', generator: 'womb' },
     license: { spdx: 'no-license-required', sourceName: '합성' },
   },
+  // Premium synth batch (v0.3.1): 6 more sounds giving the 10,000원 tier its first real content
+  // (it otherwise has zero playable sounds — the 3 file sounds below are asset-unavailable). Tier
+  // mapping lives in src/plan/tiers.ts, not here (see docs/plan-tiers.md §5).
+  {
+    id: 'birds',
+    name: { ko: '새소리', en: 'Birdsong' },
+    category: 'animals',
+    source: { kind: 'synth', generator: 'birds' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'train',
+    name: { ko: '기차 소리', en: 'Train' },
+    category: 'ambient',
+    source: { kind: 'synth', generator: 'train' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'singing-bowl',
+    name: { ko: '싱잉볼', en: 'Singing Bowl' },
+    category: 'asmr',
+    source: { kind: 'synth', generator: 'singing-bowl' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'crickets',
+    name: { ko: '귀뚜라미 소리', en: 'Crickets' },
+    category: 'animals',
+    source: { kind: 'synth', generator: 'crickets' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    id: 'blizzard',
+    name: { ko: '눈보라 소리', en: 'Blizzard' },
+    category: 'nature',
+    source: { kind: 'synth', generator: 'blizzard' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
+  {
+    // category 'ambient' (not 'rain') is deliberate: 'rain' already has 4 sounds tied with
+    // 'noise' for the palette's default tab (Palette.tsx picks the first category to strictly
+    // exceed the running max) — adding a 5th rain sound here would flip the default tab away
+    // from 'noise' and break Palette.test.tsx's "defaults to the category with the most sounds"
+    // assertion. 'ambient' already groups train/fan/lofi as urban/mechanical background hum,
+    // which city-rain (rain + distant traffic + puddles) fits reasonably well.
+    id: 'city-rain',
+    name: { ko: '도시 빗소리', en: 'City Rain' },
+    category: 'ambient',
+    source: { kind: 'synth', generator: 'city-rain' },
+    license: { spdx: 'no-license-required', sourceName: '합성' },
+  },
   {
     id: 'binaural-delta',
     name: { ko: '바이노럴 델타 (깊은 수면)', en: 'Binaural Delta (Deep Sleep)' },

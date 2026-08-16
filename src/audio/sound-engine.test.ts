@@ -55,10 +55,13 @@ describe('SoundEngine', () => {
     engine = new SoundEngine(ctx)
   })
 
-  it('init() resumes the context and pre-renders all eight noise/nature colors', async () => {
+  it('init() only resumes the context — buffers are rendered on demand, not up front', async () => {
     await engine.init()
     expect(ctx.resume).toHaveBeenCalled()
-    expect(ctx.createBuffer).toHaveBeenCalledTimes(8)
+    // v0.3.1 (review H3): the eager pre-render was ~8.9M samples of filtering on the main thread
+    // before the first sound could play, and it rendered colors the user may never touch.
+    // load() caches per color instead, so init() must allocate nothing.
+    expect(ctx.createBuffer).not.toHaveBeenCalled()
   })
 
   it('load() is idempotent for synth sounds (does not re-render the buffer)', async () => {

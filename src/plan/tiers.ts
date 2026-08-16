@@ -14,6 +14,11 @@ export function maxPresets(plan: Plan): number {
   return MAX_PRESETS[plan]
 }
 
+/** Exposed so purchase-adapter.ts can rank entitlements without a second copy of PLAN_RANK. */
+export function planRank(plan: Plan): number {
+  return PLAN_RANK[plan]
+}
+
 // Per-sound minimum required plan. roadmap-v030.md §2 splits the catalog (12 free / +4 at 2,000원
 // / +3 binaural at 5,000원 = 19 total). Kept here rather than as a field on catalog.ts's Sound
 // (data/types.ts) so the shared catalog stays plan-agnostic — this is the one file that knows
@@ -25,6 +30,15 @@ export function maxPresets(plan: Plan): number {
 // brook) stay free alongside the original 8; the more niche/ASMR-leaning 4 (rain-umbrella/lofi/
 // heartbeat/womb) are the 2,000원 differentiator.
 const SOUND_TIER: Record<string, Plan> = {
+  // v0.3.1 premium synth batch. birds/crickets/singing-bowl are niche/ASMR-leaning (same call as
+  // heartbeat/womb in the B1 batch) so they anchor the top tier — it had zero usable content
+  // before this. train/blizzard/city-rain are general ambience like the existing free eight.
+  birds: 'tier10000',
+  crickets: 'tier10000',
+  'singing-bowl': 'tier10000',
+  train: 'free',
+  blizzard: 'free',
+  'city-rain': 'free',
   'noise-white': 'free',
   'noise-pink': 'free',
   'noise-brown': 'free',

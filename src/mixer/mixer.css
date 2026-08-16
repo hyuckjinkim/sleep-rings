@@ -499,6 +499,32 @@
   color: var(--so-text-primary, #f0f0f5);
 }
 
+/* Real purchase flow (RevenueCat, gated by isPurchaseAvailable()) — buy is the primary action,
+   restore/close stay on the muted default button style above. */
+.mixer-upgrade-buy {
+  align-self: stretch !important;
+  background: var(--so-accent, #93a5c8) !important;
+  color: var(--so-bg-base, #0a0e1a) !important;
+  font-weight: 600;
+}
+
+.mixer-upgrade-buy:disabled,
+.mixer-upgrade-restore:disabled {
+  opacity: 0.6;
+}
+
+.mixer-upgrade-error {
+  margin: 0;
+  color: var(--so-danger, #d45e68);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.mixer-upgrade-comingSoon {
+  margin: 0;
+  color: var(--so-text-secondary, #a8adc4);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
 /* Preset-slot cap notice — inline (not a floating toast) because it belongs to the preset list
    the user is looking at, and the layer-cap toast already owns the floating band. */
 .mixer-preset-notice {

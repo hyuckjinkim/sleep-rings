@@ -2,7 +2,14 @@
   "app": {
     "title": "SleepRings",
     "subtitle": "Night sound mixer",
-    "toggleLanguage": "한국어"
+    "toggleLanguage": "한국어",
+    "settings": {
+      "open": "Open settings",
+      "title": "Settings"
+    },
+    "version": {
+      "label": "Version"
+    }
   },
   "mixer": {
     "field": {
@@ -80,11 +87,21 @@
     "upgrade": {
       "title": "Upgrade needed",
       "body": "{{sound}} is available from {{tier}}.",
-      "close": "OK"
+      "close": "OK",
+      "buy": "Buy for {{price}}",
+      "purchasing": "Purchasing…",
+      "restore": "Restore purchases",
+      "restoring": "Restoring…",
+      "failed": "Purchase failed. Please try again.",
+      "comingSoon": "Purchases are coming soon. ({{price}})"
     },
     "layerLimit": {
       "replaced": "Layers are full — replaced the oldest sound.",
       "blocked": "Every orb is locked, so nothing could be replaced. Unlock one or upgrade."
+    },
+    "settings": {
+      "currentLabel": "Current plan",
+      "upgradeHint": "Want more sounds and layers? Consider upgrading."
     }
   }
 }

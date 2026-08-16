@@ -218,19 +218,28 @@ const CAMPFIRE_POP_GAIN = 1.0
 /** Sparse random impulse envelope: each sample has a small trigger probability that snaps the
  * envelope to 1 and starts an exponential decay — a cheap stand-in for discrete pop/crackle
  * transients. Crest factor is high and random-seed-dependent, which risks tripping normalizeRms's
- * clip clamp non-deterministically (E3 §7 lesson) — rate/decay/gain here were tuned via a 25-trial
- * Monte Carlo sweep to land within the RMS target band on every trial without clamping. */
-function applyImpulseBursts(input: Float32Array, sampleRate: number, ratePerSec: number, decayMs: number, gain: number): Float32Array {
-  const out = new Float32Array(input.length)
+ * clip clamp non-deterministically (E3 §7 lesson) — rate/decay/gain at each call site were tuned
+ * via a 25-trial Monte Carlo sweep to land within the RMS target band on every trial without
+ * clamping. Bare envelope (not applied to a signal) so tone-based callers (e.g. cricket chirps)
+ * can drive a sine instead of gating noise — see generateCricketsNoise/generateBlizzardNoise. */
+function triggerDecayEnvelope(length: number, sampleRate: number, ratePerSec: number, decayMs: number): Float32Array {
+  const out = new Float32Array(length)
   const decaySamples = (decayMs / 1000) * sampleRate
   const decayRate = Math.exp(-1 / decaySamples)
   const triggerProb = ratePerSec / sampleRate
   let envelope = 0
-  for (let i = 0; i < input.length; i++) {
+  for (let i = 0; i < length; i++) {
     if (Math.random() < triggerProb) envelope = 1
     else envelope *= decayRate
-    out[i] = input[i] * envelope * gain
+    out[i] = envelope
   }
+  return out
+}
+
+function applyImpulseBursts(input: Float32Array, sampleRate: number, ratePerSec: number, decayMs: number, gain: number): Float32Array {
+  const envelope = triggerDecayEnvelope(input.length, sampleRate, ratePerSec, decayMs)
+  const out = new Float32Array(input.length)
+  for (let i = 0; i < input.length; i++) out[i] = input[i] * envelope[i] * gain
   return out
 }
 
@@ -387,6 +396,196 @@ export function generateWombNoise(length: number, sampleRate: number): Float32Ar
   return normalizeRms(swelled, NATURE_TARGET_RMS)
 }
 
+// --- Premium synth batch (v0.3.1): 6 more sounds for the 10,000원 tier, which otherwise has zero
+// working content (its 3 file-based sounds are asset-unavailable — docs/plan-tiers.md §1). Same
+// primitives as B1 above, plus two new ones: a stateful FM-chirp voice (birds) and
+// triggerDecayEnvelope reused to drive tones instead of noise (crickets/blizzard sparkle).
+
+const BIRDS_BED_GAIN = 0.15 // quiet green-noise forest hush under the chirps, not the main event
+const BIRDS_CHIRP_RATE_PER_SEC = 0.9 // sparse individual calls — crickets owns the dense chorus
+const BIRDS_CHIRP_MIN_MS = 120
+const BIRDS_CHIRP_MAX_MS = 280
+const BIRDS_CHIRP_BASE_HZ = 2200
+const BIRDS_CHIRP_RANDOM_HZ = 800 // per-chirp base randomized within [BASE, BASE+RANDOM]
+const BIRDS_CHIRP_SWEEP_HZ = 2600 // upward FM sweep range over the chirp's length
+const BIRDS_CHIRP_SWEEP_RANDOM = 0.6 // sweep depth randomized to 60-120% of SWEEP_HZ
+const BIRDS_CHIRP_VIBRATO_HZ = 35 // fast trill within each chirp
+const BIRDS_CHIRP_VIBRATO_DEPTH_HZ = 300
+
+/** Sparse FM-chirp voice: each trigger starts a short (120-280ms) tone whose instantaneous
+ * frequency sweeps upward and trills (vibrato), shaped by a rise/fall envelope that is exactly 0
+ * at both ends of the chirp — bird calls, not noise-gated impulses like campfire's crackle. New
+ * chirps are refused within the last chirp's max length of the buffer end so every triggered
+ * chirp fully completes before the loop point (no wraparound click). */
+export function generateBirdsNoise(length: number, sampleRate: number): Float32Array {
+  const bed = generateGreenNoise(length, sampleRate)
+  const chirps = new Float32Array(length)
+  const triggerProb = BIRDS_CHIRP_RATE_PER_SEC / sampleRate
+  const maxChirpSamples = Math.ceil((BIRDS_CHIRP_MAX_MS / 1000) * sampleRate)
+  let active = false
+  let chirpStart = 0
+  let chirpLenSamples = 0
+  let chirpBaseHz = 0
+  let chirpSweepHz = 0
+  let chirpPhase = 0
+  for (let i = 0; i < length; i++) {
+    if (!active && i < length - maxChirpSamples && Math.random() < triggerProb) {
+      active = true
+      chirpStart = i
+      chirpLenSamples = Math.floor(((BIRDS_CHIRP_MIN_MS + Math.random() * (BIRDS_CHIRP_MAX_MS - BIRDS_CHIRP_MIN_MS)) / 1000) * sampleRate)
+      chirpBaseHz = BIRDS_CHIRP_BASE_HZ + Math.random() * BIRDS_CHIRP_RANDOM_HZ
+      chirpSweepHz = BIRDS_CHIRP_SWEEP_HZ * (BIRDS_CHIRP_SWEEP_RANDOM + Math.random() * BIRDS_CHIRP_SWEEP_RANDOM)
+      chirpPhase = 0
+    }
+    if (active) {
+      const tIn = i - chirpStart
+      const frac = tIn / chirpLenSamples
+      if (frac >= 1) {
+        active = false
+      } else {
+        const instFreq = chirpBaseHz + chirpSweepHz * frac + Math.sin((2 * Math.PI * BIRDS_CHIRP_VIBRATO_HZ * tIn) / sampleRate) * BIRDS_CHIRP_VIBRATO_DEPTH_HZ
+        chirpPhase += (2 * Math.PI * instFreq) / sampleRate
+        chirps[i] = Math.sin(chirpPhase) * Math.sin(Math.PI * frac)
+      }
+    }
+  }
+  const mixed = new Float32Array(length)
+  for (let i = 0; i < length; i++) mixed[i] = bed[i] * BIRDS_BED_GAIN + chirps[i]
+  return normalizeRms(mixed, NATURE_TARGET_RMS)
+}
+
+const TRAIN_RUMBLE_LOWPASS_HZ = 180 // deep rolling-wheel rumble, below the click band
+const TRAIN_CLICK_HIGHPASS_HZ = 2500 // isolates the rail-joint "clack" transient
+const TRAIN_CLICK_PERIOD_SEC = 1.2 // one wheelset pass per period (clickety-clack tempo)
+const TRAIN_CLICK_GAP_MS = 140 // gap between the two clicks in a "clickety-clack" pair
+const TRAIN_CLICK_PULSE_MS = 18 // short percussive click, not a ring
+const TRAIN_CLACK_GAIN = 0.75 // second click ("clack") slightly softer than the first ("clickety")
+const TRAIN_BUFFER_SECONDS = 12 // whole multiple of TRAIN_CLICK_PERIOD_SEC (10 periods) -> phase-continuous loop
+
+/** Lowpassed brown rumble bed + a deterministic "clickety-clack" rail-joint pair every
+ * TRAIN_CLICK_PERIOD_SEC, reusing pulseEnvelope (same half-sine click shape as heartbeat's
+ * lub-dub). Deterministic and periodic, unlike the random-trigger textures above, so the buffer
+ * loops exactly with no seed-dependent risk. */
+export function generateTrainNoise(length: number, sampleRate: number): Float32Array {
+  const rumble = onePoleLowpass(generateBrownNoise(length), sampleRate, TRAIN_RUMBLE_LOWPASS_HZ)
+  const clickBase = onePoleHighpass(generateWhiteNoise(length), sampleRate, TRAIN_CLICK_HIGHPASS_HZ)
+  const mixed = new Float32Array(length)
+  for (let i = 0; i < length; i++) {
+    const t = i / sampleRate
+    const tInPeriodMs = (t % TRAIN_CLICK_PERIOD_SEC) * 1000
+    const clickEnv = pulseEnvelope(tInPeriodMs, TRAIN_CLICK_PULSE_MS)
+    const clackEnv = pulseEnvelope(tInPeriodMs - TRAIN_CLICK_GAP_MS, TRAIN_CLICK_PULSE_MS) * TRAIN_CLACK_GAIN
+    mixed[i] = rumble[i] + clickBase[i] * (clickEnv + clackEnv)
+  }
+  return normalizeRms(mixed, NATURE_TARGET_RMS)
+}
+
+const BOWL_FUNDAMENTAL_HZ = 220
+const BOWL_STRIKE_PERIOD_SEC = 6 // gentle repeated mallet strikes
+const BOWL_ATTACK_SEC = 0.02 // fast mallet strike
+const BOWL_BUFFER_SECONDS = BOWL_STRIKE_PERIOD_SEC // one strike baked per loop, like wind/waves' swell-period buffers
+// Partial ratios/decays: each pair is detuned a few percent from its partner so the two beat
+// against each other (the "비팅" texture) — a lighter stand-in for real banded-waveguide bowl
+// synthesis (.omc/research/platform-capabilities.md flagged that as high-effort). decaySec values
+// are chosen so every partial has decayed to <1% of peak well before BOWL_STRIKE_PERIOD_SEC, so
+// the loop point lands on near-silence with no click regardless of the sine's absolute phase there
+// (same "envelope is ~0 at the seam" reasoning as heartbeat/womb above).
+const BOWL_PARTIALS: ReadonlyArray<{ ratio: number; gain: number; decaySec: number }> = [
+  { ratio: 1, gain: 1, decaySec: 1.0 },
+  { ratio: 1.018, gain: 0.85, decaySec: 1.0 }, // ~4Hz beat against the fundamental
+  { ratio: 2.76, gain: 0.4, decaySec: 0.7 }, // inharmonic overtone typical of a struck metal bowl
+  { ratio: 2.78, gain: 0.32, decaySec: 0.7 }, // ~4.4Hz beat against the overtone above
+  { ratio: 5.41, gain: 0.15, decaySec: 0.35 }, // bright shimmer, decays fastest
+]
+
+function bowlPartialEnvelope(tInPeriodSec: number, decaySec: number): number {
+  if (tInPeriodSec < BOWL_ATTACK_SEC) return tInPeriodSec / BOWL_ATTACK_SEC
+  return Math.exp(-(tInPeriodSec - BOWL_ATTACK_SEC) / decaySec)
+}
+
+/** Struck singing bowl: a handful of detuned sine partials, each with its own decaying envelope,
+ * re-struck once per BOWL_STRIKE_PERIOD_SEC. */
+export function generateSingingBowlNoise(length: number, sampleRate: number): Float32Array {
+  const out = new Float32Array(length)
+  for (const { ratio, gain, decaySec } of BOWL_PARTIALS) {
+    const hz = BOWL_FUNDAMENTAL_HZ * ratio
+    for (let i = 0; i < length; i++) {
+      const t = i / sampleRate
+      const env = bowlPartialEnvelope(t % BOWL_STRIKE_PERIOD_SEC, decaySec)
+      out[i] += Math.sin(2 * Math.PI * hz * t) * env * gain
+    }
+  }
+  return normalizeRms(out, NATURE_TARGET_RMS)
+}
+
+const CRICKET_VOICE_COUNT = 5 // independent chirp-trains summed into a chorus
+const CRICKET_CHIRP_RATE_MIN = 3 // chirps/sec per voice
+const CRICKET_CHIRP_RATE_MAX = 6
+const CRICKET_CHIRP_DECAY_MS = 35 // short percussive tick per chirp
+const CRICKET_FREQ_MIN_HZ = 3200 // narrowband cricket stridulation range
+const CRICKET_FREQ_MAX_HZ = 4400
+const CRICKET_BED_GAIN = 0.08 // quiet night-forest floor under the chorus
+
+/** Dense narrowband chirp chorus: CRICKET_VOICE_COUNT independent "crickets", each a fixed random
+ * pitch in the stridulation band gated by its own triggerDecayEnvelope at its own random rate,
+ * summed together. Random per-voice pitch/rate is what makes it read as a chorus of individuals
+ * rather than one metronomic chirp. */
+export function generateCricketsNoise(length: number, sampleRate: number): Float32Array {
+  const bed = generateBrownNoise(length)
+  const chorus = new Float32Array(length)
+  for (let v = 0; v < CRICKET_VOICE_COUNT; v++) {
+    const hz = CRICKET_FREQ_MIN_HZ + Math.random() * (CRICKET_FREQ_MAX_HZ - CRICKET_FREQ_MIN_HZ)
+    const ratePerSec = CRICKET_CHIRP_RATE_MIN + Math.random() * (CRICKET_CHIRP_RATE_MAX - CRICKET_CHIRP_RATE_MIN)
+    const envelope = triggerDecayEnvelope(length, sampleRate, ratePerSec, CRICKET_CHIRP_DECAY_MS)
+    for (let i = 0; i < length; i++) chorus[i] += Math.sin((2 * Math.PI * hz * i) / sampleRate) * envelope[i]
+  }
+  const mixed = new Float32Array(length)
+  for (let i = 0; i < length; i++) mixed[i] = chorus[i] + bed[i] * CRICKET_BED_GAIN
+  return normalizeRms(mixed, NATURE_TARGET_RMS)
+}
+
+const BLIZZARD_LOWPASS_HZ = 550 // brighter/harsher gust band than WIND's calmer 500Hz
+const BLIZZARD_SWELL_SEC = 8 // faster, more violent gust cycle than wind's 12s
+const BLIZZARD_SWELL_MIN_GAIN = 0.25 // deeper troughs between gusts than wind's 0.35
+const BLIZZARD_BUFFER_SECONDS = BLIZZARD_SWELL_SEC
+const BLIZZARD_SPARKLE_HIGHPASS_HZ = 6000 // isolates the glassy ice-crystal transient band
+const BLIZZARD_SPARKLE_RATE_PER_SEC = 18 // dense, fine sparkle texture
+const BLIZZARD_SPARKLE_DECAY_MS = 12
+const BLIZZARD_SPARKLE_GAIN = 0.5 // mixed under the gust bed, not overpowering it
+
+/** Wind's gust engine (lowpass + amplitude swell), tuned brighter/harder, plus a sparse
+ * highpassed "ice crystal" sparkle layer (same trigger-decay shape as campfire's crackle, just
+ * higher frequency and denser). */
+export function generateBlizzardNoise(length: number, sampleRate: number): Float32Array {
+  const gustBed = onePoleLowpass(generateBrownNoise(length), sampleRate, BLIZZARD_LOWPASS_HZ)
+  const gustSwelled = applyAmplitudeSwell(gustBed, sampleRate, BLIZZARD_SWELL_SEC, BLIZZARD_SWELL_MIN_GAIN)
+  const sparkleBase = onePoleHighpass(generateWhiteNoise(length), sampleRate, BLIZZARD_SPARKLE_HIGHPASS_HZ)
+  const sparkleEnv = triggerDecayEnvelope(length, sampleRate, BLIZZARD_SPARKLE_RATE_PER_SEC, BLIZZARD_SPARKLE_DECAY_MS)
+  const mixed = new Float32Array(length)
+  for (let i = 0; i < length; i++) mixed[i] = gustSwelled[i] + sparkleBase[i] * sparkleEnv[i] * BLIZZARD_SPARKLE_GAIN
+  return normalizeRms(mixed, NATURE_TARGET_RMS)
+}
+
+const CITYRAIN_TRAFFIC_LOWPASS_HZ = 120 // distant traffic rumble, well below rain's hiss band
+const CITYRAIN_TRAFFIC_GAIN = 0.5 // mixed under the rain hiss, a constant urban floor
+const CITYRAIN_SPLASH_BANDPASS_LOW_HZ = 400
+const CITYRAIN_SPLASH_BANDPASS_HIGH_HZ = 1200
+const CITYRAIN_SPLASH_RATE_PER_SEC = 0.6 // occasional puddle splashes, sparser than rain droplets
+const CITYRAIN_SPLASH_DECAY_MS = 90 // longer decay than a raindrop tick - a wetter, broader "splat"
+const CITYRAIN_SPLASH_GAIN = 0.8
+
+/** Rain's highpassed-hiss layer (generateRainNoise's texture) + a constant lowpassed-brown
+ * "distant traffic" floor + sparse mid-band "puddle splash" bursts (triggerDecayEnvelope again). */
+export function generateCityRainNoise(length: number, sampleRate: number): Float32Array {
+  const hiss = applyJitterTexture(onePoleHighpass(generateWhiteNoise(length), sampleRate, RAIN_HIGHPASS_HZ), sampleRate, RAIN_JITTER_HOLD_MS, ...RAIN_JITTER_GAIN)
+  const traffic = onePoleLowpass(generateBrownNoise(length), sampleRate, CITYRAIN_TRAFFIC_LOWPASS_HZ)
+  const splashBand = onePoleHighpass(onePoleLowpass(generateWhiteNoise(length), sampleRate, CITYRAIN_SPLASH_BANDPASS_HIGH_HZ), sampleRate, CITYRAIN_SPLASH_BANDPASS_LOW_HZ)
+  const splashEnv = triggerDecayEnvelope(length, sampleRate, CITYRAIN_SPLASH_RATE_PER_SEC, CITYRAIN_SPLASH_DECAY_MS)
+  const mixed = new Float32Array(length)
+  for (let i = 0; i < length; i++) mixed[i] = hiss[i] + traffic[i] * CITYRAIN_TRAFFIC_GAIN + splashBand[i] * splashEnv[i] * CITYRAIN_SPLASH_GAIN
+  return normalizeRms(mixed, NATURE_TARGET_RMS)
+}
+
 const GENERATORS: Record<NoiseColor, (length: number, sampleRate: number) => Float32Array> = {
   white: (length) => generateWhiteNoise(length),
   pink: (length) => generatePinkNoise(length),
@@ -404,6 +603,12 @@ const GENERATORS: Record<NoiseColor, (length: number, sampleRate: number) => Flo
   lofi: (length, sampleRate) => generateLofiNoise(length, sampleRate),
   heartbeat: (length, sampleRate) => generateHeartbeatNoise(length, sampleRate),
   womb: (length, sampleRate) => generateWombNoise(length, sampleRate),
+  birds: (length, sampleRate) => generateBirdsNoise(length, sampleRate),
+  train: (length, sampleRate) => generateTrainNoise(length, sampleRate),
+  'singing-bowl': (length, sampleRate) => generateSingingBowlNoise(length, sampleRate),
+  crickets: (length, sampleRate) => generateCricketsNoise(length, sampleRate),
+  blizzard: (length, sampleRate) => generateBlizzardNoise(length, sampleRate),
+  'city-rain': (length, sampleRate) => generateCityRainNoise(length, sampleRate),
 }
 
 /** Per-color buffer duration override. wind/waves/fan/lofi bake exactly one amplitude-swell
@@ -419,6 +624,9 @@ export const NOISE_BUFFER_SECONDS: Partial<Record<NoiseColor, number>> = {
   lofi: LOFI_SWELL_SEC,
   heartbeat: HEARTBEAT_BUFFER_SECONDS,
   womb: WOMB_BUFFER_SECONDS,
+  train: TRAIN_BUFFER_SECONDS,
+  'singing-bowl': BOWL_BUFFER_SECONDS,
+  blizzard: BLIZZARD_BUFFER_SECONDS,
 }
 
 export interface BufferHost {

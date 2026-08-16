@@ -175,3 +175,24 @@ test('plan gate (B2): a locked sound stays visible with an upgrade prompt, and t
   await expect(page.locator('.mixer-orb')).toHaveCount(3) // still capped, not 4
   await expect(page.locator('.mixer-layer-notice')).toBeVisible()
 })
+
+test('purchase flow (impl-purchase): today\'s build has no RevenueCat key, so the upgrade sheet shows "coming soon" instead of a buy button', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('tab').last().click() // 'binaural' — all 5,000원-tier, locked on the default free plan
+  const lockedChip = page.locator('.mixer-palette-item').first()
+  await lockedChip.click()
+
+  const sheet = page.locator('.mixer-upgrade-sheet')
+  await expect(sheet).toBeVisible()
+  // isPurchaseAvailable() is false off-native (this is a web/Playwright run) regardless of any
+  // key, so no buy/restore button should render — only the informational "coming soon" notice
+  // and the close button.
+  await expect(sheet.locator('.mixer-upgrade-comingSoon')).toBeVisible()
+  await expect(sheet.locator('.mixer-upgrade-buy')).toHaveCount(0)
+  await expect(sheet.locator('.mixer-upgrade-restore')).toHaveCount(0)
+  await expect(sheet.locator('button')).toHaveCount(1) // just "close"
+
+  await sheet.locator('button').click()
+  await expect(sheet).toHaveCount(0)
+})

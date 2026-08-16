@@ -1,16 +1,22 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  generateBirdsNoise,
+  generateBlizzardNoise,
   generateBrookNoise,
   generateBrownNoise,
   generateCampfireNoise,
+  generateCityRainNoise,
+  generateCricketsNoise,
   generateFanNoise,
   generateGreenNoise,
   generateHeartbeatNoise,
   generateLofiNoise,
   generatePinkNoise,
   generateRainNoise,
+  generateSingingBowlNoise,
   generateStreamNoise,
   generateThunderNoise,
+  generateTrainNoise,
   generateUmbrellaRainNoise,
   generateWavesNoise,
   generateWhiteNoise,
@@ -52,6 +58,12 @@ describe.each([
   ['lofi', () => generateLofiNoise(LENGTH, SAMPLE_RATE)],
   ['heartbeat', () => generateHeartbeatNoise(LENGTH, SAMPLE_RATE)],
   ['womb', () => generateWombNoise(LENGTH, SAMPLE_RATE)],
+  ['birds', () => generateBirdsNoise(LENGTH, SAMPLE_RATE)],
+  ['train', () => generateTrainNoise(LENGTH, SAMPLE_RATE)],
+  ['singing-bowl', () => generateSingingBowlNoise(LENGTH, SAMPLE_RATE)],
+  ['crickets', () => generateCricketsNoise(LENGTH, SAMPLE_RATE)],
+  ['blizzard', () => generateBlizzardNoise(LENGTH, SAMPLE_RATE)],
+  ['city-rain', () => generateCityRainNoise(LENGTH, SAMPLE_RATE)],
 ] as const)('%s noise generator', (_name, generate) => {
   it('produces the requested length, finite samples within [-1, 1], and non-zero energy', () => {
     const samples = generate()
@@ -102,6 +114,13 @@ describe('nature generators are RMS-matched to the existing noise colors (E3 §7
     ['lofi', () => generateLofiNoise(RMS_RATE * NOISE_BUFFER_SECONDS.lofi!, RMS_RATE)],
     ['heartbeat', () => generateHeartbeatNoise(RMS_RATE * NOISE_BUFFER_SECONDS.heartbeat!, RMS_RATE)],
     ['womb', () => generateWombNoise(RMS_RATE * NOISE_BUFFER_SECONDS.womb!, RMS_RATE)],
+    // Premium synth batch (v0.3.1).
+    ['birds', () => generateBirdsNoise(RMS_RATE * DEFAULT_SECONDS, RMS_RATE)],
+    ['train', () => generateTrainNoise(RMS_RATE * NOISE_BUFFER_SECONDS.train!, RMS_RATE)],
+    ['singing-bowl', () => generateSingingBowlNoise(RMS_RATE * NOISE_BUFFER_SECONDS['singing-bowl']!, RMS_RATE)],
+    ['crickets', () => generateCricketsNoise(RMS_RATE * DEFAULT_SECONDS, RMS_RATE)],
+    ['blizzard', () => generateBlizzardNoise(RMS_RATE * NOISE_BUFFER_SECONDS.blizzard!, RMS_RATE)],
+    ['city-rain', () => generateCityRainNoise(RMS_RATE * DEFAULT_SECONDS, RMS_RATE)],
   ] as const)('%s RMS lands within 20%% of the shared nature-sound target at its real deployed buffer length', (_name, generate) => {
     const measured = rms(generate())
     expect(measured).toBeGreaterThan(NATURE_TARGET_RMS * 0.8)
@@ -118,6 +137,14 @@ describe('B1 synth generators never clip regardless of random seed', () => {
     ['thunder', () => generateThunderNoise(RMS_RATE * NOISE_BUFFER_SECONDS.thunder!, RMS_RATE)],
     ['heartbeat', () => generateHeartbeatNoise(RMS_RATE * NOISE_BUFFER_SECONDS.heartbeat!, RMS_RATE)],
     ['womb', () => generateWombNoise(RMS_RATE * NOISE_BUFFER_SECONDS.womb!, RMS_RATE)],
+    // Premium synth batch (v0.3.1): birds/crickets/blizzard/city-rain all drive Math.random()
+    // triggers (birds' chirp voice, crickets' 5-voice chorus, blizzard's sparkle, city-rain's
+    // splash) so their peaks are seed-dependent the same way campfire/thunder/heartbeat/womb are.
+    // train and singing-bowl are purely deterministic/periodic and don't need this.
+    ['birds', () => generateBirdsNoise(RMS_RATE * 10, RMS_RATE)],
+    ['crickets', () => generateCricketsNoise(RMS_RATE * 10, RMS_RATE)],
+    ['blizzard', () => generateBlizzardNoise(RMS_RATE * NOISE_BUFFER_SECONDS.blizzard!, RMS_RATE)],
+    ['city-rain', () => generateCityRainNoise(RMS_RATE * 10, RMS_RATE)],
   ] as const)('%s stays within [-1, 1] across 25 random trials', (_name, generate) => {
     // Track the extreme across all trials and assert once. Per-sample expect() here was ~48M
     // assertion calls, which hung the vitest worker past the pool's liveness timeout.

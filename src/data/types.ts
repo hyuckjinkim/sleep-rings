@@ -20,7 +20,8 @@ export type Category =
 
 // Covers every pre-rendered-buffer synth generator noise.ts knows how to bake, not just literal
 // noise "colors" — rain/wind/waves/stream ride the same synth pipeline (E3 §7). B1 (v0.3.0)
-// added 8 more: campfire/fan/thunder/brook/umbrella-rain/lofi/heartbeat/womb.
+// added 8 more: campfire/fan/thunder/brook/umbrella-rain/lofi/heartbeat/womb. Premium synth batch
+// (v0.3.1) added 6 more: birds/train/singing-bowl/crickets/blizzard/city-rain.
 export type NoiseColor =
   | 'white'
   | 'pink'
@@ -38,6 +39,12 @@ export type NoiseColor =
   | 'lofi'
   | 'heartbeat'
   | 'womb'
+  | 'birds'
+  | 'train'
+  | 'singing-bowl'
+  | 'crickets'
+  | 'blizzard'
+  | 'city-rain'
 
 export type SoundSource =
   | { kind: 'synth'; generator: NoiseColor }

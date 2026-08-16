@@ -1,0 +1,60 @@
+/* Self-contained: reuses --so-* design tokens (theme.css), same pattern as src/screen/screen.css. */
+
+.settings-screen {
+  width: min(92vw, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--so-space-4, 1rem);
+  padding-bottom: calc(var(--so-space-4, 1rem) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Reserves room for the native AdMob bottom banner (adaptive banner is ~50-90px) so the last
+ * section's content never sits underneath it. */
+.settings-screen.has-banner {
+  padding-bottom: calc(90px + var(--so-space-4, 1rem) + env(safe-area-inset-bottom, 0px));
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-header strong {
+  font-size: var(--so-font-size-md, 1.25rem);
+}
+
+.settings-header button {
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: transparent;
+  color: var(--so-text-secondary, #a8adc4);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--so-space-2, 0.5rem);
+  background: var(--so-bg-elevated, #12182b);
+  padding: var(--so-space-3, 0.75rem);
+  border-radius: var(--so-radius-md, 12px);
+}
+
+.settings-label {
+  color: var(--so-text-secondary, #a8adc4);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.settings-plan-hint {
+  margin: 0;
+  color: var(--so-text-tertiary, #6b7290);
+  font-size: var(--so-font-size-xs, 0.75rem);
+}
+
+.settings-about {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}

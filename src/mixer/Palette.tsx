@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
 import { TAU, unitToPolar } from './geometry'
 import { catalog, isAvailable } from '../library/catalog'
 import { SoundIcon } from '../icons/SoundIcon'
-import { canUseSound, requiredPlan, usePlanStore } from '../plan'
-import type { Plan } from '../plan'
+import { FALLBACK_PRICE, canUseSound, getPurchaseAdapter, isPurchaseAvailable, isPurchaseCancelled, requiredPlan, usePlanStore } from '../plan'
+import type { Plan, PurchaseOffering } from '../plan'
 import type { Category, Locale, Sound } from './types'
 
 const DRAG_THRESHOLD_PX = 4
@@ -154,19 +154,80 @@ function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRe
 
 interface UpgradeSheetProps {
   label: string
-  plan: Plan
+  plan: Exclude<Plan, 'free'>
   onClose: () => void
 }
 
-/** B2: minimal informational sheet — no purchase button, since RevenueCat isn't wired up yet
-    (roadmap-v030.md §2 defers the real IAP; src/plan/purchase-adapter.ts is the stub). Just tells
-    the user what tier unlocks the sound they tapped. */
+type PurchaseStatus = 'idle' | 'purchasing' | 'restoring' | 'error'
+
+/** RevenueCat purchase flow, gated behind isPurchaseAvailable() (docs/plan-tiers.md §3): with no
+    API key configured (today's build) or off-native (web), purchases/restore aren't reachable at
+    all, so the sheet shows a "준비 중" notice instead of buttons that would silently no-op. Once a
+    key is configured this same sheet gains a real buy + restore flow with no other code changes. */
 function UpgradeSheet({ label, plan, onClose }: UpgradeSheetProps) {
   const { t } = useTranslation()
+  const available = isPurchaseAvailable()
+  const [offerings, setOfferings] = useState<PurchaseOffering[] | null>(null)
+  const [status, setStatus] = useState<PurchaseStatus>('idle')
+
+  useEffect(() => {
+    let cancelled = false
+    getPurchaseAdapter()
+      .getOfferings()
+      .then((list) => {
+        if (!cancelled) setOfferings(list)
+      })
+      .catch(() => {
+        // ponytail: network/store failure loading offerings — the docs price string below covers it.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const priceString = offerings?.find((o) => o.plan === plan)?.priceString ?? FALLBACK_PRICE[plan]
+
+  async function handlePurchase() {
+    setStatus('purchasing')
+    try {
+      await getPurchaseAdapter().purchase(plan)
+      onClose() // usePlanStore already reflects the new plan — nothing else to sync
+    } catch (err) {
+      setStatus(isPurchaseCancelled(err) ? 'idle' : 'error')
+    }
+  }
+
+  async function handleRestore() {
+    setStatus('restoring')
+    try {
+      await getPurchaseAdapter().restore()
+      onClose()
+    } catch {
+      setStatus('error')
+    }
+  }
+
   return (
     <div className="mixer-upgrade-backdrop" onClick={onClose}>
       <div className="mixer-upgrade-sheet" role="dialog" aria-modal="true" aria-label={t('plan.upgrade.title')} onClick={(e) => e.stopPropagation()}>
         <p>{t('plan.upgrade.body', { sound: label, tier: t(`plan.tier.${plan}`) })}</p>
+        {available ? (
+          <>
+            <button type="button" className="mixer-upgrade-buy" disabled={status === 'purchasing'} onClick={handlePurchase}>
+              {status === 'purchasing' ? t('plan.upgrade.purchasing') : t('plan.upgrade.buy', { price: priceString })}
+            </button>
+            <button type="button" className="mixer-upgrade-restore" disabled={status === 'restoring'} onClick={handleRestore}>
+              {status === 'restoring' ? t('plan.upgrade.restoring') : t('plan.upgrade.restore')}
+            </button>
+            {status === 'error' && (
+              <p className="mixer-upgrade-error" role="alert">
+                {t('plan.upgrade.failed')}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="mixer-upgrade-comingSoon">{t('plan.upgrade.comingSoon', { price: priceString })}</p>
+        )}
         <button type="button" onClick={onClose}>
           {t('plan.upgrade.close')}
         </button>
@@ -187,24 +248,16 @@ export function Palette({ fieldRef }: PaletteProps) {
   const [upgradeSound, setUpgradeSound] = useState<Sound | null>(null)
 
   // Categories are derived from whatever the catalog actually contains (no hardcoded list),
-  // in first-appearance order. The default tab is whichever category has the most sounds.
+  // in first-appearance order. The default tab is simply the FIRST one — deliberately not
+  // "whichever category has the most sounds", which made the app's opening screen a side effect
+  // of catalog edits: adding premium sounds to another category silently moved the default tab
+  // and broke four tests that (reasonably) expected to open on the free noise basics.
   const categoryOrder = useMemo(() => {
     const order: Category[] = []
     for (const sound of catalog) if (!order.includes(sound.category)) order.push(sound.category)
     return order
   }, [])
-  const [activeCategory, setActiveCategory] = useState<Category>(() => {
-    let best = categoryOrder[0]
-    let bestCount = 0
-    for (const c of categoryOrder) {
-      const n = catalog.filter((s) => s.category === c).length
-      if (n > bestCount) {
-        best = c
-        bestCount = n
-      }
-    }
-    return best
-  })
+  const [activeCategory, setActiveCategory] = useState<Category>(() => categoryOrder[0])
 
   // A category whose sounds are ALL unavailable (no real asset yet) still gets a tab — hiding
   // the tab itself would make it look like the category doesn't exist. Within the tab, L-4's
@@ -282,7 +335,14 @@ export function Palette({ fieldRef }: PaletteProps) {
         </p>
       )}
       {upgradeSound && (
-        <UpgradeSheet label={upgradeSound.name[locale]} plan={requiredPlan(upgradeSound.id)} onClose={() => setUpgradeSound(null)} />
+        // requiredPlan() is typed as Plan (includes 'free'), but a sound only reaches the upgrade
+        // sheet via onLockedTap, which only fires when planLocked is true — and a 'free'-tier
+        // sound can never be planLocked (canUseSound is true for it at every plan). Safe to narrow.
+        <UpgradeSheet
+          label={upgradeSound.name[locale]}
+          plan={requiredPlan(upgradeSound.id) as Exclude<Plan, 'free'>}
+          onClose={() => setUpgradeSound(null)}
+        />
       )}
     </div>
   )

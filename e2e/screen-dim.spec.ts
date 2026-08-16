@@ -30,6 +30,13 @@ test('screen dims after idle, audio keeps playing, and a tap wakes it back up', 
   await expect(orb).toHaveCount(1)
   await expect(orb).not.toHaveClass(/is-loading/) // "is-loading" is reused for the sleep-timer's stopped look too
 
+  // Screen-dim setting now lives on the settings screen, not the mixer (docs/ads-setup.md §6 —
+  // the mixer stays playback-only). Open it before arming the timer. The settings screen replaces
+  // the mixer in the DOM (no router, just a screen switch), so `.mixer-orb` isn't queryable again
+  // until we go back — the actual audio graph lives outside React (src/mixer/engine/instance.ts)
+  // and keeps playing regardless, which the final assertions below prove.
+  await page.getByRole('button', { name: '설정 열기' }).click()
+
   // Arm the screen-dim timer (first button = the 5-minute preset; the test override above
   // replaces the real 5-minute wait with 800ms).
   await page.locator('.screen-dim-settings-row button').first().click()
@@ -37,16 +44,16 @@ test('screen dims after idle, audio keeps playing, and a tap wakes it back up', 
   const overlay = page.locator('.screen-dim-overlay')
   await expect(overlay).toBeVisible()
 
-  // The core contract: dimming the screen must never touch the audio/mix state.
-  await expect(orb).toHaveCount(1)
-  await expect(orb).not.toHaveClass(/is-loading/)
-
   // Tap wakes it back up immediately. dispatchEvent (not .click()) deliberately skips the
   // synthetic mouse-move Playwright's click() does first — a real touchscreen tap fires
   // pointerdown as its first event with no preceding hover pointermove, and the app already
   // dismisses on pointermove too (any mouse jiggle counts as activity, same as a real cursor).
   await overlay.dispatchEvent('pointerdown')
   await expect(overlay).not.toBeVisible()
+
+  // The core contract: dimming (and visiting the settings screen to control it) must never touch
+  // the audio/mix state — the orb is still there, unaffected, back on the mixer screen.
+  await page.getByRole('button', { name: '닫기' }).click()
   await expect(orb).toHaveCount(1)
   await expect(orb).not.toHaveClass(/is-loading/)
 })

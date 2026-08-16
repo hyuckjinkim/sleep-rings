@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from '../mixer/store'
-import { ScreenDimSettings } from '../screen/ScreenDimSettings'
-import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 
 const PRESET_MINUTES = [15, 30, 45, 60, 90]
 
@@ -45,9 +43,6 @@ export function SleepControls() {
 
   return (
     <>
-      {/* Fixed-position full-viewport overlay — lives here only because this component is
-          already mounted near the app root (via Mixer.tsx); DOM position doesn't matter for it. */}
-      <ScreenDimOverlay />
       <div className="mixer-sleep" aria-label={t('mixer.sleep.title')}>
         <div className="mixer-master">
           <label htmlFor="master-volume">{t('mixer.master.volume')}</label>
@@ -78,8 +73,6 @@ export function SleepControls() {
             <span className="mixer-sleep-remaining">{formatRemaining(sleepEndsAt - now)}</span>
           )}
         </div>
-
-        <ScreenDimSettings />
 
         <div className="mixer-presets">
           <div className="mixer-presets-save">

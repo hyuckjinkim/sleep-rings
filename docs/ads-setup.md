@@ -66,15 +66,27 @@ Google 공식 테스트 App ID. 릴리즈 시 실제 값으로 교체.
 - **허용**: 라이브러리·설정·프리셋 화면의 **하단 고정** 배너만 (`showBanner('bottom')`).
 - 야간 사용 특성상 배너 컨테이너는 다크 톤 유지 — AdMob이 앱 테마에 맞는 크리에이티브를 보장하지 않으므로, 배너를 감싸는 컨테이너에 어두운 배경을 깔아 눈부심을 줄이는 건 **UI 배선 담당(§6) 몫**.
 
-## 6. UI 배선 지점 (이 태스크 범위 밖 — 리드가 배정)
+## 6. UI 배선 (완료 — `src/app` 담당)
 
-`src/ads`는 화면에 아무것도 그리지 않는다(파일 소유권상 `src/app`, `src/mixer` 등을 건드릴 수 없어 의도적으로 분리). 실제로 화면에 배너를 얹으려면:
+앱이 단일 화면이라 하단 `.mixer-controls`(볼륨·삭제·타이머) 위에 배너를 얹으면 §5가 금지하는
+"조작 UI 근접 배치"가 되는 문제가 있었다(`.omc/reviews/v030-review.md` C1). 해결책: 믹서와
+분리된 **설정 화면**(`src/app/Settings.tsx`)을 새로 만들고, 배너는 그 화면에만 붙인다. 화면
+전환은 `src/app/App.tsx`의 `useState<'mixer'|'settings'>` — 라우터 없이 단순 상태 전환.
 
-1. **앱 시작 시 1회**: 첫 제스처 핸들러(background-audio.ts가 `startKeepAliveAudio()`를 부르는 지점, `src/mixer/Mixer.tsx`)나 그 인근에서 `initAds()` 호출.
-2. **라이브러리/설정/프리셋 화면 mount**: `if (shouldShowBanner(planIsFree)) showBanner('bottom')`.
-3. **해당 화면 unmount 또는 믹서 화면 진입 시**: `hideBanner()`.
-4. `isAdsEnabled()`는 광고 영역 자리 확보(레이아웃 시프트 방지) 여부를 UI가 판단하는 데 쓸 수 있음.
-5. `planIsFree`는 B2(플랜 게이트)가 실제 값을 제공하기 전까지 `true`로 하드코딩해도 무방(현재 전 사용자가 무료 플랜).
+- **앱 시작 시 1회**: `App.tsx`의 최상위 `useEffect`에서 `ensureAdsInit()` 호출(`src/app/ads-lifecycle.ts`).
+- **설정 화면 mount**: `Settings.tsx`의 `useEffect`가 `shouldShowBanner(plan === 'free') && !dimmed`를
+  계산해 `showBannerWhenReady(bannerActive)`를 부른다. 화면 자동꺼짐 중(`useScreenStore().dimmed`)에는
+  숨긴다.
+- **설정 화면 unmount(믹서로 돌아가기 포함)**: 같은 effect의 cleanup이 `hideBanner()`를 호출.
+- **M1 회귀 수정** (`.omc/reviews/v030-review.md` M1): 기존 우려대로 `initAds()`가 pending인 동안
+  `showBanner()`를 부르면 `ads.ts`의 `!initialized` 가드에 걸려 영원히 안 뜬다. `ads-lifecycle.ts`가
+  모든 호출자(App 부팅 시점의 `ensureAdsInit()`과 Settings의 `showBannerWhenReady()`)를 **같은
+  init Promise**로 묶어서, 어느 쪽이 먼저 마운트되든 배너 요청이 init 완료 전에 유실되지 않는다.
+  회귀 테스트: `src/app/ads-lifecycle.test.ts`(모의 `initAds()`를 의도적으로 지연시켜 pending 중
+  호출이 나중에 실제로 뜨는지 검증).
+- `isAdsEnabled()`는 현재 미사용 — 배너 자리는 CSS(`settings.css`의 `.has-banner`)로 고정폭
+  확보해 레이아웃 시프트를 막았다.
+- `planIsFree`는 이제 B2(플랜 게이트)의 실제 값(`usePlanStore`)을 읽는다 — 하드코딩 아님.
 
 ## 7. 검증 결과
 

@@ -1,7 +1,7 @@
 # 플랜/티어 — 구조와 게이팅 로직 (task B2)
 
 > 방침: ①티어별 구분하되 **무료 최대 개방** ②플랜 미충족 사운드는 **숨기지 않고 비활성 노출** ③10,000원 티어는 **구조만 구현, 상품 등록은 콘텐츠 확보 후로 순연**(`docs/roadmap-v030.md` §2).
-> 코드: `src/plan/`(신규). 결제 연동은 스텁만 있고 실제 SDK는 미설치 — §3 참조.
+> 코드: `src/plan/`(신규). 결제 연동은 RevenueCat 실 어댑터가 배선되어 있으나 API 키가 비어 있어 목(mock)으로 자동 폴백 중 — §3 참조.
 
 ## 1. 티어별 제공 내역
 
@@ -27,23 +27,57 @@
 
 두 사유 모두 카테고리 탭에서 사운드 자체를 숨기지 않는다(방침②). 에셋-미보유 필터(L-4)는 플랜 잠금과 별개로 그대로 유지된다.
 
-## 3. 결제 SDK 연결 지점
+## 3. 결제 SDK 연결 지점 (구현 완료, 키만 비어 있음)
 
-`src/plan/purchase-adapter.ts`의 `PurchaseAdapter` 인터페이스가 연결점이다:
+`@revenuecat/purchases-capacitor@13.4.0` 설치 완료(`npm view` 실측: peerDependency `@capacitor/core >=8.0.0`, 현재 프로젝트 8.4.2와 호환), `npx cap sync android` 반영 완료. `.omc/research/monetization.md` §5-1의 "`@capacitor-community/in-app-purchases`는 실존하지 않는 패키지" 경고대로 RevenueCat 공식 패키지명(`@revenuecat/purchases-capacitor`, community 패키지 아님)을 사용했다.
+
+`src/plan/purchase-adapter.ts`의 `PurchaseAdapter` 인터페이스(기존 유지, `getOfferings()`만 추가):
 
 ```ts
 export interface PurchaseAdapter {
   getPlan(): Promise<Plan>
+  getOfferings(): Promise<PurchaseOffering[]> // { plan, priceString }[] — 상품 목록/가격
   purchase(plan: Exclude<Plan, 'free'>): Promise<Plan>
   restore(): Promise<Plan>
 }
 ```
 
-현재는 `localMockPurchaseAdapter`만 존재 — 네트워크 없이 `src/plan/store.ts`(zustand + localStorage)를 직접 갱신한다. 실제 연동 시:
+두 구현체가 존재한다:
 
-1. `@revenuecat/purchases-capacitor` 설치(`.omc/research/monetization.md` §5-1 권고 — 서버 없는 영수증 검증, MTR $2,500/월까지 무료).
-2. `PurchaseAdapter`를 구현하는 `revenueCatPurchaseAdapter`를 새로 작성해 `purchase()`/`restore()`가 실제 StoreKit/Play Billing 호출이 되도록 하고, `getPlan()`은 RevenueCat의 캐시된 entitlement를 읽도록 한다.
-3. `localMockPurchaseAdapter` 사용처를 교체. 인터페이스가 동일하므로 호출부(향후 구매 UI, `src/app` 소관) 변경은 최소화된다.
+- **`localMockPurchaseAdapter`**: 네트워크 없이 `src/plan/store.ts`(zustand + localStorage)를 직접 갱신. `getOfferings()`는 `purchase-config.ts`의 `FALLBACK_PRICE`(문서상 정가)를 그대로 반환.
+- **`RevenueCatPurchaseAdapter`**: 실 StoreKit/Play Billing 호출. `purchase()`/`restore()`는 `Purchases.purchasePackage()`/`Purchases.restorePurchases()`를 호출하고 결과 `CustomerInfo`의 활성 entitlement를 `Plan`으로 환산해 플랜 스토어에 반영한다. `getOfferings()`가 RevenueCat 응답에서 매핑 가능한 패키지를 하나도 못 찾으면(오퍼링 미설정·네트워크 실패) 목 어댑터의 `FALLBACK_PRICE`로 조용히 폴백한다.
+
+**어댑터 자동 선택** — `getPurchaseAdapter()`(및 `isPurchaseAvailable()`)가 매 호출 시 판단한다:
+
+```
+네이티브 플랫폼 && API 키 설정됨  →  RevenueCatPurchaseAdapter
+그 외(웹 빌드 / 키 미설정)        →  localMockPurchaseAdapter
+```
+
+지금 빌드는 `purchase-config.ts`의 키가 빈 문자열이라 **항상 목으로 폴백** — AdMob이 테스트 ID로 배포된 것과 동일한 패턴으로, 기존 동작(단위/E2E 테스트 포함)이 전혀 바뀌지 않는다.
+
+### 3-1. 키 주입 지점 (한 곳)
+
+`src/plan/purchase-config.ts`의 `PURCHASE_CONFIG.revenueCatApiKey.{android,ios}` — RevenueCat 대시보드에서 발급하는 **공개(client-safe) SDK 키**(Stripe publishable key와 같은 성격, 비밀값 아님)를 여기에만 채우면 된다. 다른 코드 변경 불필요.
+
+### 3-2. 패키지/entitlement ↔ Plan 매핑
+
+`src/plan/purchase-config.ts`의 `TIER_PLAN` 맵 하나가 **오퍼링 패키지 식별자**와 **entitlement 식별자** 양쪽에 동시에 쓰인다 — RevenueCat 대시보드에서 두 식별자를 아래와 동일하게 맞춰 등록하면 코드 변경 없이 그대로 연결된다:
+
+| RevenueCat 식별자(패키지 ID = entitlement ID) | Plan | 정가(FALLBACK_PRICE) |
+|---|---|---|
+| `tier2000` | `tier2000` | ₩2,000 |
+| `tier5000` | `tier5000` | ₩5,000 |
+| `tier10000` | `tier10000` | ₩10,000 |
+
+### 3-3. UI 배선 — 업그레이드 시트에 실 구매 버튼
+
+`src/mixer/Palette.tsx`의 `UpgradeSheet`가 `isPurchaseAvailable()`로 두 상태를 분기한다:
+
+- **구매 가능**(네이티브+키 설정 후): `.mixer-upgrade-buy`(가격은 `getOfferings()` 실시간 값, 실패 시 §3-2의 정가 폴백) + `.mixer-upgrade-restore`("구매 복원", iOS 심사 요구사항) 버튼 노출. 구매/복원 중 로딩 상태, 취소(`isPurchaseCancelled()` — RevenueCat `PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR`)는 조용히 닫기, 그 외 실패는 `.mixer-upgrade-error` 문구.
+- **구매 불가**(현재 빌드 — 키 미설정 또는 웹): `.mixer-upgrade-comingSoon` 문구만 노출("결제 연동 준비 중"), 구매/복원 버튼 자체가 렌더되지 않아 오해를 주지 않는다.
+
+성공 시 어댑터가 내부적으로 `usePlanStore.setPlan()`을 호출하므로 시트는 그냥 닫기만 하면 되고, 잠긴 사운드는 플랜 스토어 구독을 통해 자동으로 잠금 해제된다.
 
 ## 4. QA/개발용 플랜 전환
 
@@ -69,9 +103,15 @@ localStorage.setItem('so.plan', 'tier5000') // 'free' | 'tier2000' | 'tier5000' 
 
 ## 7. 오너가 할 수동 단계
 
-- App Store Connect / Google Play Console: 구독 상품 2개 등록(2,000원/5,000원). **10,000원 상품은 등록하지 않는다** — 콘텐츠(파일 기반 프리미엄 라이브러리) 확보 전까지는 코드의 `tier10000`이 있어도 판매하지 않는다(방침③).
-- RevenueCat 프로젝트 생성 → 스토어 API 키 연동 → 앱에 API 키 삽입(§3의 실 어댑터 작성과 함께).
-- 위 항목 발생 시 개인정보처리방침/이용약관에 구독 자동 갱신·환불 정책 반영(`.omc/research/monetization.md` §5-2 참조, 광고 계정 관련 항목은 `docs/ads-setup.md`).
+코드(RevenueCat 어댑터, UI, 매핑)는 이미 완성돼 있다 — 아래 단계만 하면 실제 결제가 켜진다.
+
+1. **App Store Connect / Google Play Console**: 구독 상품 2개 등록(2,000원/5,000원). **10,000원 상품은 등록하지 않는다** — 콘텐츠(파일 기반 프리미엄 라이브러리) 확보 전까지는 코드의 `tier10000`이 있어도 판매하지 않는다(방침③).
+2. **RevenueCat 프로젝트 생성** → App Store Connect/Play Console API 연동(영수증 검증 자동화).
+3. **오퍼링·패키지 등록**: RevenueCat 대시보드에서 패키지 식별자를 §3-2 표와 **정확히** `tier2000` / `tier5000`으로 맞춰 만들고, 각각을 1번 단계의 스토어 구독 상품에 연결한다. 식별자가 다르면 `getOfferings()`/`purchase()`가 매핑을 못 찾아 조용히 폴백/실패한다.
+4. **entitlement 등록**: 마찬가지로 §3-2 표와 동일한 식별자(`tier2000`/`tier5000`)로 entitlement를 만들고 해당 패키지에 연결.
+5. **API 키 주입**: RevenueCat이 발급하는 공개 SDK 키를 `src/plan/purchase-config.ts`의 `PURCHASE_CONFIG.revenueCatApiKey.android`/`.ios`에 채운다. 이 한 줄만으로 앱이 목 어댑터에서 실 어댑터로 전환된다(§3 참조) — 코드 재배포 필요.
+6. **10,000원 상품**: sound-pipeline(#8) 콘텐츠 확보 후, 1~4번 절차를 동일하게 `tier10000`으로 반복.
+7. 위 항목 발생 시 개인정보처리방침/이용약관에 구독 자동 갱신·환불 정책 반영(`.omc/research/monetization.md` §5-2 참조, 광고 계정 관련 항목은 `docs/ads-setup.md`).
 
 ## 광고 상태 (0.3.1 기준)
 
