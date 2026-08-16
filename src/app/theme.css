@@ -7,6 +7,13 @@
  * :root에만 정의. 아직 어떤 컴포넌트도 import하지 않음(App.tsx 미수정, 빌드 영향 없음).
  */
 
+/* Chromium's mobile default tap highlight (rgba(51,181,229,.4)) flashes a teal box behind every
+   button — it read as a selection artifact in the store screenshots. App-like UIs suppress it and
+   express press state through their own styles. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 :root {
   /* ---- 배경 (딥 스페이스 다크, #0a0e1a 기준 확장) ---- */
   --so-bg-void: #05070d; /* 최심부 — 풀블리드 배경 가장자리, 오브 위 아이콘 색으로도 사용 */

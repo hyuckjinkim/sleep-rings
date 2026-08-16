@@ -12,7 +12,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const BASE_URL = 'http://localhost:5173'
+// Dedicated port, not Vite's default 5173: this script reuses whatever is already answering on
+// BASE_URL, and a dev server left running from another session silently captured stale UI once.
+const PORT = 5199
+const BASE_URL = `http://localhost:${PORT}`
 const OUT_DIR = path.join(ROOT, 'docs/store/screenshots')
 
 // CSS viewport x deviceScaleFactor chosen so the raw PNG lands exactly on the store's
@@ -43,7 +46,7 @@ async function ensureDevServer() {
   } catch {
     // not running, start it below
   }
-  const proc = spawn('npm', ['run', 'dev'], { cwd: ROOT, stdio: 'ignore' })
+  const proc = spawn('npm', ['run', 'dev', '--', '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore' })
   // mobile-packager's gradle build shares this disk (WSL /mnt/d) — generous timeout.
   await waitForServer(BASE_URL, 120_000)
   return proc

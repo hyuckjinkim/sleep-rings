@@ -178,6 +178,7 @@
 }
 
 .mixer-palette-tabs {
+  user-select: none; /* a drag that starts on a chip shouldn't select the toolbar's labels */
   flex: 1;
   display: flex;
   gap: var(--so-space-1, 0.25rem);
@@ -186,6 +187,7 @@
 }
 
 .mixer-palette-tab {
+  user-select: none;
   flex: 0 0 auto;
   min-height: 44px; /* B4 */
   padding: var(--so-space-1, 0.25rem) var(--so-space-3, 0.75rem);
@@ -205,6 +207,7 @@
 }
 
 .mixer-palette-clear {
+  user-select: none;
   flex: 0 0 auto;
   min-height: 44px; /* B4 */
   min-width: 44px;
