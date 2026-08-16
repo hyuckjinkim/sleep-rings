@@ -270,8 +270,13 @@
   flex: 0 0 auto;
 }
 
+/* Stacking scale for fixed layers (all share the root stacking context):
+   backdrop -1 / field internals 0-1 / transient toasts 10 / interactive panels 15 /
+   modal sheets 20 / dim overlay 9999. A panel must outrank a toast — the toast is an
+   after-the-fact notice, the panel is what the user is actually operating. */
 .mixer-controls {
   position: fixed;
+  z-index: 15;
   left: 0;
   right: 0;
   bottom: 0;
