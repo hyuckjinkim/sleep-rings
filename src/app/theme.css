@@ -169,3 +169,18 @@ html {
   min-width: 44px;
   padding: var(--so-space-2, 0.5rem);
 }
+
+/* Press feedback. Suppressing -webkit-tap-highlight-color removed the platform's own press cue,
+   so buttons need to say "I got that" themselves — otherwise a tap on a sleepy night reads as
+   "nothing happened". Opacity only: no layout shift, no repaint of the backdrop layers. */
+button:active,
+[role='button']:active {
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active,
+  [role='button']:active {
+    opacity: 1;
+  }
+}
