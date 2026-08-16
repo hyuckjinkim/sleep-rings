@@ -23,12 +23,15 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('Settings banner wiring', () => {
-  it('requests the banner on a free, non-dimmed screen and hides it on unmount', () => {
+  it('requests the banner on a free, non-dimmed screen and revokes it through the same gate on unmount', () => {
     const { unmount } = render(<Settings onClose={() => {}} />)
     expect(showBannerWhenReady).toHaveBeenCalledWith(true)
 
     unmount()
-    expect(hideBanner).toHaveBeenCalled()
+    // Must go through showBannerWhenReady(false), not a bare hideBanner(): while ads init is still
+    // pending, hideBanner() no-ops and the queued show would later paint over the mixer
+    // (.omc/reviews/v040-review.md HIGH-1).
+    expect(showBannerWhenReady).toHaveBeenLastCalledWith(false)
   })
 
   it('never requests the banner on a paid plan', () => {

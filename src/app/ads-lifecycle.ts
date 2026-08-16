@@ -15,11 +15,19 @@ export function ensureAdsInit(): Promise<void> {
   return initPromise
 }
 
+/** Latest intent, not the intent captured when a call started. A show requested while init was
+ * still pending used to fire regardless of what happened during the wait — leave the settings
+ * screen fast enough and the banner appeared over the mixer, which is the one placement
+ * docs/ads-setup.md §5 forbids. Awaited calls re-read this before acting, so the last caller wins
+ * (.omc/reviews/v040-review.md HIGH-1). */
+let desiredVisible = false
+
 /** Waits for ads to actually be ready, then shows or hides the bottom banner per `shouldShow`
  * (free plan, settings screen mounted, screen not dimmed — the caller decides that, not this). */
 export async function showBannerWhenReady(shouldShow: boolean): Promise<void> {
+  desiredVisible = shouldShow
   await ensureAdsInit()
-  if (shouldShow) await showBanner('bottom')
+  if (desiredVisible) await showBanner('bottom')
   else await hideBanner()
 }
 

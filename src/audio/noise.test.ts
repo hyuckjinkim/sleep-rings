@@ -172,3 +172,38 @@ describe('renderNoiseBuffer', () => {
     expect(rms(buffer.getChannelData(0))).toBeGreaterThan(0)
   })
 })
+
+describe('v0.4.0 premium generators hold their loudness at the real 48kHz playback rate', () => {
+  // The RMS block above measures at RMS_RATE (8kHz) because envelope statistics are rate
+  // independent and 48kHz full renders are slow. That holds for swell-shaped generators, but the
+  // premium batch is trigger-driven (chirps, strikes, rail clicks) where normalizeRms's clip clamp
+  // can fire at one rate and not another — and a clamped render lands *below* target while its
+  // peak pins at exactly 1.0, which the "never clips" assertion can never catch. So spot-check
+  // these six at production rate. (.omc/reviews/v040-review.md HIGH-4: the birds drift reported
+  // there did not reproduce here — 30/30 runs at both 10s and 1s measured 0.1200 exactly.)
+  const NATURE_TARGET_RMS = 0.12
+  const PROD_RATE = 48000
+
+  it.each([
+    ['birds', () => generateBirdsNoise(PROD_RATE * 10, PROD_RATE)],
+    ['crickets', () => generateCricketsNoise(PROD_RATE * 10, PROD_RATE)],
+    ['city-rain', () => generateCityRainNoise(PROD_RATE * 10, PROD_RATE)],
+    ['train', () => generateTrainNoise(PROD_RATE * NOISE_BUFFER_SECONDS.train!, PROD_RATE)],
+    ['singing-bowl', () => generateSingingBowlNoise(PROD_RATE * NOISE_BUFFER_SECONDS['singing-bowl']!, PROD_RATE)],
+    ['blizzard', () => generateBlizzardNoise(PROD_RATE * NOISE_BUFFER_SECONDS.blizzard!, PROD_RATE)],
+  ] as const)('%s stays within 20%% of the target at 48kHz', (_name, generate) => {
+    const samples = generate()
+    let sumSq = 0
+    let peak = 0
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i]
+      sumSq += s * s
+      const abs = Math.abs(s)
+      if (abs > peak) peak = abs
+    }
+    const measured = Math.sqrt(sumSq / samples.length)
+    expect(measured).toBeGreaterThan(NATURE_TARGET_RMS * 0.8)
+    expect(measured).toBeLessThan(NATURE_TARGET_RMS * 1.2)
+    expect(peak).toBeLessThanOrEqual(1)
+  })
+})

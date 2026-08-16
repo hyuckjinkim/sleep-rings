@@ -8,6 +8,7 @@ import { useMixStore } from '../mixer/store'
 import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 import { Settings } from './Settings'
 import { ensureAdsInit } from './ads-lifecycle'
+import { getPurchaseAdapter, isPurchaseAvailable, usePlanStore } from '../plan'
 import './backdrop.css'
 // theme.css is imported once in main.tsx
 
@@ -23,6 +24,20 @@ export function App() {
   // showing a banner, so it's safe to kick off here regardless of which screen mounts first.
   useEffect(() => {
     void ensureAdsInit()
+  }, [])
+
+  // Entitlements are the store's truth, not ours: the locally persisted plan says nothing about a
+  // subscription that expired, was refunded, or was bought on another device. Re-read it once at
+  // boot so a lapsed subscriber stops getting paid sounds and a returning one keeps them
+  // (.omc/reviews/v040-review.md HIGH-2). No-op without a purchase backend.
+  useEffect(() => {
+    if (!isPurchaseAvailable()) return
+    void getPurchaseAdapter()
+      .getPlan()
+      .then((plan) => usePlanStore.getState().setPlan(plan))
+      .catch(() => {
+        /* offline or store unreachable: keep the last known plan rather than downgrading a payer */
+      })
   }, [])
 
   // Android hardware back: close the settings screen instead of exiting the app from it; exit
