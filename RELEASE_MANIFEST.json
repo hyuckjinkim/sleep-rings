@@ -1,6 +1,25 @@
 {
-  "current_version": "0.3.1",
+  "current_version": "0.4.0",
   "releases": [
+    {
+      "version": "0.4.0",
+      "release_date": "2026-08-17",
+      "description": "오너 결정 3건 이행 — ① 믹서와 분리된 설정 화면을 만들고 배너를 그 화면에만 배선(재생 화면 배치는 AdMob 우발적 클릭 정책 위반) ② RevenueCat 결제 연동(구매·복원, API 키 없으면 로컬 목 자동 폴백) ③ 프리미엄 합성 사운드 6종으로 10,000원 티어에 실질 콘텐츠 확보. 사운드 25종, 무료 15/25=60.0%",
+      "branches": {
+        "main": "f702405"
+      },
+      "changelog": {
+        "main": [
+          "feat(v0.4.0): 설정 화면·정책 안전 배너 배치, RevenueCat 결제 연동, 프리미엄 합성 사운드 6종 (f702405)"
+        ]
+      },
+      "notes": [
+        "AAB 7.55MB → 10.09MB (+2.5MB, RevenueCat SDK). v0.2.0 3.65MB 대비 2.8배 — 수익화 SDK 2종이 아직 실수익을 내지 않는 상태이므로, 광고단위·상품 등록 전까지는 순수 용량 비용. 출시 시점에 재평가 권장",
+        "배너는 설정 화면에서만 노출. 믹서(재생 화면)에는 절대 배치 금지 — 정책 리스크",
+        "결제는 API 키 주입(src/plan/purchase-config.ts) 전까지 목으로 동작. 스토어 제출 전 RevenueCat 상품 등록 필수",
+        "검증: E2E 12/12(CI=1), 유닛 파일별 전 그린(noise 49·sound-engine 34·purchase 16·ads-lifecycle 2·Settings 5·Palette 13), tsc 0, AAB 서명 검증 통과"
+      ]
+    },
     {
       "version": "0.3.1",
       "release_date": "2026-08-16",
