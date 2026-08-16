@@ -498,3 +498,11 @@
   background: var(--so-bg-elevated, #12182b);
   color: var(--so-text-primary, #f0f0f5);
 }
+
+/* Preset-slot cap notice — inline (not a floating toast) because it belongs to the preset list
+   the user is looking at, and the layer-cap toast already owns the floating band. */
+.mixer-preset-notice {
+  margin: 0;
+  font-size: var(--so-font-size-xs, 0.75rem);
+  color: var(--so-text-secondary, #a8adc4);
+}

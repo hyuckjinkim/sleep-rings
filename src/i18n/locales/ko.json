@@ -59,7 +59,8 @@
       "save": "저장",
       "load": "불러오기",
       "delete": "삭제"
-    }
+    },
+    "presetLimit": "프리셋이 가득 차서 '{{name}}'을(를) 교체했어요."
   },
   "screen": {
     "dim": {

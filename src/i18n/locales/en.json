@@ -59,7 +59,8 @@
       "save": "Save",
       "load": "Load",
       "delete": "Delete"
-    }
+    },
+    "presetLimit": "Preset slots were full — “{{name}}” was replaced."
   },
   "screen": {
     "dim": {

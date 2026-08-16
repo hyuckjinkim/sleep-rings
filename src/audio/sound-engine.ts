@@ -20,24 +20,6 @@ import type {
 export type PanQuality = 'hrtf' | 'stereo'
 
 const NOISE_SECONDS = 10
-const NOISE_COLORS: readonly NoiseColor[] = [
-  'white',
-  'pink',
-  'brown',
-  'green',
-  'rain',
-  'wind',
-  'waves',
-  'stream',
-  'campfire',
-  'fan',
-  'thunder',
-  'brook',
-  'umbrella-rain',
-  'lofi',
-  'heartbeat',
-  'womb',
-]
 const BINAURAL_SECONDS = 10
 // audio-engine.md §5: individual placement onset should fade in too, not click straight to gain.
 // Exported so tests can advance ctx.currentTime past it deliberately (sound-engine.test.ts).
@@ -91,10 +73,15 @@ export class SoundEngine {
     this.loadFile = createAudioBufferLoader(ctx)
   }
 
-  /** First user gesture: resume the context + pre-render all noise color buffers. */
+  /**
+   * First user gesture: resume the context. Buffers are NOT pre-rendered here — with 16 colors
+   * that was ~8.9M samples of multi-pass filtering on the main thread (≈35MB resident) before the
+   * first sound could play, and it rendered tiers the user may never touch. `load()` already
+   * caches per color on demand, so the cost now lands one sound at a time, when it's asked for.
+   * See .omc/reviews/v030-review.md H3 / v030-final-review.md §5.
+   */
   async init(): Promise<void> {
     await this.ctx.resume()
-    for (const color of NOISE_COLORS) this.renderAndCacheNoise(color)
   }
 
   /** Load a catalog sound (fetch+decode for files, cached buffer for synth/binaural). Idempotent. */

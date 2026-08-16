@@ -1,10 +1,6 @@
-import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Mixer } from '../mixer/Mixer'
 import { useMixStore } from '../mixer/store'
-import { usePlanStore } from '../plan'
-import { useScreenStore } from '../screen'
-import { initAds, showBanner, hideBanner, shouldShowBanner } from '../ads'
 import './backdrop.css'
 // theme.css is imported once in main.tsx
 
@@ -12,20 +8,13 @@ export function App() {
   const { t, i18n } = useTranslation()
   // §2.2: the background layer breathes only while something is actually audible.
   const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping)
-  const plan = usePlanStore((s) => s.plan)
-  const dimmed = useScreenStore((s) => s.dimmed)
 
-  // Banner lifecycle (roadmap-v030.md §3). Free tier only, and never while the screen is dimmed —
-  // an ad lighting up a blacked-out sleep screen is both hostile and an AdMob placement risk.
-  // No-op on web; the ads module guards the platform itself.
-  useEffect(() => {
-    void initAds()
-  }, [])
-
-  useEffect(() => {
-    if (shouldShowBanner(plan === 'free') && !dimmed) void showBanner('bottom')
-    else void hideBanner()
-  }, [plan, dimmed])
+  // No banner is mounted yet, deliberately. The native AdMob banner overlays the webview instead
+  // of resizing it, and this app is a single screen whose bottom edge is `.mixer-controls`
+  // (position:fixed) — volume slider, delete, timer. Anchoring an ad there is exactly the
+  // adjacent-to-controls placement docs/ads-setup.md §5 forbids (accidental-click policy =
+  // account-level risk). src/ads stays ready; it gets mounted when a dedicated non-playback
+  // surface (library/settings screen) exists to host it. See .omc/reviews/v030-review.md C1.
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'ko' ? 'en' : 'ko')

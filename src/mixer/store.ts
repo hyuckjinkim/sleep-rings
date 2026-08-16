@@ -110,6 +110,11 @@ export interface LayerLimitNotice {
   outcome: 'replaced' | 'blocked'
 }
 
+/** Same idea for the preset-slot cap: the save went through, but something was dropped to fit. */
+export interface PresetLimitNotice {
+  droppedName: string
+}
+
 interface MixStore {
   current: Mix
   loadingIds: Set<string> // placements whose (file) sound hasn't finished loading yet
@@ -120,6 +125,7 @@ interface MixStore {
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
   lastRemovedAll: Placement[] | null // clear-all undo buffer, same single-slot/timeout shape as lastRemoved
   layerLimitNotice: LayerLimitNotice | null // B2: transient, cleared after UNDO_TIMEOUT_MS
+  presetLimitNotice: PresetLimitNotice | null
   addPlacement(soundId: string, radius: number, angle: number): string
   updatePlacement(id: string, patch: PlacementPatch): void
   removePlacement(id: string): void
@@ -150,6 +156,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   lastRemoved: null,
   lastRemovedAll: null,
   layerLimitNotice: null,
+  presetLimitNotice: null,
 
   addPlacement(soundId, radius, angle) {
     hapticTap()
@@ -306,9 +313,16 @@ export const useMixStore = create<MixStore>((set, get) => ({
       // replaces the oldest preset (FIFO) instead of refusing the save. Presets have no "locked"
       // concept to preserve, so there's no equivalent to the layer cap's "everything's locked,
       // can't do anything" dead end here.
-      const presets = s.presets.length >= limit ? s.presets.slice(1) : s.presets
-      return { presets: [...presets, preset] }
+      if (s.presets.length < limit) return { presets: [...s.presets, preset] }
+      // At the cap the save still succeeds (never refuse a save), but dropping the oldest preset
+      // silently is data the user didn't agree to lose — surface it the same way the layer cap does.
+      // Reviewer H2 / R1 community research ("my 8th mix vanished").
+      const dropped = s.presets[0]
+      return { presets: [...s.presets.slice(1), preset], presetLimitNotice: { droppedName: dropped.name } }
     })
+    if (get().presetLimitNotice) {
+      setTimeout(() => set({ presetLimitNotice: null }), UNDO_TIMEOUT_MS)
+    }
   },
 
   loadPreset(id) {

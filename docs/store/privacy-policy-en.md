@@ -1,5 +1,8 @@
 # Privacy Policy — SleepRings
 
+> **Note for this build**: the shipping build **does not display ads**. The AdMob SDK is bundled but never initialized, so no data — including advertising identifiers — is collected or transmitted. The advertising clauses below apply from the release that actually enables ads, at which point the ATT prompt and consent flow ship with it.
+
+
 > Effective date: [replace with actual publish date at store submission]
 > Contact: [replace with a real contact email — required before submission]
 

@@ -22,6 +22,7 @@ export function SleepControls() {
   const cancelSleepTimer = useMixStore((s) => s.cancelSleepTimer)
   const presets = useMixStore((s) => s.presets)
   const savePreset = useMixStore((s) => s.savePreset)
+  const presetLimitNotice = useMixStore((s) => s.presetLimitNotice)
   const loadPreset = useMixStore((s) => s.loadPreset)
   const deletePreset = useMixStore((s) => s.deletePreset)
   const masterVolume = useMixStore((s) => s.current.masterVolume)
@@ -93,6 +94,11 @@ export function SleepControls() {
               {t('mixer.presets.save')}
             </button>
           </div>
+          {presetLimitNotice && (
+            <p className="mixer-preset-notice" role="status">
+              {t('mixer.presetLimit', { name: presetLimitNotice.droppedName })}
+            </p>
+          )}
           {presets.length > 0 && (
             <ul className="mixer-presets-list">
               {presets.map((preset) => (

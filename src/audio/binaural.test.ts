@@ -37,12 +37,19 @@ describe('renderBinauralBuffer', () => {
     const host = { createBuffer: (channels: number, length: number, sr: number) => createMockAudioBuffer(length, sr, channels) }
     const buffer = renderBinauralBuffer(host, 200, 4, SAMPLE_RATE, 1)
     for (const channel of [buffer.getChannelData(0), buffer.getChannelData(1)]) {
+      // Aggregate, then assert once — a per-sample expect() here was ~192k assertion calls, the
+      // same pattern that made noise.test.ts hang its vitest worker past the pool liveness timeout.
       let sumSq = 0
+      let allFinite = true
+      let peak = 0
       for (let i = 0; i < channel.length; i++) {
-        expect(Number.isFinite(channel[i])).toBe(true)
-        expect(Math.abs(channel[i])).toBeLessThanOrEqual(0.5)
-        sumSq += channel[i] * channel[i]
+        const s = channel[i]
+        if (!Number.isFinite(s)) allFinite = false
+        const abs = Math.abs(s)
+        if (abs > peak) peak = abs
+        sumSq += s * s
       }
+      expect({ allFinite, withinHeadroom: peak <= 0.5 }).toEqual({ allFinite: true, withinHeadroom: true })
       expect(Math.sqrt(sumSq / channel.length)).toBeGreaterThan(0)
     }
   })
