@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScreenDimSettings } from '../screen/ScreenDimSettings'
 import { useScreenStore } from '../screen/store'
 import { usePlanStore } from '../plan'
 import { shouldShowBanner } from '../ads'
 import { showBannerWhenReady } from './ads-lifecycle'
+import { useDialogFocus } from '../a11y/useDialogFocus'
 import { getPurchaseAdapter, isPurchaseAvailable } from '../plan'
 import pkg from '../../package.json'
 import './settings.css'
@@ -35,6 +36,8 @@ export function Settings({ onClose }: SettingsProps) {
     }
   }, [bannerActive])
 
+  const rootRef = useRef<HTMLDivElement>(null)
+  useDialogFocus(rootRef, onClose)
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState(false)
 
@@ -57,6 +60,7 @@ export function Settings({ onClose }: SettingsProps) {
 
   return (
     <div
+      ref={rootRef}
       className={bannerActive ? 'settings-screen has-banner' : 'settings-screen'}
       role="dialog"
       aria-label={t('app.settings.title')}

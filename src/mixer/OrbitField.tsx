@@ -35,8 +35,6 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   const interactingIds = useRef(new Set<string>()).current
   // B11: the delete zone should only be visible while an orb is actually being dragged, not
   // just because a popover is open (that path adds to interactingIds separately below via
-  // beginInteraction/endInteraction's own dragCount, never touched by the selectedId effect).
-  const dragCount = useRef(0)
   const [isDragging, setIsDragging] = useState(false)
 
   function registerEl(id: string, el: HTMLDivElement | null) {
@@ -51,8 +49,10 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
 
   function beginInteraction(id: string) {
     interactingIds.add(id)
-    dragCount.current += 1
-    setIsDragging(true)
+    // Derive from the id set, not a counter: a pinch fires begin once per finger but end only
+    // once for the orb, so the counter drifted upward and never returned to 0 — leaving the
+    // delete-zone banner stuck on until reload (.omc/qa4/functional.md MEDIUM-1).
+    setIsDragging(interactingIds.size > 0)
   }
   // L1 fix: only drop the live angle when the gesture actually committed a new one to the
   // store (drag/swipe). store.angle is otherwise stale (orbit motion never writes it back —
@@ -61,8 +61,7 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
   function endInteraction(id: string, committedPosition = false) {
     interactingIds.delete(id)
     if (committedPosition) liveAngles.delete(id)
-    dragCount.current = Math.max(0, dragCount.current - 1)
-    if (dragCount.current === 0) setIsDragging(false)
+    setIsDragging(interactingIds.size > 0)
   }
 
   // Freeze the orb behind an open control popover so its radius slider isn't fighting orbit

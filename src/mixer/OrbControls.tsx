@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
+import { useDialogFocus } from '../a11y/useDialogFocus'
 import { radiusToVolume, volumeToRadius } from './geometry'
 import { shapeForEccentricity } from './Orb'
 
@@ -27,6 +28,8 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const updatePlacement = useMixStore((s) => s.updatePlacement)
   const toggleLocked = useMixStore((s) => s.toggleLocked)
   const removePlacement = useMixStore((s) => s.removePlacement)
+
+  useDialogFocus(rootRef, onClose)
 
   // B13: close on a tap/click outside the popover. Taps on an orb are left alone — Orb.tsx's
   // own onTap wiring already selects/reselects correctly, and closing here first would just
