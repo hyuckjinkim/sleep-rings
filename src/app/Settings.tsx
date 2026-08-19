@@ -63,7 +63,7 @@ export function Settings({ onClose }: SettingsProps) {
     >
       <div className="settings-header">
         <strong>{t('app.settings.title')}</strong>
-        <button type="button" onClick={onClose} aria-label={t('mixer.controls.close')}>
+        <button type="button" className="settings-close" onClick={onClose} aria-label={t('mixer.controls.close')}>
           ✕
         </button>
       </div>

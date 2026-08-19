@@ -326,10 +326,54 @@
   gap: var(--so-space-3, 0.75rem);
 }
 
+/* accent-color alone leaves the *track* at the UA default — a near-white band, which is the
+   brightest thing on screen in a dark room and exactly the kind of leaked browser default the
+   hidden scrollbars fixed elsewhere. Style track and thumb explicitly instead. */
 .mixer-controls-row input[type='range'],
 .mixer-master input[type='range'] {
   flex: 1;
-  accent-color: var(--so-accent, #93a5c8);
+  appearance: none;
+  -webkit-appearance: none;
+  height: 24px; /* keeps the 44px row target while the visual track stays thin */
+  background: transparent;
+  cursor: pointer;
+}
+
+.mixer-controls-row input[type='range']::-webkit-slider-runnable-track,
+.mixer-master input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--so-radius-full, 999px);
+  background: var(--so-bg-overlay, #1a2238);
+  border: 1px solid var(--so-border-subtle, #232b45);
+}
+
+.mixer-controls-row input[type='range']::-moz-range-track,
+.mixer-master input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: var(--so-radius-full, 999px);
+  background: var(--so-bg-overlay, #1a2238);
+  border: 1px solid var(--so-border-subtle, #232b45);
+}
+
+.mixer-controls-row input[type='range']::-webkit-slider-thumb,
+.mixer-master input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -7px; /* centre the thumb on the 4px track */
+  border-radius: 50%;
+  background: var(--so-accent, #93a5c8);
+  border: none;
+}
+
+.mixer-controls-row input[type='range']::-moz-range-thumb,
+.mixer-master input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--so-accent, #93a5c8);
+  border: none;
 }
 
 /* v2 §3.1-G4: "지금 듣는 것" (master volume + timer) and "저장된 믹스" (presets) read as two
