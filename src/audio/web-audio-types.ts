@@ -37,6 +37,7 @@ export interface EngineStereoPannerNode extends EngineAudioNode {
 export interface EngineAudioBuffer {
   readonly duration: number
   readonly length: number
+  readonly numberOfChannels: number
   readonly sampleRate: number
   copyToChannel(source: Float32Array, channelNumber: number): void
   getChannelData(channel: number): Float32Array

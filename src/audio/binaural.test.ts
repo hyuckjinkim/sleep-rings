@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderBinauralBuffer } from './binaural'
+import { MASTER_TARGET_RMS } from './noise'
 import { createMockAudioBuffer } from './test-support/mock-audio-context'
 
 const SAMPLE_RATE = 48000
+// Binaural now targets 0.7x the shared master RMS for equal-loudness (see binaural.ts) rather than
+// a fixed PEAK=0.5 headroom — peak = rms * sqrt(2) for a pure sine.
+const EXPECTED_PEAK = MASTER_TARGET_RMS * 0.7 * Math.SQRT2
 
 function countZeroCrossings(samples: Float32Array): number {
   let count = 0
@@ -49,8 +53,10 @@ describe('renderBinauralBuffer', () => {
         if (abs > peak) peak = abs
         sumSq += s * s
       }
-      expect({ allFinite, withinHeadroom: peak <= 0.5 }).toEqual({ allFinite: true, withinHeadroom: true })
-      expect(Math.sqrt(sumSq / channel.length)).toBeGreaterThan(0)
+      // Float32Array storage loses precision relative to the double-precision EXPECTED_PEAK
+      // computed above, so allow a small epsilon rather than an exact bound.
+      expect({ allFinite, withinHeadroom: peak <= EXPECTED_PEAK + 1e-6 }).toEqual({ allFinite: true, withinHeadroom: true })
+      expect(Math.sqrt(sumSq / channel.length)).toBeCloseTo(EXPECTED_PEAK / Math.SQRT2, 3)
     }
   })
 })

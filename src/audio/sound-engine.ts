@@ -29,6 +29,16 @@ export const FADE_IN_SEC = 0.2
 // HRTF once downgraded): hysteresis isn't worth the complexity for a rare "you piled on too many
 // sounds" edge case.
 const HRTF_AUTO_DOWNGRADE_THRESHOLD = 8
+// Rendered buffers are uncompressed float32 (48kHz mono = 192KB/s), and the sound-quality pass
+// stretched the swell-driven colors to 40-72s each to kill audible looping — auditioning the whole
+// catalog would otherwise pile ~91MB of noise buffers into a cache that only `dispose()` ever
+// cleared. That resident cost is carried all night in the background, exactly where Android's LMK
+// and iOS jetsam look first. Buffers for sounds nobody is playing are dropped once the cache grows
+// past this; playing ones are never touched, so audio is unaffected.
+// 24MB holds the two largest colors (womb 13.2MB + wind 11.0MB) so A/B-ing a pair of long sounds
+// still hits the cache — re-rendering womb costs ~400ms of main-thread work.
+const IDLE_BUFFER_BUDGET_BYTES = 24 * 1024 * 1024
+const BYTES_PER_SAMPLE = 4 // float32
 
 interface LoadedSound {
   buffer: EngineAudioBuffer
@@ -86,7 +96,13 @@ export class SoundEngine {
 
   /** Load a catalog sound (fetch+decode for files, cached buffer for synth/binaural). Idempotent. */
   async load(sound: Sound): Promise<void> {
-    if (this.sounds.has(sound.id)) return
+    const cached = this.sounds.get(sound.id)
+    if (cached) {
+      // Re-insert so Map iteration order stays least-recently-used-first for releaseIdleBuffers().
+      this.sounds.delete(sound.id)
+      this.sounds.set(sound.id, cached)
+      return
+    }
     if (sound.source.kind === 'synth') {
       this.sounds.set(sound.id, { buffer: this.renderAndCacheNoise(sound.source.generator) })
       return
@@ -160,6 +176,43 @@ export class SoundEngine {
     } else {
       this.cleanupNodes(nodes)
     }
+    this.releaseIdleBuffers()
+  }
+
+  /**
+   * Bound the buffer cache to IDLE_BUFFER_BUDGET_BYTES by dropping the least-recently-loaded
+   * sounds that aren't currently playing. Called on stop() — the moment the set of idle sounds
+   * can grow, and not a latency-sensitive one (re-adding pays a re-render, removing doesn't).
+   *
+   * Both `sounds` and the `noiseBuffers`/`binauralBuffers` memos hold references to the same
+   * buffer objects, so pruning one alone frees nothing — the memos are swept afterwards for
+   * anything no longer retained. Evicting a buffer that a fading-out source still plays is safe:
+   * the source node holds its own reference, so it survives until playback ends.
+   */
+  private releaseIdleBuffers(): void {
+    const bytesOf = (buffer: EngineAudioBuffer) => buffer.length * buffer.numberOfChannels * BYTES_PER_SAMPLE
+    const counted = new Set<EngineAudioBuffer>()
+    let cachedBytes = 0
+    for (const { buffer } of this.sounds.values()) {
+      if (counted.has(buffer)) continue // two catalog sounds can share one generator's buffer
+      counted.add(buffer)
+      cachedBytes += bytesOf(buffer)
+    }
+    if (cachedBytes <= IDLE_BUFFER_BUDGET_BYTES) return
+
+    const playing = new Set<string>()
+    for (const nodes of this.active.values()) playing.add(nodes.placement.soundId)
+    for (const [id, loaded] of this.sounds) {
+      if (cachedBytes <= IDLE_BUFFER_BUDGET_BYTES) break
+      if (playing.has(id)) continue
+      this.sounds.delete(id)
+      cachedBytes -= bytesOf(loaded.buffer)
+    }
+
+    const retained = new Set<EngineAudioBuffer>()
+    for (const { buffer } of this.sounds.values()) retained.add(buffer)
+    for (const [color, buffer] of this.noiseBuffers) if (!retained.has(buffer)) this.noiseBuffers.delete(color)
+    for (const [key, buffer] of this.binauralBuffers) if (!retained.has(buffer)) this.binauralBuffers.delete(key)
   }
 
   /** Apply placement changes (volume/mute/radius/angle/locked) to a currently-playing chain. */

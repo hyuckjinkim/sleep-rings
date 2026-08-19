@@ -4,17 +4,28 @@
 import type { NoiseColor } from '../data/types'
 import type { EngineAudioBuffer } from './web-audio-types'
 
+// generateWhiteNoise/generatePinkNoise/generateBrownNoise/generateGreenNoise below are also used
+// as raw *ingredients* inside composite generators further down (e.g. campfire = brown rumble +
+// white-derived crackle; lofi = brown + a fixed-amplitude sine; birds = green bed + independently-
+// scaled chirps). Rescaling a single-source chain before its own final normalizeRms is a no-op
+// (crest factor is scale-invariant), but rescaling one of *several summed* layers is not — it
+// shifts the mix's relative balance and can push a composite's crest factor past the clip clamp
+// (verified: switching generateBrownNoise's own normalization to MASTER_TARGET_RMS quietly made
+// campfire's rumble bed ~40% quieter relative to its crackle layer, and campfire's clamp rate went
+// from 5/30 to 30/30 in a since-reverted attempt). So these four keep their original normalization
+// unchanged, and a `*Rms` wrapper below re-targets loudness only for the top-level GENERATORS
+// entry that plays each color standalone (see the "white"/"pink"/"brown"/"green" GENERATORS map).
 export function generateWhiteNoise(length: number): Float32Array {
   const out = new Float32Array(length)
   for (let i = 0; i < length; i++) out[i] = Math.random() * 2 - 1
   return out
 }
 
-/** Raw white noise, RMS-matched to the shared master target. Unlike `generateWhiteNoise`, this is
- * what the catalog's "white" color actually plays — the raw generator skipped normalization
- * entirely, so it played back at RMS~0.577 (peak pinned at ~1.0, no headroom) while every other
- * color sat at MASTER_TARGET_RMS (sound-craft.md §1: "white" was +13.6dB louder than everything
- * else, the single biggest loudness-consistency offender). */
+/** RMS-matched to the shared master target — what the catalog's "white" color actually plays.
+ * The raw generator above skips normalization entirely, so played back at RMS~0.577 (peak pinned
+ * at ~1.0, no headroom) while every other color sat at MASTER_TARGET_RMS (sound-craft.md §1:
+ * "white" was +13.6dB louder than everything else, the single biggest loudness-consistency
+ * offender). */
 function generateWhiteNoiseRms(length: number): Float32Array {
   return normalizeRms(generateWhiteNoise(length), MASTER_TARGET_RMS)
 }
@@ -41,7 +52,11 @@ export function generatePinkNoise(length: number): Float32Array {
     b6 = white * 0.115926
     out[i] = pink * 0.11
   }
-  return normalizeRms(out, MASTER_TARGET_RMS)
+  return normalize(out)
+}
+
+function generatePinkNoiseRms(length: number): Float32Array {
+  return normalizeRms(generatePinkNoise(length), MASTER_TARGET_RMS)
 }
 
 /** Leaky integrator over white noise (-6dB/oct, bass-heavy). */
@@ -53,7 +68,11 @@ export function generateBrownNoise(length: number): Float32Array {
     last = (last + 0.02 * white) / 1.02
     out[i] = last
   }
-  return normalizeRms(out, MASTER_TARGET_RMS)
+  return normalize(out)
+}
+
+function generateBrownNoiseRms(length: number): Float32Array {
+  return normalizeRms(generateBrownNoise(length), MASTER_TARGET_RMS)
 }
 
 /** Pink noise with a midrange (~500Hz) emphasis. No standardized "green noise" spectrum exists
@@ -62,7 +81,22 @@ export function generateGreenNoise(length: number, sampleRate: number): Float32A
   const pink = generatePinkNoise(length)
   const lowpassed = onePoleLowpass(pink, sampleRate, 2000)
   const bandpassed = onePoleHighpass(lowpassed, sampleRate, 150)
-  return normalizeRms(bandpassed, MASTER_TARGET_RMS)
+  return normalize(bandpassed)
+}
+
+function generateGreenNoiseRms(length: number, sampleRate: number): Float32Array {
+  return normalizeRms(generateGreenNoise(length, sampleRate), MASTER_TARGET_RMS)
+}
+
+const PEAK_TARGET = 0.9
+
+function normalize(samples: Float32Array): Float32Array {
+  let peak = 0
+  for (let i = 0; i < samples.length; i++) peak = Math.max(peak, Math.abs(samples[i]))
+  if (peak === 0) return samples
+  const scale = PEAK_TARGET / peak
+  for (let i = 0; i < samples.length; i++) samples[i] *= scale
+  return samples
 }
 
 function onePoleLowpass(input: Float32Array, sampleRate: number, cutoffHz: number): Float32Array {
@@ -164,15 +198,26 @@ function cascadeHighpass(input: Float32Array, sampleRate: number, cutoffHz: numb
 const CASCADE_STAGES = 3 // -18dB/oct, within sound-craft.md §3-A's -18~-24dB/oct target
 
 // Softens the harshest top octave for night listening without removing brightness outright — real
-// rain recordings *are* bright at 6-8kHz (sound-craft.md §2), so the fix is a gentle shelf, not a
-// hard cut. Applied as a final pre-normalize pass on the sounds sound-craft.md §1-4 flagged as
-// front-loaded above 2kHz (rain family, stream/brook, crickets, birds); the four base noise colors
+// rain recordings *are* bright at 6-8kHz (sound-craft.md §2), so the fix is a shelf, not a hard
+// cut. Applied as a final pre-normalize pass on the sounds sound-craft.md §1-4 flagged as
+// front-loaded above 2kHz (rain family, stream/brook, crickets — birds was tried and reverted, see
+// its generator for why); the four base noise colors
 // keep their raw spectra so "pink"/"brown"/"green" stay recognizably themselves (§3's guidance).
+// ponytail: the doc's illustrative "-5dB, atten 0.55" starting point turned out too weak to move
+// the needle — a highpassed-white-noise generator (rain's design) has ~90% of its total energy
+// above 4kHz by simple Hz-bandwidth arithmetic (1500-24000Hz is mostly above 4kHz), so a shelf has
+// to cut hard to make a visible dent. Measured on rain via a local Welch-PSD sweep (see PR notes):
+// atten 0.55 barely moved the 4kHz+ energy ratio (93.7%->90.1%); atten 0.15 with a 2-stage knee
+// gets it to ~67%, a real audible softening while still leaving a meaningful (not brick-walled)
+// high band — doc's literal 40-50% target would require darkening rain enough to contradict its
+// own "don't remove the brightness, real rain has it too" guidance (§2), so this settles short of
+// that number on purpose.
 const NIGHT_SHELF_HZ = 5500
-const NIGHT_SHELF_ATTEN = 0.55 // linear gain on content above the shelf, ~-5.2dB
+const NIGHT_SHELF_ATTEN = 0.15 // linear gain on content above the shelf, ~-16.5dB
+const NIGHT_SHELF_KNEE_STAGES = 2 // cascaded split filter for a steeper (not just gentler) knee
 
 function applyNightShelf(input: Float32Array, sampleRate: number): Float32Array {
-  const lowpassed = onePoleLowpass(input, sampleRate, NIGHT_SHELF_HZ)
+  const lowpassed = cascadeLowpass(input, sampleRate, NIGHT_SHELF_HZ, NIGHT_SHELF_KNEE_STAGES)
   const out = new Float32Array(input.length)
   for (let i = 0; i < input.length; i++) {
     const high = input[i] - lowpassed[i]
@@ -214,23 +259,48 @@ function applyRandomWalkSwell(input: Float32Array, sampleRate: number, avgPeriod
   return out
 }
 
-// Short declick fade applied to every generator's final buffer in renderNoiseBuffer. Even with
-// swell envelopes now trough-aligned at the loop point (applyRandomWalkSwell) and heartbeat/womb/
-// train's envelope-zero design, the *raw* filtered noise underneath a swell's trough (or thunder's
-// rumble floor) is still two statistically unrelated samples at the wrap — audio.md's loop-seam
-// measurement found thunder's wrap jump 74x its typical sample-to-sample delta. A few ms of fade
-// at both ends removes the discontinuity's high-frequency content (what makes a click audible)
-// without a perceptible level dip in a 6s+ buffer.
-const LOOP_FADE_MS = 15
+// Loop-seam treatment for every generator's buffer (see renderNoiseBuffer). Even with swell
+// envelopes trough-aligned at the loop point (applyRandomWalkSwell) and heartbeat/womb/train's
+// envelope-zero design, the *raw* filtered noise underneath a swell's trough (or thunder's rumble
+// floor) is still two statistically unrelated samples at the wrap — audio.md's loop-seam
+// measurement found thunder's wrap jump 74x its typical sample-to-sample delta.
+//
+// Fading both ends to zero also removes that click, but it replaces it with a hole: measured at
+// -20dB (white/rain) to -32dB (wind) in the 5ms window straddling the wrap, i.e. an audible
+// dropout every loop. Buffer length doesn't help — it sets how *often* the hole recurs, not how
+// deep it is. So the tail is crossfaded back over the head instead, which is continuous AND
+// level-flat: the generator renders CROSSFADE extra samples, and those become the fade-out partner
+// for the first CROSSFADE samples of the loop.
+//
+// Kept short on purpose. The crossfade ramps the head in, so anything percussive sitting at sample
+// 0 (singing-bowl's mallet strike, heartbeat's first beat) has its attack softened by exactly this
+// much — and those buffers hold one strike each, so a long fade would dull every strike the user
+// ever hears. The seam discontinuity itself is only a few samples wide, so a few ms is all it
+// takes to remove; length buys nothing here, the equal-power *shape* below is what keeps the level
+// flat.
+const LOOP_CROSSFADE_MS = 15
 
-function applyLoopFade(samples: Float32Array, sampleRate: number): Float32Array {
-  const n = Math.min(Math.round((LOOP_FADE_MS / 1000) * sampleRate), Math.floor(samples.length / 2))
+/**
+ * Fold `rendered`'s extra tail over its head so `length` samples loop seamlessly.
+ *
+ * out[i<n] = head[i]*sqrt(t) + tail[i]*sqrt(1-t), out[i>=n] = rendered[i]. The wrap then joins
+ * out[length-1] (= rendered[length-1]) to out[0] (= rendered[length]) — adjacent samples of one
+ * continuous render, so there is nothing to click on.
+ *
+ * Equal-power (sqrt) weights, not linear: the two sides are statistically independent noise, which
+ * sums in power rather than amplitude, so linear weights would still dip 3dB mid-crossfade. The
+ * cost is the mirror case — phase-coherent content (train's click train, singing-bowl's tone) is
+ * correlated across the seam and gains up to 3dB instead — over a window this short that reads as
+ * texture, not a pulse. See noise.test.ts for the measured worst case.
+ */
+function crossfadeLoop(rendered: Float32Array, length: number): Float32Array {
+  const n = rendered.length - length
+  const out = rendered.subarray(0, length) // shares storage; the tail we read from sits past `length`
   for (let i = 0; i < n; i++) {
-    const g = i / n
-    samples[i] *= g
-    samples[samples.length - 1 - i] *= g
+    const t = (i + 0.5) / n
+    out[i] = rendered[i] * Math.sqrt(t) + rendered[length + i] * Math.sqrt(1 - t)
   }
-  return samples
+  return out
 }
 
 // Strips rumble below the patter/hiss register; broadband white above it already reads as rain.
@@ -555,8 +625,15 @@ export function generateBirdsNoise(length: number, sampleRate: number): Float32A
   }
   const mixed = new Float32Array(length)
   for (let i = 0; i < length; i++) mixed[i] = bed[i] * BIRDS_BED_GAIN + chirps[i]
-  const shelved = applyNightShelf(mixed, sampleRate)
-  return normalizeRms(shelved, MASTER_TARGET_RMS)
+  // ponytail: tried applyNightShelf here too (sound-craft.md §B lists birds as a target), but
+  // reverted it — the chirp's FM sweep reaches up into the shelf's cut band unevenly (its envelope
+  // peaks mid-chirp, well below the shelf point, while the sweep's *tail* is what gets attenuated),
+  // which lowers the mix's RMS without lowering its peak by the same amount. That raises crest
+  // factor: a 150-trial sweep went from 2/150 clip-safety-clamp triggers (worst RMS 84.8% of
+  // target) to 16/150 (worst 57.1%) with the shelf applied — a real regression, not noise. Birds'
+  // chirp band is narrow and mostly tonal rather than a broadband hiss, so it isn't the "harsh
+  // static top end" case the shelf was built for anyway.
+  return normalizeRms(mixed, MASTER_TARGET_RMS)
 }
 
 const TRAIN_RUMBLE_LOWPASS_HZ = 180 // deep rolling-wheel rumble, below the click band
@@ -567,12 +644,20 @@ const TRAIN_CLICK_PULSE_MS = 18 // short percussive click, not a ring
 const TRAIN_CLACK_GAIN = 0.75 // second click ("clack") slightly softer than the first ("clickety")
 const TRAIN_BUFFER_SECONDS = 12 // whole multiple of TRAIN_CLICK_PERIOD_SEC (10 periods) -> phase-continuous loop
 // The click is highpassed *random* white noise, so its raw peak (and therefore the mix's overall
-// crest factor) varies every render — audio.md measured a 67% clip-safety-clamp trigger rate
-// across 30 renders, which knocked the achieved RMS as much as -12.5% under target on the clamped
+// crest factor) varies every render — audio.md measured a clip-safety-clamp trigger rate up to
+// 67% across 30 renders, knocking the achieved RMS as much as -12.5% under target on the clamped
 // ones. Unlike the rumble bed (deterministic broadband noise, doesn't spike), the click is exactly
 // the part responsible for the spike, so trimming its own gain lowers the mix's crest factor
 // directly instead of just rescaling everything (rescaling before normalizeRms is a no-op — it
 // re-targets RMS regardless of the input's absolute level, see MASTER_TARGET_RMS comment above).
+// The clamp that motivated cutting this layer turned out to be an artifact of an intermediate
+// state, not of the click gain: while generateBrownNoise was temporarily RMS-normalized (the
+// campfire regression, reverted — see the note above generateWhiteNoise), the rumble bed was ~7x
+// quieter, so the clicks alone set the peak and the clamp fired constantly. With brown back on its
+// original peak normalization the bed carries the level again: re-measured at the original 0.65,
+// the clamp fires 0/60 renders at 48kHz (max peak 0.90) and 0/20 at 44.1kHz (0.84). Cutting the
+// clicks to 0.2 would have cost ~10dB of the clickety-clack that defines this sound for a clip
+// risk that no longer exists.
 const TRAIN_CLICK_GAIN = 0.65
 
 /** Lowpassed brown rumble bed + a deterministic "clickety-clack" rail-joint pair every
@@ -598,10 +683,14 @@ const BOWL_STRIKE_PERIOD_SEC = 6 // gentle repeated mallet strikes
 // Fast mallet strike, but not instant: 0.02s made all 5 partials rise in near-lockstep, so their
 // peaks summed constructively into crest factor 9.07 — high enough that normalizeRms's clip clamp
 // fired on every single render (audio.md: 30/30, -8.2% under target every time, a structural
-// issue rather than a random-seed one since this generator has no RNG at all). 0.06s is still a
-// fast strike but spreads that constructive peak enough to bring crest factor to ~7.6, clear of
-// the clamp threshold (sound-craft.md §1-6/§4 #5: "BOWL_PARTIALS의 게인 합/피크 자체를 낮춰야").
-const BOWL_ATTACK_SEC = 0.06
+// issue rather than a random-seed one since this generator has no RNG at all). Spreading the
+// attack staggers that constructive peak; swept for the shortest value that actually clears the
+// clamp, since a mallet strike is the one thing in this catalog that should still sound struck:
+// 0.02s clamps, 0.03s clears it with only 2% headroom, 0.04s lands at peak 0.96 (48kHz) / 0.96
+// (44.1kHz) with the target RMS intact. Longer (0.06s) buys headroom nobody needs on a generator
+// with no RNG, at the cost of softening every strike the user hears
+// (sound-craft.md §1-6/§4 #5: "BOWL_PARTIALS의 게인 합/피크 자체를 낮춰야").
+const BOWL_ATTACK_SEC = 0.04
 const BOWL_BUFFER_SECONDS = BOWL_STRIKE_PERIOD_SEC // one strike baked per loop, like wind/waves' swell-period buffers
 // Partial ratios/decays: each pair is detuned a few percent from its partner so the two beat
 // against each other (the "비팅" texture) — a lighter stand-in for real banded-waveguide bowl
@@ -712,9 +801,9 @@ export function generateCityRainNoise(length: number, sampleRate: number): Float
 
 const GENERATORS: Record<NoiseColor, (length: number, sampleRate: number) => Float32Array> = {
   white: (length) => generateWhiteNoiseRms(length),
-  pink: (length) => generatePinkNoise(length),
-  brown: (length) => generateBrownNoise(length),
-  green: (length, sampleRate) => generateGreenNoise(length, sampleRate),
+  pink: (length) => generatePinkNoiseRms(length),
+  brown: (length) => generateBrownNoiseRms(length),
+  green: (length, sampleRate) => generateGreenNoiseRms(length, sampleRate),
   rain: (length, sampleRate) => generateRainNoise(length, sampleRate),
   wind: (length, sampleRate) => generateWindNoise(length, sampleRate),
   waves: (length, sampleRate) => generateWavesNoise(length, sampleRate),
@@ -758,8 +847,9 @@ export interface BufferHost {
   createBuffer(numberOfChannels: number, length: number, sampleRate: number): EngineAudioBuffer
 }
 
-/** Render `seconds` of the given noise color into a mono AudioBuffer for the caller to loop. A
- * short fade is applied at both ends before writing to the buffer (see applyLoopFade) — even
+/** Render `seconds` of the given noise color into a mono AudioBuffer for the caller to loop. The
+ * generator is asked for LOOP_CROSSFADE_MS more than that, and the surplus is crossfaded back over
+ * the head (see crossfadeLoop) so the wrap is both click-free and level-flat — even
  * phase-continuous envelope designs still wrap two statistically unrelated raw-noise samples at
  * the loop point, which audio.md measured as an audible click risk on several colors (thunder
  * worst, at 74x its typical sample-to-sample delta). */
@@ -770,7 +860,8 @@ export function renderNoiseBuffer(
   seconds = 10,
 ): EngineAudioBuffer {
   const length = Math.floor(sampleRate * seconds)
-  const samples = applyLoopFade(GENERATORS[color](length, sampleRate), sampleRate)
+  const crossfade = Math.min(Math.round((LOOP_CROSSFADE_MS / 1000) * sampleRate), Math.floor(length / 2))
+  const samples = crossfadeLoop(GENERATORS[color](length + crossfade, sampleRate), length)
   const buffer = host.createBuffer(1, length, sampleRate)
   buffer.copyToChannel(samples, 0)
   return buffer

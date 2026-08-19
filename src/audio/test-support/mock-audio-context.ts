@@ -43,6 +43,7 @@ export function createMockAudioBuffer(
   return {
     duration: length / sampleRate,
     length,
+    numberOfChannels: channels,
     sampleRate,
     channelData,
     copyToChannel(source: Float32Array, channel: number) {

@@ -393,3 +393,62 @@ describe('SoundEngine', () => {
     })
   })
 })
+
+
+describe('idle buffer eviction keeps the cache bounded', () => {
+  // Rendered buffers are uncompressed float32, and the sound-quality pass stretched the
+  // swell-driven colors to 40-72s to kill audible looping — auditioning the catalog used to leave
+  // ~91MB of noise buffers resident for the session, since only dispose() ever cleared them.
+  // Eviction is observed through ctx.createBuffer: a re-render means the cache dropped it.
+  const SR = 48000
+  const synth = (id: string, generator: 'womb' | 'wind' | 'lofi'): Sound => ({
+    id,
+    name: { ko: id, en: id },
+    category: 'noise',
+    source: { kind: 'synth', generator },
+    license: { spdx: 'no-license-required', sourceName: 'synth' },
+  })
+  // womb (72s = 13.2MB) + wind (60s = 11.0MB) = 24.2MB, just past the 24MB budget.
+  const WOMB = synth('womb-sound', 'womb')
+  const WIND = synth('wind-sound', 'wind')
+
+  let ctx: EngineAudioContext
+  let engine: SoundEngine
+
+  beforeEach(() => {
+    ctx = createMockAudioContext()
+    engine = new SoundEngine(ctx)
+  })
+
+  function rendersOf(seconds: number): number {
+    return (ctx.createBuffer as unknown as { mock: { calls: unknown[][] } }).mock.calls.filter(
+      (call) => call[1] === SR * seconds,
+    ).length
+  }
+
+  it('drops buffers for sounds nobody is playing once the cache outgrows its budget', async () => {
+    await engine.load(WOMB)
+    engine.play(placement({ id: 'p1', soundId: WOMB.id }))
+    engine.stop('p1')
+    await engine.load(WIND)
+    engine.play(placement({ id: 'p2', soundId: WIND.id }))
+    engine.stop('p2') // now 24.2MB cached with nothing playing -> the older womb goes
+
+    expect(rendersOf(72)).toBe(1)
+    await engine.load(WOMB)
+    expect(rendersOf(72)).toBe(2) // re-rendered, so it had been evicted
+  })
+
+  it('never evicts a sound that is still playing', async () => {
+    await engine.load(WOMB)
+    engine.play(placement({ id: 'p1', soundId: WOMB.id })) // stays playing
+    await engine.load(WIND)
+    engine.play(placement({ id: 'p2', soundId: WIND.id }))
+    engine.stop('p2') // over budget, but womb is audible -> idle wind is the one that goes
+
+    await engine.load(WOMB)
+    expect(rendersOf(72)).toBe(1) // still cached: evicting it would strand a playing orb
+    await engine.load(WIND)
+    expect(rendersOf(60)).toBe(2)
+  })
+})

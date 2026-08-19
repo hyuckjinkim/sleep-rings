@@ -70,6 +70,7 @@ function applyOrbit(node: PlacementNodes, radius: number, angle: number, t: numb
   - **Brown**: 화이트를 leaky integrator로 적분 — -6dB/oct, 저역 강조.
   - **Green**: 중역(~500Hz) 대역 강조된 핑크 변형 — "자연스러운" 중심 노이즈.
 - 각 색상 버퍼는 **placement 간 공유**(같은 버퍼를 여러 소스가 참조) → 메모리 절약.
+- **캐시 상한 (v0.4.2)**: 버퍼는 비압축 float32(48kHz 모노 = 192KB/s)이고, 사운드 품질 패스에서 주기성 제거를 위해 스웰 계열 색상을 40~72초로 늘렸다 — 22색 전량이면 **91MB**. 캐시를 `dispose()`에서만 비우면 카탈로그를 둘러본 세션이 그 양을 밤새 상주시킨다(안드로이드 LMK·iOS jetsam 대상). `SoundEngine`은 재생 중이 아닌 사운드의 버퍼를 **유휴 예산 24MB** 초과 시 LRU로 해제한다 → 상한 = 재생 중 버퍼 + 24MB. 재생 중 버퍼는 절대 해제하지 않으므로 소리에는 영향 없음.
 
 ```ts
 // audio/noise.ts (스케치)
@@ -77,7 +78,7 @@ function renderNoise(ctx: BaseAudioContext, color: NoiseColor, seconds = 10): Au
   const buf = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
   const d = buf.getChannelData(0);
   // color별 채움 (white/pink/brown/green)
-  return buf;                    // 앱 수명 동안 캐시, 색상당 1개
+  return buf;                    // 색상당 1개, 미사용 시 예산 초과분부터 해제(위 캐시 상한)
 }
 ```
 
@@ -88,6 +89,7 @@ function renderNoise(ctx: BaseAudioContext, color: NoiseColor, seconds = 10): Au
 - **HTML `<audio loop>` 금지(파일 루프에서).** AAC는 인코더 프라이밍/패딩 프레임이 있어 `<audio>` 루프에 **틈(gap)**이 생긴다(연구 확인).
 - **권장**: 파일을 `decodeAudioData`로 **AudioBuffer**로 디코드 → `AudioBufferSourceNode.loop = true` + **`loopStart`/`loopEnd`를 프라이밍 이후·제로크로싱 지점**으로 설정. 디코드된 PCM 위에서 도므로 인코더 지연이 무해.
 - 깔끔히 안 붙는 소재는 **짧은 등파워 크로스페이드**(두 버퍼 소스 겹치기 또는 사전 베이크된 크로스페이드 버퍼). loopStart/loopEnd는 카탈로그(`Sound.source.loopStart/End`)에 사운드별로 기록.
+- **합성음 루프 이음새 (v0.4.2)**: `renderNoiseBuffer`가 위 권고대로 **사전 베이크된 등파워 크로스페이드**를 적용한다 — 생성기에 15ms 여분을 더 요청해 그 꼬리를 머리 위로 겹친다. 양끝을 0으로 페이드하는 방식은 클릭은 없애지만 wrap마다 **-20dB(white/rain)~-32dB(wind)** 드롭아웃을 만든다(버퍼 길이는 깊이가 아니라 **빈도**만 바꾼다). 크로스페이드 후 22색 전부 wrap 델타가 자기 버퍼 델타 분포의 **p99.9 이하**(최악 0.41배), 정상 색상 레벨 편차 3dB 이내, 타격음 어택 보존(싱잉볼 59.6ms 무변화).
 
 ### 파일 포맷 (iOS WKWebView 코덱 호환)
 
