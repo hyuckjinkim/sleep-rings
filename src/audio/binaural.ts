@@ -2,10 +2,17 @@
 // slightly different frequency (beatHz apart) — the *perceived* beat is the brain interfering
 // the two ears' signals, so the hard L/R separation is the whole point and must reach the
 // speakers untouched. SoundEngine bypasses the pan node for these (see sound-engine.ts).
-import type { BufferHost } from './noise'
+import { MASTER_TARGET_RMS, type BufferHost } from './noise'
 import type { EngineAudioBuffer } from './web-audio-types'
 
-const PEAK = 0.5 // pure sustained tones fatigue the ear faster than broadband noise at the same peak — keep headroom
+// Binaural used a fixed PEAK=0.5 (RMS~0.354 for a pure sine) regardless of the noise colors'
+// loudness — audio.md measured that as +9.4dB over MASTER_TARGET_RMS, the second-largest
+// loudness-consistency gap after white noise's missing normalization (sound-craft.md §1). A pure
+// tone also reads louder than broadband noise at the same RMS (all its energy sits in one narrow
+// band instead of spread across the spectrum), so binaural targets a fraction of the shared master
+// RMS rather than matching it outright — 0.7x keeps it audible without dominating a mix.
+const TONE_TARGET_RMS = MASTER_TARGET_RMS * 0.7
+const AMPLITUDE = TONE_TARGET_RMS * Math.SQRT2 // peak = rms * sqrt(2) for a pure sine
 
 /**
  * Renders `seconds` of a stereo binaural beat: left = carrierHz, right = carrierHz + beatHz.
@@ -26,8 +33,8 @@ export function renderBinauralBuffer(
   const rightHz = carrierHz + beatHz
   for (let i = 0; i < length; i++) {
     const t = i / sampleRate
-    left[i] = Math.sin(2 * Math.PI * carrierHz * t) * PEAK
-    right[i] = Math.sin(2 * Math.PI * rightHz * t) * PEAK
+    left[i] = Math.sin(2 * Math.PI * carrierHz * t) * AMPLITUDE
+    right[i] = Math.sin(2 * Math.PI * rightHz * t) * AMPLITUDE
   }
   const buffer = host.createBuffer(2, length, sampleRate)
   buffer.copyToChannel(left, 0)

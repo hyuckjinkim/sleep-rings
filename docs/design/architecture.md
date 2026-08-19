@@ -132,7 +132,7 @@ interface Mix {
 }
 ```
 
-### 카탈로그 JSON 스키마 (`data/catalog.json`)
+### 카탈로그 JSON 스키마 (`src/library/catalog.ts`)
 
 `Sound[]` 배열 하나가 **음원 신원 + 라이선스의 단일 출처**다. 이 파일에서 `docs/sound-licenses.md`(P3 대장)를 생성한다 — 대장을 손으로 이중 관리하지 않는다.
 
@@ -209,3 +209,5 @@ function loadMix(): Mix {
 1. **백그라운드 재생과 상태의 관계** — 오디오 엔진이 백그라운드에서 살아있는지가 최대 리스크. 상세·완화는 `audio/design/audio-engine.md` §백그라운드. 상태 계층은 "포그라운드 복귀 시 엔진 재동기화"를 지원해야 함(store가 진실 원천, 엔진은 store로부터 재구성 가능하게).
 2. **드vfs I/O(WSL `/mnt/d`)** — node_modules 고빈도 I/O 느림. 개발 편의 문제일 뿐 아키텍처엔 영향 없음. 빌드 산출물 검증에서만 주의.
 3. **카탈로그-대장 이중화 방지** — 라이선스 정보가 catalog.json과 sound-licenses.md에 갈라지면 드리프트. 대장은 **반드시 catalog에서 생성**(단일 출처 원칙).
+
+> **갱신 이력**: 초기 설계는 카탈로그를 `data/catalog.json`으로 두려 했으나, 사운드가 전부 코드 합성이라 별도 데이터 파일이 필요 없어졌다. 실제 진실 소스는 `src/library/catalog.ts`다(.omc/qa4/code-health.md 문서 화석 #2).
