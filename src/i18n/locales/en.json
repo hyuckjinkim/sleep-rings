@@ -81,7 +81,7 @@
       "free": "Free",
       "tier2000": "the ₩2,000 plan",
       "tier5000": "the ₩5,000 plan",
-      "tier10000": "the ₩10,000 plan (coming soon)"
+      "tier10000": "the ₩10,000 plan"
     },
     "upgrade": {
       "title": "Upgrade needed",
@@ -92,7 +92,8 @@
       "restore": "Restore purchases",
       "restoring": "Restoring…",
       "failed": "Purchase failed. Please try again.",
-      "comingSoon": "Purchases are coming soon. ({{price}})"
+      "comingSoon": "Purchases are coming soon. ({{price}})",
+      "bodyGeneric": "Upgrading to {{tier}} unlocks more sounds and more layers."
     },
     "layerLimit": {
       "replaced": "Layers are full — replaced the oldest sound.",
@@ -100,7 +101,8 @@
     },
     "settings": {
       "currentLabel": "Current plan",
-      "upgradeHint": "Want more sounds and layers? Consider upgrading."
+      "upgradeHint": "Want more sounds and layers? Consider upgrading.",
+      "choose": "Choose a plan"
     }
   }
 }

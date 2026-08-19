@@ -73,11 +73,15 @@ Google 공식 테스트 App ID. 릴리즈 시 실제 값으로 교체.
 분리된 **설정 화면**(`src/app/Settings.tsx`)을 새로 만들고, 배너는 그 화면에만 붙인다. 화면
 전환은 `src/app/App.tsx`의 `useState<'mixer'|'settings'>` — 라우터 없이 단순 상태 전환.
 
-- **앱 시작 시 1회**: `App.tsx`의 최상위 `useEffect`에서 `ensureAdsInit()` 호출(`src/app/ads-lifecycle.ts`).
+- **앱 시작 시에는 초기화하지 않는다** (v0.4.1): 유료 구독자는 배너를 볼 일이 없는데 부팅 시
+  `ensureAdsInit()`을 부르면 iOS ATT 프롬프트까지 뜬다. 초기화는 배너가 실제로 필요한 첫 순간
+  (`showBannerWhenReady(true)`)까지 미룬다 — `ads-lifecycle.ts`의 lazy init 가드.
 - **설정 화면 mount**: `Settings.tsx`의 `useEffect`가 `shouldShowBanner(plan === 'free') && !dimmed`를
   계산해 `showBannerWhenReady(bannerActive)`를 부른다. 화면 자동꺼짐 중(`useScreenStore().dimmed`)에는
   숨긴다.
-- **설정 화면 unmount(믹서로 돌아가기 포함)**: 같은 effect의 cleanup이 `hideBanner()`를 호출.
+- **설정 화면 unmount(믹서로 돌아가기 포함)**: 같은 effect의 cleanup이 `showBannerWhenReady(false)`를
+  호출한다. 맨 `hideBanner()`가 아닌 이유: init이 아직 pending이면 `hideBanner()`는 no-op으로 끝나고
+  큐에 남아 있던 show 요청이 나중에 살아나 믹서 위에 배너를 그린다(`.omc/reviews/v040-review.md` HIGH-1).
 - **M1 회귀 수정** (`.omc/reviews/v030-review.md` M1): 기존 우려대로 `initAds()`가 pending인 동안
   `showBanner()`를 부르면 `ads.ts`의 `!initialized` 가드에 걸려 영원히 안 뜬다. `ads-lifecycle.ts`가
   모든 호출자(App 부팅 시점의 `ensureAdsInit()`과 Settings의 `showBannerWhenReady()`)를 **같은

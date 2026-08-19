@@ -480,11 +480,16 @@
   font-size: var(--so-font-size-sm, 0.875rem);
 }
 
-/* B7: single-slot "undo delete" toast, dismisses itself after store.ts's UNDO_TIMEOUT_MS. */
+/* B7: single-slot "undo delete" toast, dismisses itself after store.ts's UNDO_TIMEOUT_MS.
+   Anchored to the top, not the bottom: the bottom half of this screen is solid UI (palette,
+   master volume, sleep timer, preset row) and a fixed bottom toast landed straight on the preset
+   save row — observed in the real renderer. Worse, .mixer-controls (z-index 15) covers the whole
+   bottom when an orb is open, which hid the toast entirely and made undo unreachable exactly when
+   a user had just deleted something. The orbit field above is the one region with room to spare. */
 .mixer-undo-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--so-space-5, 1.5rem) + env(safe-area-inset-bottom, 0px));
+  top: calc(var(--so-space-5, 1.5rem) * 3 + env(safe-area-inset-top, 0px));
   transform: translateX(-50%);
   z-index: 10;
   min-height: 44px;
@@ -497,12 +502,13 @@
   font-size: var(--so-font-size-sm, 0.875rem);
 }
 
-/* B2: transient layer-cap notice, dismissed by store.ts's own timeout. Offset above
-   .mixer-undo-toast's slot so the rare case of both appearing at once doesn't fully overlap. */
+/* B2: transient layer-cap notice, dismissed by store.ts's own timeout. Offset below
+   .mixer-undo-toast's slot so the rare case of both appearing at once doesn't fully overlap.
+   Top-anchored for the same reason as the undo toast above. */
 .mixer-layer-notice {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--so-space-5, 1.5rem) * 2.5 + env(safe-area-inset-bottom, 0px));
+  top: calc(var(--so-space-5, 1.5rem) * 6 + env(safe-area-inset-top, 0px));
   transform: translateX(-50%);
   z-index: 10;
   margin: 0;

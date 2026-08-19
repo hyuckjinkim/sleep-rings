@@ -60,3 +60,20 @@ describe('Settings screen', () => {
     expect(screen.getByText('무료')).toBeInTheDocument()
   })
 })
+
+describe('Settings plan section', () => {
+  it('gives a free user a way to actually reach the purchase sheet', () => {
+    // The upgrade hint used to be the end of the road: buying was only reachable by tapping a
+    // locked palette chip, which nobody browsing settings would think to do.
+    render(<Settings onClose={() => {}} />)
+    const tier = screen.getByRole('button', { name: '2,000원 플랜' })
+    fireEvent.click(tier)
+    expect(screen.getByRole('dialog', { name: '업그레이드 안내' })).toBeTruthy()
+  })
+
+  it('does not offer plan buttons to someone who already paid', () => {
+    usePlanStore.setState({ plan: 'tier5000' })
+    render(<Settings onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: '2,000원 플랜' })).toBeNull()
+  })
+})

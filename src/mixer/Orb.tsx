@@ -3,6 +3,7 @@ import type { RefObject } from 'react'
 import { DEFAULT_ORBIT_SPEED, useMixStore } from './store'
 import { angleDelta, clamp, polarToUnit, unitToPolar } from './geometry'
 import { SoundIcon } from '../icons/SoundIcon'
+import { orbColor } from '../library/catalog'
 import type { Category, OrbitShape, Placement } from './types'
 
 const LONG_PRESS_MS = 700 // B8: 500ms fired too easily on a careful mid-drag pause; 700ms + the is-pending-lock cue below give more room to tell "hesitating" from "locking".
@@ -287,7 +288,7 @@ export function Orb({
       // "sleeping" (post sleep-timer fade-out) reuses the loading look — both mean
       // "not audibly playing right now", visual-theme.md §3 only defines one dim state.
       className={`mixer-orb${placement.locked ? ' is-locked' : ''}${selected ? ' is-selected' : ''}${loading || sleeping ? ' is-loading' : ''}${errored ? ' is-error' : ''}`}
-      style={category ? ({ '--orb-color': `var(--so-orb-${category})` } as React.CSSProperties) : undefined}
+      style={category ? ({ '--orb-color': orbColor(placement.soundId, category) } as React.CSSProperties) : undefined}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

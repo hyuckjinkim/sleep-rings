@@ -6,6 +6,8 @@ import { usePlanStore } from '../plan'
 import { shouldShowBanner } from '../ads'
 import { showBannerWhenReady } from './ads-lifecycle'
 import { useDialogFocus } from '../a11y/useDialogFocus'
+import { UpgradeSheet } from '../plan/UpgradeSheet'
+import type { Plan } from '../plan'
 import { getPurchaseAdapter, isPurchaseAvailable } from '../plan'
 import pkg from '../../package.json'
 import './settings.css'
@@ -38,6 +40,7 @@ export function Settings({ onClose }: SettingsProps) {
 
   const rootRef = useRef<HTMLDivElement>(null)
   useDialogFocus(rootRef, onClose)
+  const [upgradeTarget, setUpgradeTarget] = useState<Exclude<Plan, 'free'> | null>(null)
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState(false)
 
@@ -84,6 +87,22 @@ export function Settings({ onClose }: SettingsProps) {
         <span className="settings-label">{t('plan.settings.currentLabel')}</span>
         <strong>{t(`plan.tier.${plan}`)}</strong>
         {plan === 'free' && <p className="settings-plan-hint">{t('plan.settings.upgradeHint')}</p>}
+        {/* The hint above told free users to upgrade and then offered no way to do it — the plan
+            section was a dead end, and buying was only reachable by tapping a locked palette chip
+            (which a user browsing settings has no reason to think of). Same sheet, opened with the
+            tier the user picked rather than the tier some sound happens to require. */}
+        {plan === 'free' && (
+          <>
+            <span className="settings-label">{t('plan.settings.choose')}</span>
+            <div className="settings-plan-tiers">
+              {(['tier2000', 'tier5000', 'tier10000'] as const).map((tier) => (
+                <button key={tier} type="button" className="settings-plan-tier" onClick={() => setUpgradeTarget(tier)}>
+                  {t(`plan.tier.${tier}`)}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         {/* Restore lives here, not only behind a locked palette chip: App Store 3.1.1 requires a
             reachable restore path, and a subscriber reinstalling has no locked chip to tap since
             their tier already unlocks everything (.omc/reviews/v040-review.md HIGH-3). */}
@@ -99,6 +118,8 @@ export function Settings({ onClose }: SettingsProps) {
         )}
         {restoreError && <p className="settings-plan-hint">{t('plan.upgrade.failed')}</p>}
       </section>
+
+      {upgradeTarget && <UpgradeSheet plan={upgradeTarget} onClose={() => setUpgradeTarget(null)} />}
 
       <section className="settings-section settings-about">
         <span className="settings-label">{t('app.version.label')}</span>

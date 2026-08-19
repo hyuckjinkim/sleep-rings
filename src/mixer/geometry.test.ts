@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   clamp,
+  spreadAngle,
+  TAU,
   normalizeAngle,
   angleDelta,
   radiusToVolume,
@@ -78,5 +80,30 @@ describe('polarToUnit / unitToPolar', () => {
     expect(y).toBeCloseTo(0)
     const top = polarToUnit(1, 0, shape) // topmost point, on the minor axis -> compressed
     expect(top.y).toBeCloseTo(-0.5)
+  })
+})
+
+describe('spreadAngle', () => {
+  it('drops a new orb into the middle of the widest gap', () => {
+    // two orbs at 0 and PI leave two equal gaps; either midpoint is correct
+    const angle = spreadAngle([0, Math.PI])
+    expect([Math.PI / 2, (3 * Math.PI) / 2]).toContainEqual(expect.closeTo(angle, 5))
+  })
+
+  it('wraps around the circle when the widest gap straddles 0', () => {
+    // orbs bunched between 0.2 and 1.0 rad: the real gap runs from 1.0 forward through 0
+    const angle = spreadAngle([0.2, 0.6, 1.0])
+    expect(angle).toBeGreaterThan(1.0)
+    expect(angle).toBeLessThan(TAU + 0.2)
+  })
+
+  it('keeps every pair of orbs apart when the field fills up one tap at a time', () => {
+    // the actual regression: tapping in orbs one by one used to stack them on random collisions
+    const placed: number[] = []
+    for (let i = 0; i < 6; i++) placed.push(spreadAngle(placed))
+    const sorted = [...placed].sort((a, b) => a - b)
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i] - sorted[i - 1]).toBeGreaterThan(0.3) // ~17deg, wider than an orb
+    }
   })
 })

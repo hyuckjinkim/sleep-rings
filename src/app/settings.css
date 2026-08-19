@@ -89,3 +89,22 @@
   font-size: var(--so-font-size-md, 1rem);
   font-family: inherit;
 }
+
+/* Plan picker — three tiers side by side, wrapping on narrow screens. */
+.settings-plan-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--so-space-2, 0.5rem);
+  margin-top: var(--so-space-2, 0.5rem);
+}
+
+.settings-plan-tier {
+  min-height: 44px; /* touch target floor, same as every other control here */
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: transparent;
+  color: var(--so-text-primary, #f0f0f5);
+  font-size: var(--so-font-size-sm, 0.875rem);
+  cursor: pointer;
+}

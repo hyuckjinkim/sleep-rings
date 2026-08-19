@@ -25,7 +25,11 @@ html {
   /* ---- 텍스트 ---- */
   --so-text-primary: #f0f0f5; /* 기존 App.tsx와 동일값 유지 */
   --so-text-secondary: #a8adc4;
-  --so-text-tertiary: #6b7290;
+  /* WCAG AA (4.5:1) on every surface it lands on: 5.70 on bg-base, 5.21 on bg-elevated,
+     4.67 on bg-overlay. #6b7290 measured 4.07/3.72/3.33 — below AA everywhere, and this token
+     carries real content (orbit labels, hints), not decoration. Still clearly a step below
+     --so-text-secondary (8.66/7.92/7.10) so the type hierarchy survives. */
+  --so-text-tertiary: #828ab0;
   /* B12: raised from #454b66 (2.06:1 measured against --so-bg-elevated) so a disabled control
      stays legible in a dark room instead of vanishing entirely. */
   --so-text-disabled: #5c6386;

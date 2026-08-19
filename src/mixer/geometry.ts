@@ -58,3 +58,27 @@ export function unitToPolar(x: number, y: number): { radius: number; angle: numb
   const angle = normalizeAngle(Math.atan2(x, -y))
   return { radius, angle }
 }
+
+/**
+ * Angle for a newly tapped-in orb: the middle of the widest gap between the orbs already on the
+ * field. A plain Math.random() angle collides often enough to matter — with three orbs placed by
+ * tapping, two landing on top of each other was the common case, not the rare one, and stacked
+ * orbs can't be tapped apart. Radius stays random; this only spreads them around the ring.
+ */
+export function spreadAngle(existing: readonly number[]): number {
+  if (existing.length === 0) return Math.random() * TAU
+  const sorted = [...existing].map(normalizeAngle).sort((a, b) => a - b)
+  let widest = -1
+  let angle = 0
+  for (let i = 0; i < sorted.length; i++) {
+    const from = sorted[i]
+    // last one wraps around to the first, so the gap search covers the whole circle
+    const to = i + 1 < sorted.length ? sorted[i + 1] : sorted[0] + TAU
+    const gap = to - from
+    if (gap > widest) {
+      widest = gap
+      angle = normalizeAngle(from + gap / 2)
+    }
+  }
+  return angle
+}

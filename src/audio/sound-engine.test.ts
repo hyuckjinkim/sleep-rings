@@ -198,10 +198,17 @@ describe('SoundEngine', () => {
   })
 
   it('setMasterVolume() clamps into [0, 1]', () => {
+    // The engine's own master gain is the first node it builds, so the mock's first createGain
+    // result IS that node — reading it back is what actually proves the clamp. (This used to
+    // assert only "doesn't throw", which passes just as happily with the clamp deleted.)
+    const master = (ctx.createGain as unknown as { mock: { results: { value: { gain: { value: number } } }[] } })
+      .mock.results[0].value
     engine.setMasterVolume(2)
+    expect(master.gain.value).toBe(1)
     engine.setMasterVolume(-1)
-    // no public getter for master gain — verify indirectly via no throw + fadeOutAll not clobbered
-    expect(() => engine.setMasterVolume(0.5)).not.toThrow()
+    expect(master.gain.value).toBe(0)
+    engine.setMasterVolume(0.5)
+    expect(master.gain.value).toBe(0.5)
   })
 
   it('scheduleSleep() fades out then stops+suspends at duration; cancelSleep() prevents it', async () => {

@@ -51,7 +51,10 @@
 }
 
 .screen-dim-hint {
-  color: var(--so-text-tertiary, #3a3f57); /* deliberately faint — this is a blackout, not a screen */
+  /* Deliberately faint — this is a blackout, not a screen. Hard-coded rather than
+     --so-text-tertiary: that token is bound by AA contrast for readable content, and raising it
+     to meet AA would brighten the one surface that is supposed to stay nearly invisible. */
+  color: #3a3f57;
   font-size: var(--so-font-size-xs, 0.75rem);
   opacity: 0.4;
 }

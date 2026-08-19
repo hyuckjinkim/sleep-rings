@@ -1,6 +1,7 @@
-// Minimal placeholder catalog so the mixer palette has something to drag. Full 17-category
-// library is sound-pipeline's job (task #8); this just unblocks UI dev. File paths for
-// 'file' sources are aspirational — no audio assets exist yet.
+// The shipped sound catalog — this is the source of truth the palette, plan gate and engine all
+// read from (there is no data/catalog.json build step). 25 of the 28 entries are synth/binaural
+// and play from generated buffers; the three 'file' entries still have no downloaded asset and
+// stay listed-but-locked via UNAVAILABLE_IDS below.
 import type { Category, Locale, Sound } from '../data/types'
 
 export function soundName(soundId: string, locale: Locale): string {
@@ -17,6 +18,25 @@ const UNAVAILABLE_IDS = new Set(['garden-rain', 'seaside', 'night-stream'])
 
 export function isAvailable(soundId: string): boolean {
   return !UNAVAILABLE_IDS.has(soundId)
+}
+
+// Every sound in a category shares that category's hue (theme.css keeps all 13 at S54% L60% and
+// varies only hue, ~15-20deg apart). On the field that made same-category orbs indistinguishable
+// — four noise orbs rendered as four identical circles, so the only way to tell which was which
+// was to open each one. Shifting hue instead would collide with the neighbouring category, so the
+// distinction rides on lightness: the category hue stays recognisable, the individual sound gets
+// its own step. Alternating lighter/darker keeps every step near the base rather than marching
+// off toward white.
+const ORB_SHADE_STEPS = [0, 22, -18, 40, -32, 55, -44] // % mixed toward white (+) / black (-)
+
+/** CSS color for a sound's orb: its category hue at a per-sound lightness step. */
+export function orbColor(soundId: string, category: Category): string {
+  const base = `var(--so-orb-${category})`
+  const index = catalog.filter((s) => s.category === category).findIndex((s) => s.id === soundId)
+  const step = index < 0 ? 0 : ORB_SHADE_STEPS[index % ORB_SHADE_STEPS.length]
+  if (step === 0) return base
+  const magnitude = Math.abs(step)
+  return `color-mix(in srgb, ${base} ${100 - magnitude}%, ${step > 0 ? '#fff' : '#000'} ${magnitude}%)`
 }
 
 export const catalog: Sound[] = [

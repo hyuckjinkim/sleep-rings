@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
-import { TAU, unitToPolar } from './geometry'
-import { catalog, isAvailable } from '../library/catalog'
+import { spreadAngle, unitToPolar } from './geometry'
+import { catalog, isAvailable, orbColor } from '../library/catalog'
 import { SoundIcon } from '../icons/SoundIcon'
-import { FALLBACK_PRICE, canUseSound, getPurchaseAdapter, isPurchaseAvailable, isPurchaseCancelled, requiredPlan, usePlanStore } from '../plan'
-import type { Plan, PurchaseOffering } from '../plan'
+import { canUseSound, requiredPlan, usePlanStore } from '../plan'
+import { UpgradeSheet } from '../plan/UpgradeSheet'
+import type { Plan } from '../plan'
 import type { Category, Locale, Sound } from './types'
 
 const DRAG_THRESHOLD_PX = 4
@@ -49,12 +50,13 @@ interface PaletteItemProps {
   fieldRef: RefObject<HTMLDivElement | null>
   stripRef: RefObject<HTMLDivElement | null>
   addPlacement: (soundId: string, radius: number, angle: number) => string
+  placedAngles: () => number[]
   onLockedTap: (sound: Sound) => void
 }
 
 /** Drag a catalog chip onto the field to add it as a new orb, or drag it sideways to pan the
     palette strip. Pointer Events cover touch+mouse. */
-function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRef, stripRef, addPlacement, onLockedTap }: PaletteItemProps) {
+function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRef, stripRef, addPlacement, placedAngles, onLockedTap }: PaletteItemProps) {
   const chipRef = useRef<HTMLButtonElement | null>(null)
   const drag = useRef<{ startX: number; startY: number; lastX: number } | null>(null)
   const intent = useRef<DragIntent>('tap') // decided on first move past DRAG_THRESHOLD_PX
@@ -124,7 +126,7 @@ function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRe
       onLockedTap(sound)
       return
     }
-    addPlacement(sound.id, 0.25 + Math.random() * 0.5, Math.random() * TAU)
+    addPlacement(sound.id, 0.25 + Math.random() * 0.5, spreadAngle(placedAngles()))
   }
 
   return (
@@ -138,7 +140,7 @@ function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRe
       // toBeEnabled() that activation is a no-op, which would be false here. The lock is
       // conveyed via the accessible name instead (visible text stays via the icon+label below).
       aria-label={planLocked ? lockedLabel : undefined}
-      style={{ '--orb-color': `var(--so-orb-${sound.category})` } as React.CSSProperties}
+      style={{ '--orb-color': orbColor(sound.id, sound.category) } as React.CSSProperties}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -152,94 +154,13 @@ function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRe
   )
 }
 
-interface UpgradeSheetProps {
-  label: string
-  plan: Exclude<Plan, 'free'>
-  onClose: () => void
-}
-
-type PurchaseStatus = 'idle' | 'purchasing' | 'restoring' | 'error'
-
-/** RevenueCat purchase flow, gated behind isPurchaseAvailable() (docs/plan-tiers.md §3): with no
-    API key configured (today's build) or off-native (web), purchases/restore aren't reachable at
-    all, so the sheet shows a "준비 중" notice instead of buttons that would silently no-op. Once a
-    key is configured this same sheet gains a real buy + restore flow with no other code changes. */
-function UpgradeSheet({ label, plan, onClose }: UpgradeSheetProps) {
-  const { t } = useTranslation()
-  const available = isPurchaseAvailable()
-  const [offerings, setOfferings] = useState<PurchaseOffering[] | null>(null)
-  const [status, setStatus] = useState<PurchaseStatus>('idle')
-
-  useEffect(() => {
-    let cancelled = false
-    getPurchaseAdapter()
-      .getOfferings()
-      .then((list) => {
-        if (!cancelled) setOfferings(list)
-      })
-      .catch(() => {
-        // ponytail: network/store failure loading offerings — the docs price string below covers it.
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const priceString = offerings?.find((o) => o.plan === plan)?.priceString ?? FALLBACK_PRICE[plan]
-
-  async function handlePurchase() {
-    setStatus('purchasing')
-    try {
-      await getPurchaseAdapter().purchase(plan)
-      onClose() // usePlanStore already reflects the new plan — nothing else to sync
-    } catch (err) {
-      setStatus(isPurchaseCancelled(err) ? 'idle' : 'error')
-    }
-  }
-
-  async function handleRestore() {
-    setStatus('restoring')
-    try {
-      await getPurchaseAdapter().restore()
-      onClose()
-    } catch {
-      setStatus('error')
-    }
-  }
-
-  return (
-    <div className="mixer-upgrade-backdrop" onClick={onClose}>
-      <div className="mixer-upgrade-sheet" role="dialog" aria-modal="true" aria-label={t('plan.upgrade.title')} onClick={(e) => e.stopPropagation()}>
-        <p>{t('plan.upgrade.body', { sound: label, tier: t(`plan.tier.${plan}`) })}</p>
-        {available ? (
-          <>
-            <button type="button" className="mixer-upgrade-buy" disabled={status === 'purchasing'} onClick={handlePurchase}>
-              {status === 'purchasing' ? t('plan.upgrade.purchasing') : t('plan.upgrade.buy', { price: priceString })}
-            </button>
-            <button type="button" className="mixer-upgrade-restore" disabled={status === 'restoring'} onClick={handleRestore}>
-              {status === 'restoring' ? t('plan.upgrade.restoring') : t('plan.upgrade.restore')}
-            </button>
-            {status === 'error' && (
-              <p className="mixer-upgrade-error" role="alert">
-                {t('plan.upgrade.failed')}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="mixer-upgrade-comingSoon">{t('plan.upgrade.comingSoon', { price: priceString })}</p>
-        )}
-        <button type="button" onClick={onClose}>
-          {t('plan.upgrade.close')}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 export function Palette({ fieldRef }: PaletteProps) {
   const { t, i18n } = useTranslation()
   const locale = (i18n.language === 'en' ? 'en' : 'ko') as Locale
   const addPlacement = useMixStore((s) => s.addPlacement)
+  // Read on demand rather than subscribing: this only matters at the moment of a tap, and
+  // subscribing to the placement list would re-render every chip on every orbit change.
+  const placedAngles = () => useMixStore.getState().current.placements.map((p) => p.angle)
   const hasPlacements = useMixStore((s) => s.current.placements.length > 0)
   const clearAll = useMixStore((s) => s.clearAll)
   const layerLimitNotice = useMixStore((s) => s.layerLimitNotice)
@@ -324,6 +245,7 @@ export function Palette({ fieldRef }: PaletteProps) {
               fieldRef={fieldRef}
               stripRef={stripRef}
               addPlacement={addPlacement}
+              placedAngles={placedAngles}
               onLockedTap={setUpgradeSound}
             />
           )

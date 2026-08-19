@@ -99,9 +99,11 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
       <hr className="mixer-controls-divider" />
 
       <div className="mixer-controls-row">
+        {/* Action label, not a state label ("궤도 고정" means "tap to fix it"), so this is a plain
+            button like the lock button above — aria-pressed on top of it announced "궤도 랜덤,
+            pressed", which states the opposite of what the label says. */}
         <button
           type="button"
-          aria-pressed={isFixed}
           onClick={() => updatePlacement(placementId, { orbit: { mode: isFixed ? 'random' : 'fixed' } })}
         >
           {isFixed ? t('mixer.controls.orbitRandom') : t('mixer.controls.orbitFixed')}
@@ -136,7 +138,6 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
       <div className="mixer-controls-row">
         <button
           type="button"
-          aria-pressed={hasCurve}
           onClick={() =>
             updatePlacement(placementId, {
               orbit: { volumeCurve: hasCurve ? undefined : { depth: DEFAULT_VOLUME_CURVE_DEPTH } },
