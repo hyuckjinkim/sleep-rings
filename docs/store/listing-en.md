@@ -40,7 +40,7 @@ Set a sleep timer and the mix fades out gently before playback stops. Name and s
 Your mix auto-saves, so reopening the app picks up right where you left off. Playback works without a network connection.
 
 **Free, and ad-free**
-12 sounds plus orbit mixing, the sleep timer, presets and auto-dim are free, with no ads at all. Seven more sounds are marked as coming with a future subscription.
+15 sounds plus orbit mixing, the sleep timer, presets and auto-dim are free. Ads appear only as a small banner on the settings screen — **never on the screen you actually listen on**. Ten more sounds unlock with a subscription.
 
 ## Keywords (App Store, ≤100 chars, comma-separated, no spaces)
 

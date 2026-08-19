@@ -7,7 +7,7 @@ import type { Mix, Placement, Orbit } from './types'
 import { soundEngine } from './engine/instance'
 import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
-import { hapticTap } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
+import { hapticTap, setMediaSessionPlaying } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
 import { canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
@@ -160,6 +160,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   addPlacement(soundId, radius, angle) {
     hapticTap()
+    setMediaSessionPlaying(true)
     soundEngine.onEnterForeground() // MEDIUM-2: re-resume if a completed sleep timer suspended the context
     const placement: Placement = {
       id: makeId('p'),
@@ -226,6 +227,8 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   removePlacement(id) {
     hapticTap()
+    // last orb gone -> the lock-screen transport must stop claiming playback
+    if (get().current.placements.length <= 1) setMediaSessionPlaying(false)
     const removed = get().current.placements.find((p) => p.id === id) ?? null
     set((s) => {
       const loadingIds = new Set(s.loadingIds)
@@ -265,6 +268,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   // single-delete undo above. A confirm dialog would interrupt a half-asleep user reaching for
   // the field at night; an undo toast (matching the existing B7 pattern) is safer to misfire on.
   clearAll() {
+    setMediaSessionPlaying(false)
     const placements = get().current.placements
     if (placements.length === 0) return
     for (const p of placements) soundEngine.stop(p.id, PLACEMENT_FADE_SEC)

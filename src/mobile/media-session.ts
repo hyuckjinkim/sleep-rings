@@ -13,7 +13,10 @@ export function initMediaSession(target: BackgroundAudioTarget, title: string): 
   if (!('mediaSession' in navigator)) return () => {}
 
   navigator.mediaSession.metadata = new MediaMetadata({ title })
-  navigator.mediaSession.playbackState = 'playing'
+  // 'none' until something actually plays: this runs at boot, and declaring 'playing' there put a
+  // paused-looking transport on the lock screen (and in desktop browsers) for an app making no
+  // sound. setMediaSessionPlaying() flips it when the mix really starts.
+  navigator.mediaSession.playbackState = 'none'
   navigator.mediaSession.setActionHandler('play', () => {
     target.onEnterForeground()
     navigator.mediaSession.playbackState = 'playing'
@@ -27,4 +30,11 @@ export function initMediaSession(target: BackgroundAudioTarget, title: string): 
     navigator.mediaSession.setActionHandler('play', null)
     navigator.mediaSession.setActionHandler('pause', null)
   }
+}
+
+/** Reflect real playback state on the lock-screen transport. Called by the mixer store when the
+ * first orb starts and when the last one stops. No-op where Media Session is unsupported. */
+export function setMediaSessionPlaying(playing: boolean): void {
+  if (!('mediaSession' in navigator)) return
+  navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'
 }

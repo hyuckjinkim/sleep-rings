@@ -1,6 +1,6 @@
 # Privacy Policy — SleepRings
 
-> **Note for this build**: the shipping build **does not display ads**. The AdMob SDK is bundled but never initialized, so no data — including advertising identifiers — is collected or transmitted. The advertising clauses below apply from the release that actually enables ads, at which point the ATT prompt and consent flow ship with it.
+> **Where ads appear**: banner ads are shown **only to free-plan users, and only on the settings screen**. The playback (mixer) screen never shows ads. The ad SDK is initialized lazily, at the moment a banner is actually needed — so **paid subscribers never initialize it and never see the App Tracking Transparency prompt**.
 
 
 > Effective date: [replace with actual publish date at store submission]

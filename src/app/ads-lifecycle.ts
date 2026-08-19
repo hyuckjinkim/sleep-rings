@@ -26,6 +26,10 @@ let desiredVisible = false
  * (free plan, settings screen mounted, screen not dimmed — the caller decides that, not this). */
 export async function showBannerWhenReady(shouldShow: boolean): Promise<void> {
   desiredVisible = shouldShow
+  // Never initialise the SDK just to hide something that was never shown. Booting the SDK has
+  // user-visible cost — on iOS it is what triggers the ATT prompt — so a paid subscriber, who can
+  // never see a banner, must not pay that cost (.omc/qa4/monetization.md CRITICAL-1).
+  if (!shouldShow && !initPromise) return
   await ensureAdsInit()
   if (desiredVisible) await showBanner('bottom')
   else await hideBanner()

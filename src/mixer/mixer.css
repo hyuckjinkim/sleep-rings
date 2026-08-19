@@ -186,6 +186,21 @@
   min-width: 0;
 }
 
+/* Both horizontal strips are pan surfaces (touch swipe / chip drag), so the native scrollbar adds
+   nothing but a bright seam across a dark night UI — and on desktop it steals vertical space from
+   the 44px touch targets. Scrolling itself is unchanged; only the bar is hidden. */
+.mixer-palette-tabs,
+.mixer-palette {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+.mixer-palette-tabs::-webkit-scrollbar,
+.mixer-palette::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .mixer-palette-tab {
   user-select: none;
   flex: 0 0 auto;

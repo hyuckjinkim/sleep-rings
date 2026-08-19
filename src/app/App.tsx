@@ -7,7 +7,6 @@ import { Mixer } from '../mixer/Mixer'
 import { useMixStore } from '../mixer/store'
 import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 import { Settings } from './Settings'
-import { ensureAdsInit } from './ads-lifecycle'
 import { getPurchaseAdapter, isPurchaseAvailable, usePlanStore } from '../plan'
 import './backdrop.css'
 // theme.css is imported once in main.tsx
@@ -19,12 +18,6 @@ export function App() {
   // §2.2: the background layer breathes only while something is actually audible.
   const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping)
   const [screen, setScreen] = useState<Screen>('mixer')
-
-  // App-start-once (docs/ads-setup.md §6): Settings.tsx awaits this same promise before ever
-  // showing a banner, so it's safe to kick off here regardless of which screen mounts first.
-  useEffect(() => {
-    void ensureAdsInit()
-  }, [])
 
   // Entitlements are the store's truth, not ours: the locally persisted plan says nothing about a
   // subscription that expired, was refunded, or was bought on another device. Re-read it once at

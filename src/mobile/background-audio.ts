@@ -43,7 +43,7 @@ export function stopKeepAliveAudio(): void {
  * Wires Capacitor's app-lifecycle events to the sound engine's background/foreground hooks and
  * (Android) the keep-alive foreground service. Call once at app startup. Returns a cleanup fn.
  */
-export function initBackgroundAudio(target: BackgroundAudioTarget): () => void {
+export function initBackgroundAudio(target: BackgroundAudioTarget, isPlaying?: () => boolean): () => void {
   let handle: PluginListenerHandle | undefined
   void App.addListener('appStateChange', ({ isActive }) => {
     if (isActive) {
@@ -51,7 +51,10 @@ export function initBackgroundAudio(target: BackgroundAudioTarget): () => void {
       void stopAndroidKeepAliveService()
     } else {
       target.onEnterBackground()
-      void startAndroidKeepAliveService()
+      // Only claim a media-playback foreground service when audio is actually playing. Backgrounding
+      // an idle app used to post a "Playing your sleep mix" notification with nothing playing —
+      // a Play Store mediaPlayback FGS policy problem, a battery drain, and a lie to the user.
+      if (!isPlaying || isPlaying()) void startAndroidKeepAliveService()
     }
   }).then((h) => {
     handle = h
