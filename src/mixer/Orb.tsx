@@ -97,7 +97,7 @@ export function Orb({
     const el = elRef.current
     const field = fieldRef.current
     if (!el || !field) return
-    const r = field.getBoundingClientRect().width / 2
+    const r = field.offsetWidth / 2 // layout width — see OrbitField's frame loop (transform-scaled layouts)
     const { x, y } = polarToUnit(radius, angle, shape)
     el.style.transform = `translate(${x * r}px, ${y * r}px)`
   }

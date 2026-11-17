@@ -85,7 +85,9 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
     function tick(now: number) {
       const dt = Math.min((now - last) / 1000, 0.1)
       last = now
-      const r = fieldRef.current?.getBoundingClientRect().width ?? 0
+      // Layout width, not the rendered rect: the orb's translate lives *inside* the field, so if a
+      // layout scales the field with transform, the rect width would apply that scale twice.
+      const r = fieldRef.current?.offsetWidth ?? 0
       const fieldRadiusPx = r / 2
       const state = useMixStore.getState()
       const current = state.current.placements

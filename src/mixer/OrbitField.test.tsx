@@ -37,6 +37,9 @@ beforeEach(() => {
     lastRemoved: null,
   })
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(FIELD_RECT)
+  // The frame loop positions orbs from the field's *layout* width (offsetWidth — it must ignore a
+  // transform scale), and jsdom has no layout: fake it to match FIELD_RECT.
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(FIELD_RECT.width)
   vi.useFakeTimers()
 })
 

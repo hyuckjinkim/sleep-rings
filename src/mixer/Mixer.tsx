@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
 import { OrbitField } from './OrbitField'
 import { FieldDock } from './FieldDock'
+import { CollapsingHeader } from './CollapsingHeader'
+import { SheetLayout } from './SheetLayout'
+import { MiniBar } from './MiniBar'
+import { useLayoutStore } from './layout'
 import { Palette } from './Palette'
 import { OrbControls } from './OrbControls'
 import { soundEngine } from './engine/instance'
@@ -26,6 +30,7 @@ export function Mixer() {
   const restoreLastRemoved = useMixStore((s) => s.restoreLastRemoved)
   const lastRemovedAll = useMixStore((s) => s.lastRemovedAll)
   const restoreLastRemovedAll = useMixStore((s) => s.restoreLastRemovedAll)
+  const layout = useLayoutStore((s) => s.layout)
 
   useEffect(() => {
     restoreMix()
@@ -42,17 +47,29 @@ export function Mixer() {
     if (Capacitor.isNativePlatform()) startKeepAliveAudio()
   }
 
+  const field = <OrbitField fieldRef={fieldRef} selectedId={selectedId} onSelect={setSelectedId} />
+  const palette = <Palette fieldRef={fieldRef} />
+
   return (
-    <div className="mixer" onPointerDownCapture={handleFirstGesture}>
-      {/* Field+palette stay above the fold — timer/presets are secondary, below them. */}
-      <FieldDock onSelect={setSelectedId}>
-        <OrbitField fieldRef={fieldRef} selectedId={selectedId} onSelect={setSelectedId} />
-      </FieldDock>
-      {/* Sticky: chips stay reachable for dragging into the floating mini field while scrolled. */}
-      <div className="mixer-top">
-        <Palette fieldRef={fieldRef} />
-      </div>
-      <SleepControls />
+    <div className={`mixer layout-${layout}`} onPointerDownCapture={handleFirstGesture}>
+      {/* Four ways to keep the orbit in view while using the controls below (Settings → layout).
+          One OrbitField instance in every branch: its frame loop also drives the spatial audio. */}
+      {layout === 'sheet' ? (
+        <SheetLayout field={field}>
+          {palette}
+          <SleepControls />
+        </SheetLayout>
+      ) : (
+        <>
+          {layout === 'floating' && <FieldDock onSelect={setSelectedId}>{field}</FieldDock>}
+          {layout === 'collapse' && <CollapsingHeader onSelect={setSelectedId}>{field}</CollapsingHeader>}
+          {layout === 'minibar' && field}
+          {/* Sticky: chips stay reachable for dragging into the field while scrolled. */}
+          <div className="mixer-top">{palette}</div>
+          <SleepControls />
+          {layout === 'minibar' && <MiniBar fieldRef={fieldRef} onSelect={setSelectedId} />}
+        </>
+      )}
       {selectedId && selectedSoundId && (
         <OrbControls placementId={selectedId} label={soundName(selectedSoundId, locale)} onClose={() => setSelectedId(null)} />
       )}
