@@ -24,7 +24,7 @@
   padding: var(--so-space-1, 0.25rem) 0;
 }
 
-.mixer:has(.is-mini) .mixer-top {
+.mixer:has(.is-floating) .mixer-top {
   background: color-mix(in srgb, var(--so-bg-base, #0a0e1a) 78%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -57,17 +57,30 @@
   cursor: pointer;
 }
 
-/* Floating mini window — "always on top": above toasts and the orb control panel (15), below
-   modal sheets (20) so an upgrade/confirm sheet still covers it. */
-.mixer-field-dock.is-mini {
+/* Floating state (FieldDock.tsx): while morphing and once mini. Position comes from a JS
+   translate3d, and everything that differs between inline and mini is driven by one progress
+   value --m (0 = inline, 1 = mini) so the window grows its chrome *while* it flies, instead of
+   snapping classes on the first frame. "Always on top": above toasts and the orb control panel
+   (15), below modal sheets (20). */
+.mixer-field-dock.is-floating {
+  --m: 0;
   position: fixed;
-  top: calc(196px + env(safe-area-inset-top, 0px)); /* clears the palette strip, stuck or not */
-  right: var(--so-space-3, 0.75rem);
+  left: 0;
+  top: 0;
   z-index: 16;
-  padding: 44px var(--so-space-2, 0.5rem) var(--so-space-2, 0.5rem);
+  padding: calc(44px * var(--m)) calc(8px * var(--m)) calc(8px * var(--m));
+  will-change: transform;
+}
+
+/* Window chrome on a pseudo-element so it can fade with --m without touching the content.
+   Violet tint (the backdrop's aurora hue) so the window reads as its own layer. */
+.mixer-field-dock.is-floating::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: var(--m);
   border-radius: var(--so-radius-lg, 20px);
-  /* Violet tint (the backdrop's aurora hue) so the floating window reads as its own layer, not
-     another blue-grey card of the page beneath it. */
   border: 1px solid color-mix(in srgb, var(--so-orb-binaural, #7462d0) 65%, transparent);
   background: color-mix(in srgb, var(--so-orb-binaural, #7462d0) 26%, color-mix(in srgb, var(--so-bg-base, #0a0e1a) 88%, transparent));
   -webkit-backdrop-filter: blur(12px);
@@ -77,13 +90,20 @@
     0 0 var(--so-glow-blur-md, 24px) color-mix(in srgb, var(--so-orb-binaural, #7462d0) 35%, transparent);
 }
 
-.is-mini .mixer-field-dock-button {
-  border: none;
-  background: transparent;
-  color: var(--so-text-primary, #f0f0f5);
+/* backdrop-filter re-samples what's behind every frame the window moves — the priciest thing
+   here on low-end GPUs. Solid tint while flying/dragging, blur only at rest. */
+.mixer-field-dock.is-morphing::before {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: color-mix(in srgb, var(--so-orb-binaural, #7462d0) 26%, var(--so-bg-base, #0a0e1a));
 }
 
-.is-mini .mixer-field-dock-handle {
+.is-floating .mixer-field-dock-handle,
+.is-floating .mixer-field-dock-resize {
+  opacity: var(--m);
+}
+
+.is-floating .mixer-field-dock-handle {
   color: color-mix(in srgb, var(--so-orb-binaural, #7462d0) 55%, var(--so-text-primary, #f0f0f5));
 }
 
@@ -122,18 +142,16 @@
   overflow: visible;
 }
 
-/* Real width change, not transform:scale — OrbitField/Orb position orbs from the field's measured
-   rect every frame, and a scale would apply on top of that (double-scaled orbits). */
-.is-mini .mixer-field {
-  width: var(--mini-size, min(42vw, 160px)); /* --mini-size: set by FieldDock's resize grip */
-}
+/* Floating field width is written by FieldDock.tsx (a real width, not transform:scale —
+   OrbitField/Orb position orbs from the field's measured rect every frame, and a scale would
+   apply on top of that: double-scaled orbits). */
 
 .mixer-field-dock-resize {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 32px;
-  height: 32px;
+  width: 44px; /* B4 touch target; the visible grip stays small */
+  height: 44px;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
@@ -149,7 +167,7 @@
   display: none;
 }
 
-.mixer-field-dock.is-strip:not(.is-mini) {
+.mixer-field-dock.is-strip:not(.is-floating) {
   width: min(92vw, 480px);
   display: flex;
   align-items: center;
@@ -157,14 +175,16 @@
   min-height: 52px;
 }
 
-.is-strip:not(.is-mini) .mixer-field-dock-actions {
+.is-strip:not(.is-floating) .mixer-field-dock-actions {
   position: static;
   order: 2;
 }
 
-.is-mini.is-strip {
-  max-width: calc(100vw - 2 * var(--so-space-3, 0.75rem));
-  min-width: 140px;
+/* Floating strip: width is written by FieldDock.tsx. At --m 0 the right padding reserves the
+   action buttons' slot exactly like the inline row, so the first frame matches the inline layout. */
+.is-floating.is-strip {
+  box-sizing: border-box;
+  padding-right: calc(92px * (1 - var(--m)) + 8px * var(--m));
 }
 
 .mixer-strip {
@@ -202,21 +222,47 @@
   font-size: var(--so-font-size-xs, 0.75rem);
 }
 
-.is-mini .mixer-field-head {
-  width: 1.75rem;
-  height: 1.75rem;
-  padding: 0.35rem;
+/* Field internals shrink with --m (0 inline → 1 mini); --m is 0 outside the floating dock. */
+.mixer-field-dock .mixer-field-head {
+  width: calc(2.75rem - 1rem * var(--m, 0));
+  height: calc(2.75rem - 1rem * var(--m, 0));
+  padding: calc(0.6rem - 0.25rem * var(--m, 0));
 }
 
-.is-mini .mixer-orb {
-  width: 2rem;
-  height: 2rem;
-  margin: -1rem;
-  --so-icon-orb: 16px;
+.mixer-field-dock .mixer-orb {
+  width: calc(3rem - 1rem * var(--m, 0));
+  height: calc(3rem - 1rem * var(--m, 0));
+  margin: calc(-1.5rem + 0.5rem * var(--m, 0));
+  --so-icon-orb: calc(24px - 8px * var(--m, 0));
 }
 
-.is-mini .mixer-field-hint {
-  display: none;
+.mixer-field-dock .mixer-field-hint {
+  opacity: calc(1 - 3 * var(--m, 0));
+}
+
+/* The field's slot while it floats: keeps the page height constant (no scroll feedback loop)
+   and shows where the field will land. Fades in as the field leaves; tapping it docks back. */
+.mixer-dock-slot {
+  --m: 1;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--so-space-2, 0.5rem);
+  padding: var(--so-space-2, 0.5rem);
+  border: 1.5px dashed color-mix(in srgb, var(--so-text-tertiary, #828ab0) 45%, transparent);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--so-text-tertiary, #828ab0);
+  font-size: var(--so-font-size-xs, 0.75rem);
+  opacity: var(--m);
+  cursor: pointer;
+}
+
+.mixer-dock-slot.is-strip {
+  flex-direction: row;
+  border-radius: var(--so-radius-full, 999px);
 }
 
 .mixer-field-head {

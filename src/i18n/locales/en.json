@@ -20,7 +20,8 @@
       "move": "Move window",
       "stripView": "Icon row view",
       "orbitView": "Orbit view",
-      "resize": "Resize window"
+      "resize": "Resize window",
+      "docked": "Floating · tap to dock back"
     },
     "palette": {
       "label": "Sound palette",

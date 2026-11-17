@@ -20,7 +20,8 @@
       "move": "창 이동",
       "stripView": "일자형 아이콘 보기",
       "orbitView": "오빗 보기",
-      "resize": "창 크기 조절"
+      "resize": "창 크기 조절",
+      "docked": "미니 창으로 떠 있음 · 눌러서 되돌리기"
     },
     "palette": {
       "label": "사운드 팔레트",
