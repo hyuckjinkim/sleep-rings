@@ -1,6 +1,6 @@
 # Changelog
 
-0.6.0부터는 release-please가 커밋 이력(Conventional Commits)으로 이 파일을 자동 갱신한다.
+`npm run release`(commit-and-tag-version)가 커밋 이력(Conventional Commits)으로 갱신한다.
 0.5.0 이하는 RELEASE_MANIFEST.json에서 옮겨 온 이력이다.
 
 ## 0.5.0 (2026-08-20)
