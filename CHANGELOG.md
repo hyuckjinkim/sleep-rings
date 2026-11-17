@@ -3,11 +3,11 @@
 `npm run release`(commit-and-tag-version)가 커밋 이력(Conventional Commits)으로 갱신한다.
 0.5.0 이하는 수동 릴리즈 기록(구 RELEASE_MANIFEST.json)을 옮긴 것으로, '참고'에 빌드 검증·후속 작업 메모가 있다.
 
-## [0.6.0](https://github.com/hyuckjinkim/sleep-orbit/compare/v0.5.0...v0.6.0) (2026-11-17)
+## [0.6.0](https://github.com/hyuckjinkim/sleep-rings/compare/v0.5.0...v0.6.0) (2026-11-17)
 
 ### 기능
 
-* **mixer:** 오빗 필드 플로팅 미니 창·일자형 보기, 드래그 칩 가림 수정 ([8b9ae5b](https://github.com/hyuckjinkim/sleep-orbit/commit/8b9ae5babe971ad31ef9440eed5d0802b5fb03de))
+* **mixer:** 오빗 필드 플로팅 미니 창·일자형 보기, 드래그 칩 가림 수정 ([8b9ae5b](https://github.com/hyuckjinkim/sleep-rings/commit/8b9ae5babe971ad31ef9440eed5d0802b5fb03de))
 
 ## 0.5.0 (2026-08-20)
 
@@ -120,7 +120,7 @@ QA·고도화 사이클 — 6패스 QA(기능·디자인·UX·전문표준·정�
 
 ## 0.1.0 (2026-07-20)
 
-SleepRings 초기 릴리즈 — Sleep Orbit 벤치마크 풀 클론(웹 Capacitor). 궤도 믹서(반경=볼륨·바이노럴·제스처)+노이즈 4종 합성+슬립 타이머·프리셋+백그라운드 오디오+서명 AAB/APK+스토어 등록자료. opus 최종 리뷰 승인(CRITICAL/HIGH 0), 테스트 85건·커버리지 Stmts 82%
+SleepRings 초기 릴리즈 — Sleep Orbit 기능 벤치마크 기반(웹 Capacitor). 궤도 믹서(반경=볼륨·바이노럴·제스처)+노이즈 4종 합성+슬립 타이머·프리셋+백그라운드 오디오+서명 AAB/APK+스토어 등록자료. opus 최종 리뷰 승인(CRITICAL/HIGH 0), 테스트 85건·커버리지 Stmts 82%
 
 * chore: versionName 0.1.0 동기화 — 릴리즈 매니페스트와 정합 (최종 리뷰 L-3) (0448b97)
 * fix: 최종 리뷰 픽스 — fade-in 램프 보존(lastGain), 슬립 완료 후 재관여 resume, 프리셋 페이드, 잠금 사운드 팔레트 숨김 (1e1289b)

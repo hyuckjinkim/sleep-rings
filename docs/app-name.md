@@ -1,6 +1,6 @@
 # 앱 이름 후보 검증
 
-> 목적: Sleep Orbit 클론 앱의 스토어 제출용 이름 결정. "Sleep Orbit"(SMB Studio LLC, App Store/Google Play 등록 앱, 앱 내 100+ 사운드·17개 카테고리·바이노럴 3D 오디오 믹서)과 혼동되는 이름은 금지.
+> 목적: 이 앱(SleepRings)의 스토어 제출용 이름 결정. "Sleep Orbit"(SMB Studio LLC, App Store/Google Play 등록 앱, 앱 내 100+ 사운드·17개 카테고리·바이노럴 3D 오디오 믹서)과 혼동되는 이름은 금지.
 > 조사 방법: WebSearch로 (a) App Store/Google Play 동일·유사명 앱 존재 여부, (b) `"<이름>" trademark` 검색으로 상표 충돌 신호, (c) 기존 유명 제품과의 혼동 가능성을 확인. **USPTO 공식 데이터베이스(tmsearch.uspto.gov)는 이 조사 방식으로 직접 크롤링되지 않아 "등록 상표 없음"을 확정할 수는 없다** — 아래 판정은 일반 웹 검색 신호 기반이며, 최종 상표 확정은 스토어 제출 전 USPTO/특허청 공식 검색 및 변호사 검토가 필요하다.
 
 ## 원본 앱 확인

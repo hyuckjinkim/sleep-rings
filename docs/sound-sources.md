@@ -1,7 +1,7 @@
 # 사운드 소스 조사 & 조달 계획
 
 > 조사: sound-pipeline 에이전트, 2026-07-20. **다운로드는 아직 실행하지 않음 — 조사·설계 문서.**
-> 전제: `docs/research/sleep-orbit-benchmark.md` §3 (17개 카테고리, 100+ 사운드) 기준. 클론 v1 목표 = 카테고리당 2~4개, 총 40~60개 음원.
+> 전제: `docs/research/sleep-orbit-benchmark.md` §3 (17개 카테고리, 100+ 사운드) 기준. v1 목표 = 카테고리당 2~4개, 총 40~60개 음원.
 > 원칙: **라이선스가 명확히 확인되지 않은 소스는 후보에서 제외**한다. "아마 CC0일 것"은 채택 기준이 아니다.
 
 ## 1. 소스별 조사 결과
@@ -31,7 +31,7 @@
 ### 1.3 BBC Sound Effects (bbcrewind.co.uk) — ❌ 제외
 
 - BBC 저작물이며 **RemArc Licence**로 공개 — "개인·교육·연구 목적"만 허용. **상업적 이용은 Pro Sound Effects를 통한 유료 라이선싱 필요.**
-- 무료로 배포되는 클론 앱이라도 앱스토어 공개 배포는 "개인적 이용"의 범위를 넘어선다고 보는 것이 안전 → **전면 제외.**
+- 무료로 배포되는 앱이라도 앱스토어 공개 배포는 "개인적 이용"의 범위를 넘어선다고 보는 것이 안전 → **전면 제외.**
 - 확인: [sound-effects.bbcrewind.co.uk/licensing](https://sound-effects.bbcrewind.co.uk/licensing), [blog.prosoundeffects.com](https://blog.prosoundeffects.com/how-to-license-bbc-sound-effects-to-use-in-your-commercial-productions)
 
 ### 1.4 archive.org (Internet Archive) — ⚠️ 보조 소스, 개별 검증 필수
@@ -51,7 +51,7 @@
 | 소스 | 라이선스 | 자동화 | 판정 |
 |---|---|---|---|
 | **Mixkit** | Sound Effects Free License — 상업적 사용 가능, 출처 표기 불필요(권장만), 회원가입 불필요. 단 "동일/경쟁 서비스 구축 금지", "스톡 미디어로 재판매 금지" 조항 있음(우리 사용 목적엔 무해) | 공식 API 없음 — 사람이 개별 다운로드 | ✅ 보조 소스로 채택 가능(수동) |
-| **Zapsplat** | 무료 회원은 **반드시 앱 내 크레딧에 "Sound effects obtained from zapsplat.com" 표기 필요**(Gold 유료 계정만 표기 면제). 로그인 세션 기반이라 다운로드 자동화 불가 | 불가(로그인 필요) | ❌ 제외 — 로그인 필요 + 강제 크레딧이 "IAP 없음/전부 무료" 클론 방침과 마찰, 자동화 어려움 |
+| **Zapsplat** | 무료 회원은 **반드시 앱 내 크레딧에 "Sound effects obtained from zapsplat.com" 표기 필요**(Gold 유료 계정만 표기 면제). 로그인 세션 기반이라 다운로드 자동화 불가 | 불가(로그인 필요) | ❌ 제외 — 로그인 필요 + 강제 크레딧이 "IAP 없음/전부 무료" 앱 방침과 마찰, 자동화 어려움 |
 | **Kenney.nl** | 오디오 에셋(Digital Audio/UI Audio/Impact Sounds/RPG Audio) 전부 CC0 확인 | zip 일괄 다운로드 가능 | ❌ 관련성 낮음 — "Nature Kit"은 **오디오가 아니라 3D 모델 팩**이었음(확인 완료, 착오 주의). 나머지 팩은 UI/임팩트 SFX 위주라 수면 앰비언스에 맞지 않음 |
 | **BigSoundBank** | 사이트 자체 라이선스(무료, 상업적 사용 가능 명시) 확인됨 | 개별 다운로드 | ⚪ 미탐색 — 필요 시 카테고리 보강용 후보로 후속 조사 |
 

@@ -1,4 +1,4 @@
-# 오디오 엔진 설계 — Sleep Orbit 클론
+# 오디오 엔진 설계 — SleepRings
 
 > 정문 스펙: `.omc/specs/deep-interview-sleep-orbit.md`
 > 벤치마크: `docs/research/sleep-orbit-benchmark.md` (§2 궤도 믹싱, §6 빌드 스펙)

@@ -1,4 +1,4 @@
-# 아키텍처 설계 — Sleep Orbit 클론
+# 아키텍처 설계 — SleepRings
 
 > 정문 스펙: `.omc/specs/deep-interview-sleep-orbit.md`
 > 벤치마크 명세: `docs/research/sleep-orbit-benchmark.md`
