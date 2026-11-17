@@ -73,6 +73,7 @@
 
 .settings-lang {
   display: flex;
+  flex-wrap: wrap; /* the layout group has four options */
   gap: var(--so-space-2, 0.5rem);
 }
 

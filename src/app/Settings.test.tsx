@@ -77,3 +77,33 @@ describe('Settings plan section', () => {
     expect(screen.queryByRole('button', { name: '2,000원 플랜' })).toBeNull()
   })
 })
+
+describe('Settings theme section', () => {
+  afterEach(() => {
+    localStorage.removeItem('so.theme')
+    document.documentElement.removeAttribute('data-theme')
+  })
+
+  it('applies and persists an explicit Light choice', () => {
+    render(<Settings onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '라이트' }))
+    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(localStorage.getItem('so.theme')).toBe('light')
+    expect(screen.getByRole('button', { name: '라이트' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('removes the attribute again when System is chosen', () => {
+    render(<Settings onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '다크' }))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    fireEvent.click(screen.getByRole('button', { name: '시스템' }))
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false)
+    expect(localStorage.getItem('so.theme')).toBe('system')
+  })
+
+  it('starts from the saved choice', () => {
+    localStorage.setItem('so.theme', 'dark')
+    render(<Settings onClose={() => {}} />)
+    expect(screen.getByRole('button', { name: '다크' })).toHaveAttribute('aria-pressed', 'true')
+  })
+})

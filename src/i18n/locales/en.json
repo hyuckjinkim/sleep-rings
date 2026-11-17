@@ -4,7 +4,20 @@
     "settings": {
       "open": "Open settings",
       "title": "Settings",
-      "language": "Language"
+      "language": "Language",
+      "theme": "Theme",
+      "themeOption": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "layout": "Layout",
+      "layoutOption": {
+        "sheet": "Bottom sheet",
+        "collapse": "Collapsing header",
+        "minibar": "Mini bar",
+        "floating": "Floating"
+      }
     },
     "version": {
       "label": "Version"
@@ -73,7 +86,12 @@
       "load": "Load",
       "delete": "Delete"
     },
-    "presetLimit": "Preset slots were full — “{{name}}” was replaced."
+    "presetLimit": "Preset slots were full — “{{name}}” was replaced.",
+    "sheet": {
+      "label": "Sounds and controls",
+      "expand": "Expand sheet",
+      "collapse": "Collapse sheet"
+    }
   },
   "screen": {
     "dim": {

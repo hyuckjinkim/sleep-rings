@@ -14,9 +14,10 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* 첫 레이어가 위에 그려진다 — 비네트를 맨 앞에 둬야 가장자리에서 오로라까지 함께 어두워진다. */
+  /* 첫 레이어가 위에 그려진다 — 비네트를 맨 앞에 둬야 가장자리에서 오로라까지 함께 가라앉는다.
+     라이트에서는 비네트가 거의 안 보이고 오로라 알파가 올라가 파스텔 워시가 된다(theme.css 테마 블록). */
   background:
-    radial-gradient(125% 100% at 50% 38%, transparent 42%, var(--so-bg-void) 100%),
+    radial-gradient(125% 100% at 50% 38%, transparent 42%, var(--so-backdrop-vignette) 100%),
     radial-gradient(
       70% 55% at 22% 12%,
       color-mix(in srgb, var(--so-aurora-1) var(--so-aurora-alpha-1), transparent) 0%,

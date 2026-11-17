@@ -4,7 +4,20 @@
     "settings": {
       "open": "설정 열기",
       "title": "설정",
-      "language": "언어"
+      "language": "언어",
+      "theme": "화면 테마",
+      "themeOption": {
+        "system": "시스템",
+        "light": "라이트",
+        "dark": "다크"
+      },
+      "layout": "화면 구성",
+      "layoutOption": {
+        "sheet": "바텀시트",
+        "collapse": "접는 헤더",
+        "minibar": "미니 바",
+        "floating": "플로팅"
+      }
     },
     "version": {
       "label": "버전"
@@ -73,7 +86,12 @@
       "load": "불러오기",
       "delete": "삭제"
     },
-    "presetLimit": "프리셋이 가득 차서 '{{name}}'을(를) 교체했어요."
+    "presetLimit": "프리셋이 가득 차서 '{{name}}'을(를) 교체했어요.",
+    "sheet": {
+      "label": "사운드와 설정",
+      "expand": "시트 펼치기",
+      "collapse": "시트 접기"
+    }
   },
   "screen": {
     "dim": {

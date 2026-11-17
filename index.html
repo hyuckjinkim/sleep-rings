@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <!-- Apply a saved explicit theme before first paint (no flash). Mirror of src/app/theme-mode.ts. -->
+    <script>
+      try {
+        var t = localStorage.getItem('so.theme')
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <title>SleepRings</title>
   </head>

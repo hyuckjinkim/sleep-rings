@@ -4,7 +4,7 @@
  *
  * 네이밍 규칙: --so-<그룹>-<이름>. 그룹: bg/text/border/orb/state/accent/danger/
  * space/radius/shadow/glow/font/duration/ease.
- * :root에만 정의. 아직 어떤 컴포넌트도 import하지 않음(App.tsx 미수정, 빌드 영향 없음).
+ * 공통 토큰은 :root, 테마 의존 토큰(배경·텍스트·테두리·강조색 등)은 아래 "테마" 블록에 다크/라이트 값을 둔다.
  */
 
 /* Chromium's mobile default tap highlight (rgba(51,181,229,.4)) flashes a teal box behind every
@@ -14,25 +14,18 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
-:root {
-  /* ---- 배경 (딥 스페이스 다크, #0a0e1a 기준 확장) ---- */
-  --so-bg-void: #05070d; /* 최심부 — 풀블리드 배경 가장자리, 오브 위 아이콘 색으로도 사용 */
-  --so-bg-base: #0a0e1a; /* 앱 기본 배경 (기존 App.tsx와 동일값 유지) */
-  --so-bg-elevated: #12182b; /* 카드/패널/시트 */
-  --so-bg-overlay: #1a2238; /* 팝오버/모달 표면 */
-  --so-border-subtle: #232b45; /* 다크 표면 위 헤어라인 */
+/* UA default 8px margin left a gap around the full-bleed bars (collapsing header, bottom sheet)
+   and made the no-scroll sheet layout scroll by 16px. */
+body {
+  margin: 0;
+}
 
-  /* ---- 텍스트 ---- */
-  --so-text-primary: #f0f0f5; /* 기존 App.tsx와 동일값 유지 */
-  --so-text-secondary: #a8adc4;
-  /* WCAG AA (4.5:1) on every surface it lands on: 5.70 on bg-base, 5.21 on bg-elevated,
-     4.67 on bg-overlay. #6b7290 measured 4.07/3.72/3.33 — below AA everywhere, and this token
-     carries real content (orbit labels, hints), not decoration. Still clearly a step below
-     --so-text-secondary (8.66/7.92/7.10) so the type hierarchy survives. */
-  --so-text-tertiary: #828ab0;
-  /* B12: raised from #454b66 (2.06:1 measured against --so-bg-elevated) so a disabled control
-     stays legible in a dark room instead of vanishing entirely. */
-  --so-text-disabled: #5c6386;
+:root {
+  /* ---- 오브 위 아이콘/라벨 잉크 ----
+     오브 색은 테마와 무관하게 고정이므로 잉크도 양 테마에서 어둡게 고정한다(밝은 오브 위 흰색은 AA 미달).
+     --so-bg-void는 mixer.css가 아직 이 이름으로 읽기 때문에 남긴 별칭 — 배경 단계가 아니다. */
+  --so-orb-ink: #05070d;
+  --so-bg-void: var(--so-orb-ink);
 
   /* ---- 카테고리 오브 색 (13종, docs/design/architecture.md의 Category와 1:1) ----
      전부 S54% L60% 고정, hue만 변경 — 채도/명도를 통일해 오브 간 시각적 무게를 균등하게 하고
@@ -56,10 +49,6 @@ html {
   --so-state-playing-opacity: 1;
   --so-state-glow-alpha: 35%; /* color-mix()와 조합해 재생 중 오브 글로우에 사용 */
   --so-state-locked-ring-width: 2px; /* 고정 상태: 색 변경 대신 링 테두리로 표시 */
-
-  /* ---- 오브 외 UI 강조색 ---- */
-  --so-accent: #93a5c8; /* 중립 문라이트 블루 — 재생/타이머 등 범용 인터랙션, 어떤 카테고리 색과도 안 겹치도록 저채도 */
-  --so-danger: #d45e68; /* 하단 드래그 삭제 존 피드백 전용 */
 
   /* ---- 간격 (4px 기준) ---- */
   --so-space-1: 4px;
@@ -89,7 +78,6 @@ html {
   /* ---- 그림자 / 글로우 ----
      오브 글로우는 카테고리 색과 조합: 예)
      box-shadow: 0 0 var(--so-glow-blur-md) color-mix(in srgb, var(--so-orb-water) var(--so-state-glow-alpha), transparent); */
-  --so-shadow-panel: 0 8px 24px rgb(0 0 0 / 40%);
   --so-glow-blur-sm: 12px;
   --so-glow-blur-md: 24px;
   --so-glow-blur-lg: 40px;
@@ -110,11 +98,6 @@ html {
   --so-aurora-1: var(--so-orb-binaural); /* 상단 좌측 — 보라 (수면/야간) */
   --so-aurora-2: var(--so-orb-ambient); /* 하단 우측 — 청록 (새벽) */
   --so-aurora-3: var(--so-orb-ocean); /* 중앙 리프트 — 궤도 필드를 빛 안에 앉힌다 */
-  --so-aurora-alpha-1: 16%;
-  --so-aurora-alpha-2: 11%;
-  --so-aurora-alpha-3: 9%;
-  --so-grain-opacity: 0.035; /* 필름 그레인 — 다크 그라데이션의 밴딩을 깨는 용도, 질감 과시가 아님 */
-  --so-star-opacity: 0.42;
 
   /* ---- 호흡 모션 (재생 중에만, 배경 레이어 한 장에만) ----
      30초는 성인 안정 호흡(≈5초)의 6배 — 의식적으로 "움직인다"고 느끼기 직전 속도.
@@ -122,18 +105,116 @@ html {
   --so-breath-duration: 30s;
   --so-breath-scale: 1.035;
 
-  /* ---- 중심 헤드 광원 ----
-     2단 글로우: 좁고 밝은 코어 + 넓고 푸른 블룸. 단일 그림자로는 배경이 밝아진 v2에서
-     헤드가 "어두운 원판"으로 묻힌다(실제 렌더 확인 후 22% → 34%로 올림). */
-  --so-glow-head:
-    0 0 var(--so-glow-blur-md, 24px) color-mix(in srgb, var(--so-text-primary) 34%, transparent),
-    0 0 var(--so-glow-blur-lg, 40px) color-mix(in srgb, var(--so-accent) 22%, transparent);
-
   /* ---- 사운드 아이콘 (assets/sound-icons/*.svg, src/icons/SoundIcon.tsx) ---- */
   --so-icon-orb: 24px; /* 48px 오브 안 — 오브 지름의 50%, 원 안 여백이 아이콘을 띄운다 */
   --so-icon-chip: 20px; /* 팔레트 칩 안 */
   --so-icon-stroke: 1.5; /* 24 viewBox 기준 — SVG 파일에 박혀 있고 표시 크기에 비례 스케일된다.
                             새 아이콘을 그릴 때 참조할 값이라 토큰으로 남긴다(CSS가 쓰지는 않음). */
+}
+
+/* ==================== 테마 (다크 기본 / 라이트) ====================
+   배경은 정확히 3단계: base(페이지) · elevated(카드/패널/칩) · overlay(시트/팝오버/모달).
+   다크 = 차분한 딥 네이비 계열, 라이트 = 따뜻한 오프화이트 계열.
+   네 가지 경우를 모두 처리한다:
+     1) 시스템 다크(기본)            → 아래 :root
+     2) 명시 다크 [data-theme=dark]  → :root 값 그대로(시스템이 라이트여도 :not([data-theme]) 미디어쿼리가 안 걸림)
+     3) 명시 라이트                  → :root[data-theme='light']
+     4) 시스템 라이트                → @media (prefers-color-scheme: light) :root:not([data-theme])
+   (3)과 (4)의 값은 반드시 같게 유지할 것 — light-dark()는 구형 Android WebView에서 미지원이라 복제한다.
+   data-theme은 index.html 인라인 스크립트와 src/app/theme-mode.ts가 <html>에 붙인다.
+   대비 검증(WCAG AA 4.5:1, 본문 텍스트 3종 × 배경 3단계 × 양 테마) 결과는 docs/design/visual-theme.md 참고. */
+:root {
+  color-scheme: dark;
+
+  --so-bg-base: #0e1322;
+  --so-bg-elevated: #161d31;
+  --so-bg-overlay: #1f2740;
+  --so-border-subtle: #2a3350;
+
+  --so-text-primary: #eceef6; /* 15.97 / 14.45 / 12.74 (base / elevated / overlay) */
+  --so-text-secondary: #aab0c8; /* 8.59 / 7.78 / 6.86 */
+  --so-text-tertiary: #8f98bd; /* 6.52 / 5.90 / 5.20 — 실제 콘텐츠(라벨·힌트)를 담으므로 AA 유지 */
+  --so-text-disabled: #6a7193; /* 비활성 컨트롤 전용 — AA 대상 아님 */
+
+  --so-accent: #93a5c8; /* 중립 문라이트 블루 — 어떤 카테고리 색과도 안 겹치도록 저채도 */
+  --so-danger: #d45e68; /* 하단 드래그 삭제 존 피드백 전용 */
+
+  --so-shadow-panel: 0 8px 24px rgb(0 0 0 / 40%);
+
+  /* 배경 레이어(backdrop.css) */
+  --so-backdrop-vignette: color-mix(in srgb, var(--so-bg-base) 40%, #000);
+  --so-aurora-alpha-1: 14%;
+  --so-aurora-alpha-2: 10%;
+  --so-aurora-alpha-3: 8%;
+  --so-grain-opacity: 0.035; /* 다크 그라데이션의 밴딩을 깨는 용도, 질감 과시가 아님 */
+  --so-star-opacity: 0.42;
+
+  /* 중심 헤드 광원 — 2단 글로우: 좁고 밝은 코어 + 넓고 푸른 블룸(다크에서 헤드가 "어두운 원판"으로 묻히지 않게). */
+  --so-glow-head:
+    0 0 var(--so-glow-blur-md, 24px) color-mix(in srgb, var(--so-text-primary) 34%, transparent),
+    0 0 var(--so-glow-blur-lg, 40px) color-mix(in srgb, var(--so-accent) 22%, transparent);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --so-bg-base: #f4efe6;
+  --so-bg-elevated: #fbf8f1;
+  --so-bg-overlay: #fffdf9;
+  --so-border-subtle: #c9bfaa;
+
+  --so-text-primary: #232839; /* 12.79 / 13.81 / 14.41 */
+  --so-text-secondary: #4a5068; /* 6.95 / 7.50 / 7.83 */
+  --so-text-tertiary: #5c627c; /* 5.25 / 5.67 / 5.92 */
+  --so-text-disabled: #8d92a6;
+
+  --so-accent: #4a64a0; /* 5.06 / 5.47 / 5.71 */
+  --so-danger: #c4424f;
+
+  --so-shadow-panel: 0 8px 24px rgb(60 48 30 / 14%);
+
+  --so-backdrop-vignette: color-mix(in srgb, var(--so-bg-base) 92%, #8a7656);
+  --so-aurora-alpha-1: 20%;
+  --so-aurora-alpha-2: 16%;
+  --so-aurora-alpha-3: 12%;
+  --so-grain-opacity: 0.012;
+  --so-star-opacity: 0;
+
+  --so-glow-head:
+    0 0 var(--so-glow-blur-md, 24px) color-mix(in srgb, var(--so-accent) 22%, transparent),
+    0 0 var(--so-glow-blur-lg, 40px) color-mix(in srgb, var(--so-accent) 12%, transparent);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --so-bg-base: #f4efe6;
+    --so-bg-elevated: #fbf8f1;
+    --so-bg-overlay: #fffdf9;
+    --so-border-subtle: #c9bfaa;
+
+    --so-text-primary: #232839;
+    --so-text-secondary: #4a5068;
+    --so-text-tertiary: #5c627c;
+    --so-text-disabled: #8d92a6;
+
+    --so-accent: #4a64a0;
+    --so-danger: #c4424f;
+
+    --so-shadow-panel: 0 8px 24px rgb(60 48 30 / 14%);
+
+    --so-backdrop-vignette: color-mix(in srgb, var(--so-bg-base) 92%, #8a7656);
+    --so-aurora-alpha-1: 20%;
+    --so-aurora-alpha-2: 16%;
+    --so-aurora-alpha-3: 12%;
+    --so-grain-opacity: 0.012;
+    --so-star-opacity: 0;
+
+    --so-glow-head:
+      0 0 var(--so-glow-blur-md, 24px) color-mix(in srgb, var(--so-accent) 22%, transparent),
+      0 0 var(--so-glow-blur-lg, 40px) color-mix(in srgb, var(--so-accent) 12%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

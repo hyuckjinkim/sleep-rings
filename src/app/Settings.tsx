@@ -6,6 +6,9 @@ import { usePlanStore } from '../plan'
 import { shouldShowBanner } from '../ads'
 import { showBannerWhenReady } from './ads-lifecycle'
 import { useDialogFocus } from '../a11y/useDialogFocus'
+import { getThemeMode, setThemeMode } from './theme-mode'
+import { MIXER_LAYOUTS, useLayoutStore } from '../mixer/layout'
+import type { ThemeMode } from './theme-mode'
 import { UpgradeSheet } from '../plan/UpgradeSheet'
 import type { Plan } from '../plan'
 import { getPurchaseAdapter, isPurchaseAvailable } from '../plan'
@@ -27,6 +30,8 @@ const LANGUAGES = [
   { code: 'en', name: 'English' },
 ] as const
 
+const THEMES: ThemeMode[] = ['system', 'light', 'dark']
+
 export function Settings({ onClose }: SettingsProps) {
   const { t, i18n } = useTranslation()
   const plan = usePlanStore((s) => s.plan)
@@ -42,6 +47,10 @@ export function Settings({ onClose }: SettingsProps) {
       void showBannerWhenReady(false)
     }
   }, [bannerActive])
+
+  const [theme, setTheme] = useState<ThemeMode>(getThemeMode)
+  const layout = useLayoutStore((s) => s.layout)
+  const setLayout = useLayoutStore((s) => s.setLayout)
 
   const rootRef = useRef<HTMLDivElement>(null)
   useDialogFocus(rootRef, onClose)
@@ -96,6 +105,49 @@ export function Settings({ onClose }: SettingsProps) {
               onClick={() => void i18n.changeLanguage(code)}
             >
               {name}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <span className="settings-label" id="settings-theme-label">
+          {t('app.settings.theme')}
+        </span>
+        <div className="settings-lang" role="group" aria-labelledby="settings-theme-label">
+          {THEMES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className="app-lang-toggle"
+              aria-pressed={theme === mode}
+              onClick={() => {
+                setThemeMode(mode)
+                setTheme(mode)
+              }}
+            >
+              {t(`app.settings.themeOption.${mode}`)}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* How the orbit stays in view while using the controls below it — four variants kept side by
+          side so they can be compared on a real device (src/mixer/layout.ts). */}
+      <section className="settings-section">
+        <span className="settings-label" id="settings-layout-label">
+          {t('app.settings.layout')}
+        </span>
+        <div className="settings-lang" role="group" aria-labelledby="settings-layout-label">
+          {MIXER_LAYOUTS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="app-lang-toggle"
+              aria-pressed={layout === option}
+              onClick={() => setLayout(option)}
+            >
+              {t(`app.settings.layoutOption.${option}`)}
             </button>
           ))}
         </div>

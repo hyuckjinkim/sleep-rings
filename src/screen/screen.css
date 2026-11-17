@@ -2,6 +2,7 @@
    the same --so-* design tokens (theme.css) rather than sharing selectors with mixer.css. */
 
 .screen-dim-settings {
+  box-sizing: border-box; /* padding was adding to the width — the card overflowed its siblings */
   width: min(92vw, 480px);
   display: flex;
   flex-direction: column;
