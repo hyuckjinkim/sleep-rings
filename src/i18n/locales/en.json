@@ -14,7 +14,13 @@
     "field": {
       "label": "Orbit mixer field",
       "deleteZone": "Drop here to delete",
-      "hint": "Tap a sound to place it"
+      "hint": "Tap a sound to place it",
+      "minimize": "Minimize to floating view",
+      "expand": "Expand",
+      "move": "Move window",
+      "stripView": "Icon row view",
+      "orbitView": "Orbit view",
+      "resize": "Resize window"
     },
     "palette": {
       "label": "Sound palette",

@@ -11,6 +11,97 @@
   padding-bottom: calc(var(--so-space-4, 1rem) + env(safe-area-inset-bottom, 0px));
 }
 
+/* Palette pins to the top while the page scrolls, so chips stay draggable into the floating
+   mini field (FieldDock.tsx). Frosted only once the field has floated off — before that the strip
+   sits in its natural place and a band behind it would read as a stray box. */
+.mixer-top {
+  position: sticky;
+  top: 0;
+  z-index: 5; /* below toasts (10) and panels (15) — see stacking scale further down */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: var(--so-space-1, 0.25rem) 0;
+}
+
+.mixer:has(.is-mini) .mixer-top {
+  background: color-mix(in srgb, var(--so-bg-base, #0a0e1a) 78%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--so-border-subtle, #232b45);
+}
+
+.mixer-field-dock {
+  position: relative;
+}
+
+.mixer-field-dock-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2; /* above orbs (1) */
+  display: flex;
+  gap: var(--so-space-1, 0.25rem);
+}
+
+.mixer-field-dock-button {
+  min-width: 44px; /* B4 */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: var(--so-bg-elevated, #12182b);
+  color: var(--so-text-secondary, #a8adc4);
+  cursor: pointer;
+}
+
+/* Floating mini window — "always on top": above toasts and the orb control panel (15), below
+   modal sheets (20) so an upgrade/confirm sheet still covers it. */
+.mixer-field-dock.is-mini {
+  position: fixed;
+  top: calc(196px + env(safe-area-inset-top, 0px)); /* clears the palette strip, stuck or not */
+  right: var(--so-space-3, 0.75rem);
+  z-index: 16;
+  padding: 44px var(--so-space-2, 0.5rem) var(--so-space-2, 0.5rem);
+  border-radius: var(--so-radius-lg, 20px);
+  /* Violet tint (the backdrop's aurora hue) so the floating window reads as its own layer, not
+     another blue-grey card of the page beneath it. */
+  border: 1px solid color-mix(in srgb, var(--so-orb-binaural, #7462d0) 65%, transparent);
+  background: color-mix(in srgb, var(--so-orb-binaural, #7462d0) 26%, color-mix(in srgb, var(--so-bg-base, #0a0e1a) 88%, transparent));
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow:
+    var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%)),
+    0 0 var(--so-glow-blur-md, 24px) color-mix(in srgb, var(--so-orb-binaural, #7462d0) 35%, transparent);
+}
+
+.is-mini .mixer-field-dock-button {
+  border: none;
+  background: transparent;
+  color: var(--so-text-primary, #f0f0f5);
+}
+
+.is-mini .mixer-field-dock-handle {
+  color: color-mix(in srgb, var(--so-orb-binaural, #7462d0) 55%, var(--so-text-primary, #f0f0f5));
+}
+
+.mixer-field-dock-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 92px; /* leaves the two action buttons their own hit area */
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--so-text-tertiary, #828ab0);
+  cursor: grab;
+  touch-action: none; /* the handle drag moves the window, never scrolls the page */
+  user-select: none;
+}
+
 .mixer-field {
   position: relative;
   width: min(92vw, 420px);
@@ -25,8 +116,107 @@
     color-mix(in srgb, var(--so-bg-elevated, #12182b) 55%, transparent) 0%,
     transparent 72%
   );
-  touch-action: none;
+  /* pan-y: a vertical swipe on empty field scrolls the page. Orbs keep touch-action:none, and
+     the effective value is the intersection with ancestors, so orb drags are unaffected. */
+  touch-action: pan-y;
   overflow: visible;
+}
+
+/* Real width change, not transform:scale — OrbitField/Orb position orbs from the field's measured
+   rect every frame, and a scale would apply on top of that (double-scaled orbits). */
+.is-mini .mixer-field {
+  width: var(--mini-size, min(42vw, 160px)); /* --mini-size: set by FieldDock's resize grip */
+}
+
+.mixer-field-dock-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 6px;
+  color: color-mix(in srgb, var(--so-orb-binaural, #7462d0) 55%, var(--so-text-primary, #f0f0f5));
+  cursor: nwse-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+/* "ㅡ" view: the orbit field stays mounted but hidden — its frame loop drives the spatial audio. */
+.is-strip .mixer-field {
+  display: none;
+}
+
+.mixer-field-dock.is-strip:not(.is-mini) {
+  width: min(92vw, 480px);
+  display: flex;
+  align-items: center;
+  gap: var(--so-space-2, 0.5rem);
+  min-height: 52px;
+}
+
+.is-strip:not(.is-mini) .mixer-field-dock-actions {
+  position: static;
+  order: 2;
+}
+
+.is-mini.is-strip {
+  max-width: calc(100vw - 2 * var(--so-space-3, 0.75rem));
+  min-width: 140px;
+}
+
+.mixer-strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: var(--so-space-2, 0.5rem);
+  margin: 0;
+  padding: var(--so-space-1, 0.25rem);
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mixer-strip-item {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--so-radius-full, 999px);
+  background: var(--orb-color, #38bdf8);
+  color: var(--so-bg-void, #05070d); /* same contrast rule as .mixer-orb */
+  --so-icon-orb: 20px;
+  cursor: pointer;
+}
+
+.mixer-strip-empty {
+  flex: 1;
+  margin: 0;
+  padding: var(--so-space-2, 0.5rem);
+  color: var(--so-text-tertiary, #828ab0);
+  font-size: var(--so-font-size-xs, 0.75rem);
+}
+
+.is-mini .mixer-field-head {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0.35rem;
+}
+
+.is-mini .mixer-orb {
+  width: 2rem;
+  height: 2rem;
+  margin: -1rem;
+  --so-icon-orb: 16px;
+}
+
+.is-mini .mixer-field-hint {
+  display: none;
 }
 
 .mixer-field-head {

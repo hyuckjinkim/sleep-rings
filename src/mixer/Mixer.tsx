@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
 import { OrbitField } from './OrbitField'
+import { FieldDock } from './FieldDock'
 import { Palette } from './Palette'
 import { OrbControls } from './OrbControls'
 import { soundEngine } from './engine/instance'
@@ -44,8 +45,13 @@ export function Mixer() {
   return (
     <div className="mixer" onPointerDownCapture={handleFirstGesture}>
       {/* Field+palette stay above the fold — timer/presets are secondary, below them. */}
-      <OrbitField fieldRef={fieldRef} selectedId={selectedId} onSelect={setSelectedId} />
-      <Palette fieldRef={fieldRef} />
+      <FieldDock onSelect={setSelectedId}>
+        <OrbitField fieldRef={fieldRef} selectedId={selectedId} onSelect={setSelectedId} />
+      </FieldDock>
+      {/* Sticky: chips stay reachable for dragging into the floating mini field while scrolled. */}
+      <div className="mixer-top">
+        <Palette fieldRef={fieldRef} />
+      </div>
       <SleepControls />
       {selectedId && selectedSoundId && (
         <OrbControls placementId={selectedId} label={soundName(selectedSoundId, locale)} onClose={() => setSelectedId(null)} />

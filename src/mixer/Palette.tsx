@@ -59,6 +59,9 @@ interface PaletteItemProps {
 function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRef, stripRef, addPlacement, placedAngles, onLockedTap }: PaletteItemProps) {
   const chipRef = useRef<HTMLButtonElement | null>(null)
   const drag = useRef<{ startX: number; startY: number; lastX: number } | null>(null)
+  // The strip clips its children (overflow-x scroll + edge-fade mask), and no z-index escapes a
+  // clip — so a place-drag moves a body-level fixed clone instead of the chip itself.
+  const ghost = useRef<HTMLElement | null>(null)
   const intent = useRef<DragIntent>('tap') // decided on first move past DRAG_THRESHOLD_PX
   const suppressClick = useRef(false)
 
@@ -81,8 +84,24 @@ function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRe
       return
     }
     if (intent.current === 'place') {
-      chipRef.current.style.transform = `translate(${dx}px, ${dy}px)`
-      chipRef.current.style.zIndex = '10'
+      if (!ghost.current) {
+        const rect = chipRef.current.getBoundingClientRect()
+        const clone = chipRef.current.cloneNode(true) as HTMLElement
+        clone.removeAttribute('id')
+        clone.setAttribute('aria-hidden', 'true')
+        Object.assign(clone.style, {
+          position: 'fixed',
+          left: `${rect.left}px`,
+          top: `${rect.top}px`,
+          margin: '0',
+          zIndex: '18', // above the floating mini field (16) it's dropped onto, below modal sheets (20)
+          pointerEvents: 'none',
+        })
+        document.body.appendChild(clone)
+        ghost.current = clone
+        chipRef.current.style.opacity = '0.3'
+      }
+      ghost.current.style.transform = `translate(${dx}px, ${dy}px)`
     }
   }
 
@@ -90,10 +109,9 @@ function PaletteItem({ sound, label, available, planLocked, lockedLabel, fieldRe
     if (!drag.current) return
     const finalIntent = intent.current
     drag.current = null
-    if (chipRef.current) {
-      chipRef.current.style.transform = ''
-      chipRef.current.style.zIndex = ''
-    }
+    ghost.current?.remove()
+    ghost.current = null
+    if (chipRef.current) chipRef.current.style.opacity = ''
     if (finalIntent === 'tap') return // let the click handler (below) place it
 
     suppressClick.current = true // real drag (pan or place) — the click that follows must no-op
