@@ -71,10 +71,15 @@
   font-size: var(--so-font-size-xs, 0.75rem);
 }
 
-/* A lone button in a flex-column card stretches to full width by default and stops reading as a
-   button — same fix .settings-restore already carries. */
-.settings-section > .app-lang-toggle {
-  align-self: flex-start;
+.settings-lang {
+  display: flex;
+  gap: var(--so-space-2, 0.5rem);
+}
+
+.settings-lang .app-lang-toggle[aria-pressed='true'] {
+  color: var(--so-text-primary, #f0f0f5);
+  border-color: var(--so-accent, #93a5c8);
+  font-weight: 600;
 }
 
 /* The close button was rendering at UA defaults (13.33px system font, 1px 6px padding) next to

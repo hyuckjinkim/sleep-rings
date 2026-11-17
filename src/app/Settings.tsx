@@ -22,6 +22,11 @@ interface SettingsProps {
  * component is mounted, on a free plan, and the screen isn't dimmed — any of those going false
  * hides it again (including unmount, via the effect's cleanup).
  */
+const LANGUAGES = [
+  { code: 'ko', name: '한국어' },
+  { code: 'en', name: 'English' },
+] as const
+
 export function Settings({ onClose }: SettingsProps) {
   const { t, i18n } = useTranslation()
   const plan = usePlanStore((s) => s.plan)
@@ -57,9 +62,6 @@ export function Settings({ onClose }: SettingsProps) {
     }
   }
 
-  function toggleLanguage() {
-    i18n.changeLanguage(i18n.language === 'ko' ? 'en' : 'ko')
-  }
 
   return (
     <div
@@ -78,9 +80,25 @@ export function Settings({ onClose }: SettingsProps) {
       <ScreenDimSettings />
 
       <section className="settings-section">
-        <button type="button" className="app-lang-toggle" onClick={toggleLanguage}>
-          {t('app.toggleLanguage')}
-        </button>
+        <span className="settings-label" id="settings-lang-label">
+          {t('app.settings.language')}
+        </span>
+        {/* Both options always visible (a single toggle only ever showed the *other* language,
+            hiding which one is active). Names stay in their own language, never translated. */}
+        <div className="settings-lang" role="group" aria-labelledby="settings-lang-label">
+          {LANGUAGES.map(({ code, name }) => (
+            <button
+              key={code}
+              type="button"
+              className="app-lang-toggle"
+              lang={code}
+              aria-pressed={i18n.language === code}
+              onClick={() => void i18n.changeLanguage(code)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="settings-section settings-plan">

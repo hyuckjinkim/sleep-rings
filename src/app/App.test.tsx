@@ -24,11 +24,17 @@ describe('App', () => {
     expect(document.querySelector('.mixer-field')).toBeInTheDocument()
   })
 
-  it('toggles language from within the settings screen', () => {
+  it('shows both languages in settings, switches, and remembers the choice', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '설정 열기' }))
+    expect(screen.getByRole('button', { name: '한국어' })).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(screen.getByRole('button', { name: 'English' }))
-    expect(screen.getByRole('button', { name: '한국어' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '한국어' })).toHaveAttribute('aria-pressed', 'false')
+    expect(localStorage.getItem('so.lang')).toBe('en')
+    expect(document.documentElement.lang).toBe('en')
+
+    fireEvent.click(screen.getByRole('button', { name: '한국어' })) // restore for later tests
   })
 })

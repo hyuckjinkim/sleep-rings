@@ -9,3 +9,7 @@ if (!Element.prototype.setPointerCapture) {
     return false
   }
 }
+
+// i18n now follows the device language when nothing is saved; jsdom reports en-US, but the suites
+// assert Korean copy. Pin the saved choice before src/i18n initializes.
+localStorage.setItem('so.lang', 'ko')

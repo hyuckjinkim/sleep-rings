@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   use: {
     baseURL: 'http://localhost:5173',
+    locale: 'ko-KR', // e2e asserts Korean copy; the app follows the browser language when unset
   },
   webServer: {
     command: 'npm run dev',
