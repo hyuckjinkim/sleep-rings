@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Cloudflare quick tunnel(npm run web:tunnel)로 폰에서 접속 — Vite는 모르는 Host 헤더를 차단한다.
+  // preview.allowedHosts 기본값이 server.allowedHosts라 dev/preview 둘 다 적용됨.
+  server: { allowedHosts: ['.trycloudflare.com'] },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
