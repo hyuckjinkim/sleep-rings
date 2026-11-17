@@ -3,6 +3,12 @@
 `npm run release`(commit-and-tag-version)가 커밋 이력(Conventional Commits)으로 갱신한다.
 0.5.0 이하는 RELEASE_MANIFEST.json에서 옮겨 온 이력이다.
 
+## [0.6.0](https://github.com/hyuckjinkim/sleep-orbit/compare/v0.5.0...v0.6.0) (2026-11-17)
+
+### 기능
+
+* **mixer:** 오빗 필드 플로팅 미니 창·일자형 보기, 드래그 칩 가림 수정 ([8b9ae5b](https://github.com/hyuckjinkim/sleep-orbit/commit/8b9ae5babe971ad31ef9440eed5d0802b5fb03de))
+
 ## 0.5.0 (2026-08-20)
 
 사운드 전면 고급화 — 25종 라우드니스 통일(화이트 +13.6dB 편차 해소)·주기성 제거·루프 이음새 등파워 크로스페이드. 버퍼 캐시 메모리 상한 도입. 실기 렌더 관찰 기반 UI/UX 수정 6건(오브 식별·겹침, 토스트 가림, 설정 구매 진입점, 대비 AA, 토글 시맨틱). 마이너 범프 이유: 모든 사운드의 음색이 바뀌고 설정에 구매 진입 화면이 새로 생김
