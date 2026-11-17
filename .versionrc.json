@@ -1,6 +1,6 @@
 {
   "tagPrefix": "v",
-  "header": "# Changelog\n\n`npm run release`(commit-and-tag-version)가 커밋 이력(Conventional Commits)으로 갱신한다.\n0.5.0 이하는 RELEASE_MANIFEST.json에서 옮겨 온 이력이다.\n",
+  "header": "# Changelog\n\n`npm run release`(commit-and-tag-version)가 커밋 이력(Conventional Commits)으로 갱신한다.\n0.5.0 이하는 수동 릴리즈 기록(구 RELEASE_MANIFEST.json)을 옮긴 것으로, '참고'에 빌드 검증·후속 작업 메모가 있다.\n",
   "types": [
     { "type": "feat", "section": "기능" },
     { "type": "fix", "section": "수정" },

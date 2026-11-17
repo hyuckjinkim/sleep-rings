@@ -2,7 +2,7 @@
 
 > 스펙 정문: `.omc/specs/deep-interview-sleep-orbit.md` (ambiguity 11.3%, PASSED)
 > 벤치마크 명세: `docs/research/sleep-orbit-benchmark.md`
-> 릴리즈: `RELEASE_MANIFEST.json` (blog-auto-poster 형식)
+> 릴리즈: `CHANGELOG.md` (`npm run release`, `docs/RELEASE.md`)
 
 ## 목표 한 줄
 
@@ -59,7 +59,7 @@ usage 정책: opus는 **설계 1회 + 페이즈 경계 배치 리뷰**에만. �
 - `docs/sound-licenses.md` — 음원 출처·라이선스 대장 (P3에서 생성)
 - `docs/store/` — 스토어 등록자료 (P6에서 생성)
 - `docs/ios-build.md` — macOS 빌드 절차 (P5에서 생성)
-- `RELEASE_MANIFEST.json` — 버전·릴리즈 기록
+- `CHANGELOG.md` — 버전·릴리즈 기록
 
 ## 수동 단계 대기 목록 (개발 완료 후 사용자 실행)
 

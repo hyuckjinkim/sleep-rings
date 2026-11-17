@@ -149,8 +149,8 @@ jarsigner -verify app-release.aab
 3. **무음 킵얼라이브의 신뢰성은 실기기 미검증** — `audio-engine.md` §8-1의 최대 리스크가 여전히
    열려있음. Android는 포그라운드 서비스로 프로세스 자체는 보장되지만, WebView 내 Web Audio
    컨텍스트가 Doze/앱 대기 모드에서 실제로 계속 렌더링하는지는 실기기 테스트 필요.
-4. **`versionCode`/`versionName`은 `1`/`"1.0"` 그대로** — `RELEASE_MANIFEST.json`과의 동기화는
-   범위 밖(팀 리드 관리 영역).
+4. **버전**: `versionName`은 `npm run release`가 올린다(`docs/RELEASE.md`). 정수 `versionCode`는
+   스토어 업로드 전에 직접 올린다.
 
 ## 8. 화면 자동 꺼짐 + 플랫폼 기능 (Task B3, v0.3.0)
 

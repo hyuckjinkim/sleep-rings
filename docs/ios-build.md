@@ -59,7 +59,8 @@
    서명은 Automatic Signing 권장(Xcode가 인증서/프로파일 자동 관리), 수동이 필요하면 Apple
    Developer 사이트에서 Distribution 인증서 + App Store 프로비저닝 프로파일을 미리 생성.
 5. **버전**: `Info.plist`의 `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION`은 Xcode 프로젝트
-   설정(`project.pbxproj`)에 있음 — `RELEASE_MANIFEST.json`과 수동 동기화 필요(팀 리드 영역).
+   설정(`project.pbxproj`)에 있음 — `MARKETING_VERSION`은 `npm run release`가 올리고(`docs/RELEASE.md`),
+   `CURRENT_PROJECT_VERSION`(빌드 번호)은 업로드 전에 직접 올린다.
 
 ## 4. 웹 쪽 통합 — 배선 지점
 
