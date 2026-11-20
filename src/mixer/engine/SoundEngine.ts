@@ -6,6 +6,9 @@ export interface SoundEngine {
   /** First user gesture. AudioContext.resume() + pre-render noise buffers. */
   init(): Promise<void>
 
+  /** Whether the AudioContext is actually rendering — false while autoplay is still blocked. */
+  isRunning(): boolean
+
   /** Load a catalog sound (fetch+decode for files, ensure cached buffer for noise). Idempotent. */
   load(sound: Sound): Promise<void>
 

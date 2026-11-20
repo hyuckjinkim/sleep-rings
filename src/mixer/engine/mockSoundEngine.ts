@@ -9,6 +9,9 @@ export function createMockSoundEngine(): SoundEngine {
     async init() {
       log('init')
     },
+    isRunning() {
+      return true
+    },
     async load(sound) {
       log('load', sound.id)
     },

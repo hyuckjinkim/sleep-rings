@@ -157,6 +157,10 @@ export class SoundEngine {
     await this.ctx.resume()
   }
 
+  isRunning(): boolean {
+    return this.ctx.state === 'running'
+  }
+
   /** Load a catalog sound (fetch+decode for files, cached buffer for synth/binaural). Idempotent. */
   async load(sound: Sound): Promise<void> {
     const cached = this.sounds.get(sound.id)

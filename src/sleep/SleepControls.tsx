@@ -6,6 +6,7 @@ import { PUBLIC_WEB_URL, shareUrl } from '../mixer/share'
 import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
+import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, scheduleReminder } from '../mobile/notifications'
 // Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
 // their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
 const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
@@ -55,6 +56,8 @@ export function SleepControls() {
   const hasPlacements = useMixStore((s) => s.current.placements.length > 0)
   const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
   const [now, setNow] = useState(Date.now())
+  const [deniedFor, setDeniedFor] = useState<'alarm' | 'bedtime' | null>(null) // backup notification refused
+  const isNative = Capacitor.isNativePlatform()
 
   useEffect(() => {
     if (!sleepEndsAt) return
@@ -86,6 +89,30 @@ export function SleepControls() {
     } catch {
       setShareStatus('failed')
     }
+  }
+
+  // Native backup notification for when the app gets closed before atMs. The in-app alarm/start is
+  // already armed; a denied permission only costs the backup, which the note below says.
+  function scheduleBackup(id: number, atMs: number, kind: 'alarm' | 'bedtime') {
+    const isArmed = () => {
+      const s = useMixStore.getState()
+      return (kind === 'alarm' ? s.alarmAt : s.bedtimeAt) === atMs
+    }
+    if (!isArmed()) return
+    const text = { title: t(`mixer.${kind}.notificationTitle`), body: t(`mixer.${kind}.notificationBody`) }
+    void scheduleReminder(id, atMs, text, isArmed).then((ok) => setDeniedFor(ok ? null : kind))
+  }
+
+  function handleArmAlarm() {
+    const at = nextAlarmAt(wakeTime)
+    armAlarm(at, wakeSound)
+    scheduleBackup(ALARM_NOTIFICATION_ID, at, 'alarm')
+  }
+
+  function handleArmBedtime() {
+    const at = nextAlarmAt(bedtime)
+    armBedtime(at)
+    scheduleBackup(BEDTIME_NOTIFICATION_ID, at, 'bedtime')
   }
 
   function handleSave() {
@@ -181,12 +208,18 @@ export function SleepControls() {
                 onChange={(e) => setBedtime(e.target.value)}
                 aria-label={t('mixer.bedtime.time')}
               />
-              <button type="button" disabled={!bedtime || !hasPlacements} onClick={() => armBedtime(nextAlarmAt(bedtime))}>
+              <button type="button" disabled={!bedtime || !hasPlacements} onClick={handleArmBedtime}>
                 {t('mixer.bedtime.set')}
               </button>
             </div>
           )}
           <p className="mixer-alarm-note">{t('mixer.bedtime.note')}</p>
+          {isNative && <p className="mixer-alarm-note">{t('mixer.bedtime.nativeNote')}</p>}
+          {deniedFor === 'bedtime' && (
+            <p className="mixer-alarm-note" role="status">
+              {t('mixer.notificationsDenied')}
+            </p>
+          )}
         </div>
 
         <div className="mixer-alarm" role="group" aria-labelledby="mixer-alarm-title">
@@ -217,7 +250,7 @@ export function SleepControls() {
                   onChange={(e) => setWakeTime(e.target.value)}
                   aria-label={t('mixer.alarm.time')}
                 />
-                <button type="button" disabled={!wakeTime} onClick={() => armAlarm(nextAlarmAt(wakeTime), wakeSound)}>
+                <button type="button" disabled={!wakeTime} onClick={handleArmAlarm}>
                   {t('mixer.alarm.set')}
                 </button>
               </div>
@@ -242,6 +275,12 @@ export function SleepControls() {
             </>
           )}
           <p className="mixer-alarm-note">{t('mixer.alarm.note')}</p>
+          {isNative && <p className="mixer-alarm-note">{t('mixer.alarm.nativeNote')}</p>}
+          {deniedFor === 'alarm' && (
+            <p className="mixer-alarm-note" role="status">
+              {t('mixer.notificationsDenied')}
+            </p>
+          )}
         </div>
 
         <div className="mixer-presets">

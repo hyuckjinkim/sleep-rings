@@ -1,8 +1,10 @@
 // localStorage persistence per architecture.md §4. IO boundary only — src/mixer/store.ts
 // owns the state shape/mutations and never imports this file, so store.test.ts stays
 // localStorage-free. This module reads/writes and pokes the store via its public API.
+import { Capacitor } from '@capacitor/core'
 import { emptyMix, startPlayback, useMixStore } from '../mixer/store'
 import { soundEngine } from '../mixer/engine/instance'
+import { startKeepAliveAudio } from '../mobile'
 import type { Mix } from '../mixer/types'
 
 const CURRENT_SCHEMA = 1
@@ -105,6 +107,31 @@ export function restoreMix(): void {
   useMixStore.setState({ current: mix, presets })
   soundEngine.setMasterVolume(mix.masterVolume) // restore the saved master volume, not just display it
   for (const placement of mix.placements) startPlayback(placement)
+}
+
+// How long a gesture-less resume() may take before we call autoplay blocked.
+const AUTOPLAY_WAIT_MS = 1000
+
+/**
+ * "Play last mix" (bedtime reminder, app shortcut, Siri). The boot restore already queued the
+ * autosaved mix on the still-suspended context; this makes it audible. Capacitor's WebViews allow
+ * playback without a gesture (Android Bridge: setMediaPlaybackRequiresUserGesture(false); iOS:
+ * mediaTypesRequiringUserActionForPlayback = []), so resume() should succeed straight from a
+ * shortcut. Resolves false if it didn't (nothing saved, or autoplay blocked after all) — the mix
+ * stays loaded and the caller offers a tap to play.
+ */
+export async function playLastMix(): Promise<boolean> {
+  const store = useMixStore.getState()
+  if (store.current.placements.length === 0) {
+    const saved = loadMix() // e.g. a cleared field whose autosave hadn't landed yet
+    if (saved.placements.length === 0) return false
+    store.openMix(saved)
+  }
+  if (store.bedtimeAt) store.cancelBedtime() // "play" means now
+  store.wake() // a finished sleep timer stopped every source
+  if (Capacitor.isNativePlatform()) startKeepAliveAudio() // background keep-alive, as on a first tap
+  await Promise.race([soundEngine.init(), new Promise((r) => setTimeout(r, AUTOPLAY_WAIT_MS))])
+  return soundEngine.isRunning()
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined

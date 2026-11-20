@@ -825,6 +825,34 @@
   font-size: var(--so-font-size-sm, 0.875rem);
 }
 
+/* "Play your last mix?" — after a bedtime reminder tap on a closed app, or when a shortcut's
+   autoplay was blocked. Same slot and look as the undo toast, stacked above it if both show. */
+.mixer-last-mix {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--so-space-5, 1.5rem) * 3 + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--so-space-2, 0.5rem);
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  background: var(--so-bg-overlay, #1a2238);
+  color: var(--so-text-primary, #f0f0f5);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  border-radius: var(--so-radius-lg, 16px);
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.mixer-last-mix button {
+  min-height: 44px;
+}
+
 /* B2: minimal upgrade sheet — tap a locked chip to see which tier unlocks it. No purchase
    button yet (src/plan/purchase-adapter.ts is a stub until RevenueCat lands). */
 .mixer-upgrade-backdrop {

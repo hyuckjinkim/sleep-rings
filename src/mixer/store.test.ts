@@ -4,6 +4,12 @@ import { soundEngine } from './engine/instance'
 import { catalog } from '../library/catalog'
 import { usePlanStore } from '../plan'
 import type { Sound } from './types'
+import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
+
+vi.mock('../mobile/notifications', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/notifications')>()),
+  cancelReminder: vi.fn(),
+}))
 
 beforeEach(() => {
   useMixStore.setState({
@@ -435,6 +441,16 @@ describe('wake alarm', () => {
     expect(useMixStore.getState()).toMatchObject({ sleeping: true, alarmAt: null, alarmRinging: false })
   })
 
+  it('drops the backup notification when the in-app alarm rings, or when dismissed', () => {
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.mocked(cancelReminder).mockClear()
+    vi.advanceTimersByTime(1000)
+    expect(cancelReminder).toHaveBeenCalledWith(ALARM_NOTIFICATION_ID)
+    vi.mocked(cancelReminder).mockClear()
+    useMixStore.getState().dismissAlarm()
+    expect(cancelReminder).toHaveBeenCalledWith(ALARM_NOTIFICATION_ID)
+  })
+
   it('touching the mix while it rings (wake) stops the alarm too', () => {
     useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
     vi.advanceTimersByTime(1000)
@@ -473,6 +489,17 @@ describe('bedtime start', () => {
     useMixStore.getState().cancelBedtime()
     expect(cancelSpy).toHaveBeenCalled()
     expect(useMixStore.getState().bedtimeAt).toBeNull()
+  })
+
+  it('drops the backup notification when the start happens in-app, or is cancelled', () => {
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    vi.mocked(cancelReminder).mockClear()
+    vi.advanceTimersByTime(3600_000)
+    expect(cancelReminder).toHaveBeenCalledWith(BEDTIME_NOTIFICATION_ID)
+    useMixStore.getState().armBedtime(T0 + 7200_000)
+    vi.mocked(cancelReminder).mockClear()
+    useMixStore.getState().cancelBedtime()
+    expect(cancelReminder).toHaveBeenCalledWith(BEDTIME_NOTIFICATION_ID)
   })
 
   it('arming restarts a mix a finished sleep timer had stopped (held silent)', async () => {

@@ -1,16 +1,18 @@
-import { beforeEach, describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import {
   DEFAULT_PLAYBACK_SETTINGS,
   NURSERY_VOLUME_CAP,
   loadMix,
   loadPlaybackSettings,
   loadPresets,
+  playLastMix,
   restoreMix,
   saveMix,
   savePlaybackSettings,
   savePresets,
 } from './persistence'
-import { useMixStore, emptyMix } from '../mixer/store'
+import { useMixStore, emptyMix, defaultOrbit } from '../mixer/store'
+import { soundEngine } from '../mixer/engine/instance'
 import type { Mix } from '../mixer/types'
 
 beforeEach(() => {
@@ -105,5 +107,57 @@ describe('playback settings persistence', () => {
   it('falls back to defaults on corrupt JSON', () => {
     localStorage.setItem('so.playbackSettings', '{nope')
     expect(loadPlaybackSettings()).toEqual(DEFAULT_PLAYBACK_SETTINGS)
+  })
+})
+
+describe('playLastMix (bedtime reminder, app shortcut, Siri)', () => {
+  const placement = { id: 'p1', soundId: 'noise-white', radius: 0.3, angle: 0, orbit: defaultOrbit(), locked: false, volume: 1 }
+  const saved: Mix = { ...emptyMix(), name: 'Last night', placements: [placement] }
+  afterEach(() => {
+    vi.restoreAllMocks()
+    useMixStore.setState({ sleeping: false, bedtimeAt: null })
+  })
+
+  it('resumes the already-restored mix and reports it audible', async () => {
+    saveMix(saved)
+    restoreMix()
+    const initSpy = vi.spyOn(soundEngine, 'init')
+    await expect(playLastMix()).resolves.toBe(true)
+    expect(initSpy).toHaveBeenCalled()
+    expect(useMixStore.getState().current.name).toBe('Last night')
+  })
+
+  it('reloads the autosaved mix when the field is empty', async () => {
+    saveMix(saved)
+    await expect(playLastMix()).resolves.toBe(true)
+    expect(useMixStore.getState().current.placements.map((p) => p.id)).toEqual(['p1'])
+  })
+
+  it('restarts a mix a finished sleep timer stopped', async () => {
+    saveMix(saved)
+    restoreMix()
+    useMixStore.setState({ sleeping: true })
+    await playLastMix()
+    expect(useMixStore.getState().sleeping).toBe(false)
+  })
+
+  it('plays now instead of waiting for a pending bedtime start', async () => {
+    saveMix(saved)
+    restoreMix()
+    useMixStore.setState({ bedtimeAt: Date.now() + 3600_000 })
+    await playLastMix()
+    expect(useMixStore.getState().bedtimeAt).toBeNull()
+  })
+
+  it('reports false when autoplay stays blocked, leaving the mix loaded for a tap', async () => {
+    saveMix(saved)
+    restoreMix()
+    vi.spyOn(soundEngine, 'isRunning').mockReturnValue(false)
+    await expect(playLastMix()).resolves.toBe(false)
+    expect(useMixStore.getState().current.placements).toHaveLength(1)
+  })
+
+  it('reports false with nothing saved', async () => {
+    await expect(playLastMix()).resolves.toBe(false)
   })
 })

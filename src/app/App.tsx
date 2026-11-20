@@ -6,7 +6,8 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { Mixer } from '../mixer/Mixer'
 import { useMixStore } from '../mixer/store'
 import { decodeShareUrl, shareParam } from '../mixer/share'
-import { saveMix } from '../sleep/persistence'
+import { playLastMix, saveMix } from '../sleep/persistence'
+import { BEDTIME_NOTIFICATION_ID, onClosedAppReminderTap } from '../mobile/notifications'
 import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 import { Settings } from './Settings'
 import { getPurchaseAdapter, isPurchaseAvailable, usePlanStore } from '../plan'
@@ -26,6 +27,7 @@ export function App() {
   const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping && s.bedtimeAt === null)
   const [screen, setScreen] = useState<Screen>('mixer')
   const [shareUpsell, setShareUpsell] = useState<Exclude<Plan, 'free'> | null>(null)
+  const [lastMixOffer, setLastMixOffer] = useState(false)
 
   // Entitlements are the store's truth, not ours: the locally persisted plan says nothing about a
   // subscription that expired, was refunded, or was bought on another device. Re-read it once at
@@ -79,6 +81,16 @@ export function App() {
       void handle?.remove()
     }
   }, [])
+
+  // Bedtime reminder tapped after the app was closed: the armed start died with it, so offer the
+  // (already restored) last mix instead of starting it unasked.
+  useEffect(
+    () =>
+      onClosedAppReminderTap((id) => {
+        if (id === BEDTIME_NOTIFICATION_ID && useMixStore.getState().current.placements.length > 0) setLastMixOffer(true)
+      }),
+    [],
+  )
 
   // Android hardware back: close the settings screen instead of exiting the app from it; exit
   // normally from the mixer screen. No-op on web/iOS — @capacitor/app only fires this on Android.
@@ -139,6 +151,23 @@ export function App() {
         )}
         {screen === 'mixer' ? <Mixer /> : <Settings onClose={() => setScreen('mixer')} />}
       </main>
+      {lastMixOffer && (
+        <div className="mixer-last-mix" role="status">
+          <span>{t('mixer.lastMix.offer')}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLastMixOffer(false)
+              void playLastMix()
+            }}
+          >
+            {t('mixer.lastMix.play')}
+          </button>
+          <button type="button" onClick={() => setLastMixOffer(false)}>
+            {t('mixer.lastMix.dismiss')}
+          </button>
+        </div>
+      )}
       {shareUpsell && (
         <UpgradeSheet
           plan={shareUpsell}

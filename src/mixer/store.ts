@@ -8,6 +8,7 @@ import { soundEngine } from './engine/instance'
 import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
 import { hapticTap, setMediaSessionPlaying } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
+import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
 import { canUseFeature, canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
@@ -462,6 +463,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
     })
     // UI only — the sound itself is scheduled on the audio clock above, immune to timer throttling.
     alarmTimeout = setTimeout(() => {
+      cancelReminder(ALARM_NOTIFICATION_ID) // the app is alive and ringing — no backup needed
       clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
       set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
     }, Math.max(0, atMs - Date.now()))
@@ -469,6 +471,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   dismissAlarm() {
     clearTimeout(alarmTimeout)
+    cancelReminder(ALARM_NOTIFICATION_ID)
     // The audio clock can reach the alarm before the UI timer above flips alarmRinging; if it had
     // started, the engine just tore the mix down, so the state must say "sleeping" (not playing).
     if (soundEngine.cancelAlarm()) {
@@ -491,11 +494,15 @@ export const useMixStore = create<MixStore>((set, get) => ({
     set({ bedtimeAt: atMs })
     get().wake() // a finished sleep timer stopped every source — bring them back, held
     // UI only — the start itself is on the audio clock above, immune to timer throttling.
-    bedtimeTimeout = setTimeout(() => set({ bedtimeAt: null }), Math.max(0, atMs - Date.now()))
+    bedtimeTimeout = setTimeout(() => {
+      cancelReminder(BEDTIME_NOTIFICATION_ID) // started in-app — no backup needed
+      set({ bedtimeAt: null })
+    }, Math.max(0, atMs - Date.now()))
   },
 
   cancelBedtime() {
     clearTimeout(bedtimeTimeout)
+    cancelReminder(BEDTIME_NOTIFICATION_ID)
     soundEngine.cancelStart()
     set({ bedtimeAt: null })
   },

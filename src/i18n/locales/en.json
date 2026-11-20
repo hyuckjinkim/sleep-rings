@@ -121,7 +121,10 @@
       "set": "Start then",
       "cancel": "Play now",
       "armed": "Starts at {{time}}",
-      "note": "The current mix stays silent until then and fades in at that time. SleepRings has to stay open (it may run in the background) — closing the app cancels it."
+      "note": "The current mix stays silent until then and fades in at that time. SleepRings has to stay open (it may run in the background) — closing the app cancels it.",
+      "nativeNote": "If the app is closed, you'll get a notification at that time instead of the sound — tap it to open SleepRings.",
+      "notificationTitle": "Bedtime",
+      "notificationBody": "It's bedtime. If your mix isn't playing, tap to open SleepRings."
     },
     "alarm": {
       "title": "Wake alarm",
@@ -131,7 +134,10 @@
       "cancel": "Cancel alarm",
       "stop": "Stop alarm",
       "armed": "Alarm at {{time}}",
-      "note": "Fades in gently at wake time. It only sounds while SleepRings stays open (it may run in the background) — closing the app turns the alarm off."
+      "note": "Fades in gently at wake time. It only sounds while SleepRings stays open (it may run in the background) — closing the app turns the alarm off.",
+      "nativeNote": "If the app is closed, you'll get a notification instead of the sound.",
+      "notificationTitle": "Wake alarm",
+      "notificationBody": "It's your wake time."
     },
     "presets": {
       "namePlaceholder": "Mix name",
@@ -150,6 +156,12 @@
       "label": "Sounds and controls",
       "expand": "Expand sheet",
       "collapse": "Collapse sheet"
+    },
+    "notificationsDenied": "Notifications are off, so there's no backup if the app is closed. The in-app timing still works.",
+    "lastMix": {
+      "offer": "Play your last mix?",
+      "play": "Play",
+      "dismiss": "Not now"
     }
   },
   "screen": {

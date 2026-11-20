@@ -9,6 +9,12 @@ import { SleepControls } from './SleepControls'
 import { useMixStore } from '../mixer/store'
 import { usePlaybackSettings } from './settings'
 import { usePlanStore } from '../plan'
+import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, scheduleReminder } from '../mobile/notifications'
+
+vi.mock('../mobile/notifications', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/notifications')>()),
+  scheduleReminder: vi.fn().mockResolvedValue(true),
+}))
 
 beforeEach(() => {
   useMixStore.setState({
@@ -92,6 +98,23 @@ describe('wake alarm controls', () => {
     expect(new Date(atMs).getMinutes()).toBe(30)
   })
 
+  it('schedules the backup notification for the armed time and says when notifications are off', async () => {
+    usePlanStore.setState({ plan: 'free' })
+    vi.mocked(scheduleReminder).mockClear().mockResolvedValueOnce(false)
+    render(<SleepControls />)
+    fireEvent.change(screen.getByLabelText('기상 시각'), { target: { value: '06:30' } })
+    fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
+    const [id, atMs, text, isArmed] = vi.mocked(scheduleReminder).mock.calls[0]
+    expect(id).toBe(ALARM_NOTIFICATION_ID)
+    expect(atMs).toBe(useMixStore.getState().alarmAt)
+    expect(text).toEqual({ title: '기상 알람', body: '일어날 시간이에요.' })
+    expect(isArmed()).toBe(true)
+    await act(async () => {}) // let the denied result land (fake timers: no findBy polling)
+    expect(screen.getByText(/알림이 꺼져 있어/)).toBeInTheDocument()
+    act(() => useMixStore.getState().dismissAlarm())
+    expect(isArmed()).toBe(false)
+  })
+
   it('offers a stop button while ringing', () => {
     useMixStore.setState({ alarmAt: Date.now(), alarmRinging: true })
     render(<SleepControls />)
@@ -142,8 +165,13 @@ describe('bedtime start', () => {
       useMixStore.getState().addPlacement('fan', 0.3, 0)
     })
     fireEvent.change(screen.getByLabelText('시작 시각'), { target: { value: '22:30' } })
+    vi.mocked(scheduleReminder).mockClear()
     fireEvent.click(startButton)
     expect(useMixStore.getState().bedtimeAt).toBe(new Date('2026-01-01T22:30:00').getTime())
+    expect(vi.mocked(scheduleReminder).mock.calls[0].slice(0, 2)).toEqual([
+      BEDTIME_NOTIFICATION_ID,
+      new Date('2026-01-01T22:30:00').getTime(),
+    ])
     expect(screen.getByText(/에 시작$/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '지금 재생' }))

@@ -1,11 +1,26 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { App } from './App'
 import '../i18n'
 import { useMixStore } from '../mixer/store'
 import { usePlanStore } from '../plan'
 import { shareUrl } from '../mixer/share'
 import type { Mix } from '../mixer/types'
+import { BEDTIME_NOTIFICATION_ID } from '../mobile/notifications'
+import { playLastMix } from '../sleep/persistence'
+
+const reminderTap = vi.hoisted(() => ({ fire: (_id: number) => {} }))
+vi.mock('../mobile/notifications', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/notifications')>()),
+  onClosedAppReminderTap: (cb: (id: number) => void) => {
+    reminderTap.fire = cb
+    return () => {}
+  },
+}))
+vi.mock('../sleep/persistence', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../sleep/persistence')>()),
+  playLastMix: vi.fn().mockResolvedValue(true),
+}))
 
 afterEach(cleanup)
 
@@ -87,5 +102,26 @@ describe('App share links', () => {
     render(<App />)
     expect(document.querySelector('.mixer-field')).toBeInTheDocument()
     expect(location.hash).toBe('')
+  })
+})
+
+describe('App bedtime reminder tapped after the app was closed', () => {
+  it('offers the last mix, and plays it on tap', () => {
+    render(<App />)
+    act(() => {
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    act(() => reminderTap.fire(BEDTIME_NOTIFICATION_ID))
+    expect(screen.getByText('마지막 믹스를 재생할까요?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '재생' }))
+    expect(playLastMix).toHaveBeenCalled()
+    expect(screen.queryByText('마지막 믹스를 재생할까요?')).not.toBeInTheDocument()
+  })
+
+  it('offers nothing when there is no mix to play', () => {
+    render(<App />)
+    act(() => useMixStore.getState().clearAll())
+    act(() => reminderTap.fire(BEDTIME_NOTIFICATION_ID))
+    expect(screen.queryByText('마지막 믹스를 재생할까요?')).not.toBeInTheDocument()
   })
 })
