@@ -33,6 +33,18 @@ export const SLEEP_FADE_SEC = 60
 // clicks on noise buffers. Short — this is a UI micro-fade, not the sleep-timer's gentle one.
 export const PLACEMENT_FADE_SEC = 0.2
 
+// Wake alarm: how long the wake sound takes to fade in (and the mix to fade out under it).
+export const ALARM_FADE_SEC = 5 * 60
+
+/** Next wall-clock occurrence (epoch ms) of a "HH:MM" wake time: today if still ahead, else tomorrow. */
+export function nextAlarmAt(hhmm: string, now: Date = new Date()): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  const at = new Date(now)
+  at.setHours(h, m, 0, 0)
+  if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1)
+  return at.getTime()
+}
+
 export function defaultOrbit(): Orbit {
   return { mode: 'random', shape: { kind: 'circle' }, speed: DEFAULT_ORBIT_SPEED, direction: randomDirection() }
 }
@@ -122,6 +134,8 @@ interface MixStore {
   presets: Mix[]
   sleepEndsAt: number | null // epoch ms, for the countdown UI
   sleeping: boolean // true once a sleep timer's fade+stop has completed
+  alarmAt: number | null // epoch ms of an armed (or ringing) wake alarm — in-memory only, like the engine schedule
+  alarmRinging: boolean
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
   lastRemovedAll: Placement[] | null // clear-all undo buffer, same single-slot/timeout shape as lastRemoved
   layerLimitNotice: LayerLimitNotice | null // B2: transient, cleared after UNDO_TIMEOUT_MS
@@ -143,12 +157,17 @@ interface MixStore {
    * clearing the flag alone would leave orbs on screen (and the app counted as playing) with
    * nothing audible. Restarts every placement. No-op unless sleeping. */
   wake(): void
+  /** Arm the wake alarm. Free for everyone; the wake sound itself still follows its catalog tier. */
+  armAlarm(atMs: number, soundId: string): void
+  /** Disarm a pending alarm, or stop a ringing one. */
+  dismissAlarm(): void
 }
 
 let sleepTimeout: ReturnType<typeof setTimeout> | undefined
 let undoTimeout: ReturnType<typeof setTimeout> | undefined
 let undoAllTimeout: ReturnType<typeof setTimeout> | undefined
 let layerLimitTimeout: ReturnType<typeof setTimeout> | undefined
+let alarmTimeout: ReturnType<typeof setTimeout> | undefined
 
 export const useMixStore = create<MixStore>((set, get) => ({
   current: emptyMix(),
@@ -157,6 +176,8 @@ export const useMixStore = create<MixStore>((set, get) => ({
   presets: [],
   sleepEndsAt: null,
   sleeping: false,
+  alarmAt: null,
+  alarmRinging: false,
   lastRemoved: null,
   lastRemovedAll: null,
   layerLimitNotice: null,
@@ -382,10 +403,35 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   wake() {
+    if (get().alarmRinging) get().dismissAlarm() // up and touching the mix — the alarm did its job
     if (!get().sleeping) return
     set({ sleeping: false })
     const placements = get().current.placements
     if (placements.length > 0) setMediaSessionPlaying(true)
     for (const p of placements) startPlayback(p) // engine.play() is a no-op for anything still active
+  },
+
+  armAlarm(atMs, soundId) {
+    const sound = catalog.find((s) => s.id === soundId)
+    if (!sound || !canUseSound(sound.id, getPlan())) return
+    soundEngine.onEnterForeground() // a frozen (suspended) audio clock would never reach the alarm
+    clearTimeout(alarmTimeout)
+    soundEngine.cancelAlarm()
+    set({ alarmAt: atMs, alarmRinging: false })
+    // Not via startPlayback(): the alarm isn't a placement, and it must not ride the layer cap.
+    void soundEngine.load(sound).then(() => {
+      if (get().alarmAt === atMs) soundEngine.scheduleAlarm(sound.id, atMs, ALARM_FADE_SEC)
+    })
+    // UI only — the sound itself is scheduled on the audio clock above, immune to timer throttling.
+    alarmTimeout = setTimeout(() => {
+      clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
+      set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
+    }, Math.max(0, atMs - Date.now()))
+  },
+
+  dismissAlarm() {
+    clearTimeout(alarmTimeout)
+    soundEngine.cancelAlarm()
+    set({ alarmAt: null, alarmRinging: false })
   },
 }))

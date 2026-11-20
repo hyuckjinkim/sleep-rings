@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMixStore } from '../mixer/store'
+import { nextAlarmAt, useMixStore } from '../mixer/store'
 import { usePlaybackSettings } from './settings'
+import { soundName } from '../library/catalog'
+import { canUseSound, requiredPlan, usePlanStore } from '../plan'
+// Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
+// their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
+const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
 
 const PRESET_MINUTES = [15, 30, 45, 60, 90]
 
@@ -14,7 +19,15 @@ function formatRemaining(ms: number): string {
 
 /** Restrained sleep-timer + named-preset panel, per benchmark §4/§6 and task #10. */
 export function SleepControls() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'en' ? 'en' : 'ko'
+  const plan = usePlanStore((s) => s.plan)
+  const alarmAt = useMixStore((s) => s.alarmAt)
+  const alarmRinging = useMixStore((s) => s.alarmRinging)
+  const armAlarm = useMixStore((s) => s.armAlarm)
+  const dismissAlarm = useMixStore((s) => s.dismissAlarm)
+  const [wakeTime, setWakeTime] = useState('07:00')
+  const [wakeSound, setWakeSound] = useState(WAKE_SOUNDS[0])
   const sleepEndsAt = useMixStore((s) => s.sleepEndsAt)
   const sleeping = useMixStore((s) => s.sleeping)
   const startSleepTimer = useMixStore((s) => s.startSleepTimer)
@@ -107,6 +120,61 @@ export function SleepControls() {
               {t('mixer.sleep.customStart')}
             </button>
           </span>
+        </div>
+
+        <div className="mixer-alarm" role="group" aria-labelledby="mixer-alarm-title">
+          <span className="mixer-alarm-title" id="mixer-alarm-title">
+            {t('mixer.alarm.title')}
+          </span>
+          {alarmRinging ? (
+            <button type="button" className="mixer-alarm-stop" onClick={dismissAlarm}>
+              {t('mixer.alarm.stop')}
+            </button>
+          ) : alarmAt ? (
+            <div className="mixer-alarm-row">
+              <span className="mixer-sleep-remaining">
+                {t('mixer.alarm.armed', {
+                  time: new Date(alarmAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+                })}
+              </span>
+              <button type="button" onClick={dismissAlarm}>
+                {t('mixer.alarm.cancel')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mixer-alarm-row">
+                <input
+                  type="time"
+                  value={wakeTime}
+                  onChange={(e) => setWakeTime(e.target.value)}
+                  aria-label={t('mixer.alarm.time')}
+                />
+                <button type="button" disabled={!wakeTime} onClick={() => armAlarm(nextAlarmAt(wakeTime), wakeSound)}>
+                  {t('mixer.alarm.set')}
+                </button>
+              </div>
+              <div className="mixer-alarm-row" role="group" aria-label={t('mixer.alarm.sound')}>
+                {WAKE_SOUNDS.map((id) => {
+                  const name = soundName(id, locale)
+                  const locked = !canUseSound(id, plan)
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={wakeSound === id}
+                      disabled={locked}
+                      title={locked ? t('plan.upgrade.body', { sound: name, tier: t(`plan.tier.${requiredPlan(id)}`) }) : undefined}
+                      onClick={() => setWakeSound(id)}
+                    >
+                      {name}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+          <p className="mixer-alarm-note">{t('mixer.alarm.note')}</p>
         </div>
 
         <div className="mixer-presets">

@@ -97,6 +97,16 @@
       "minutesShort": "분",
       "customStart": "시작"
     },
+    "alarm": {
+      "title": "기상 알람",
+      "time": "기상 시각",
+      "sound": "알람 소리",
+      "set": "알람 켜기",
+      "cancel": "알람 끄기",
+      "stop": "알람 멈추기",
+      "armed": "{{time}} 알람",
+      "note": "기상 시각에 소리가 천천히 커져요. SleepRings가 켜져 있을 때만 울려요(백그라운드 실행은 괜찮아요). 앱을 종료하면 알람도 꺼져요."
+    },
     "presets": {
       "namePlaceholder": "믹스 이름",
       "save": "저장",

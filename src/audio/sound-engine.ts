@@ -1,10 +1,11 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> night -> intro -> limiter -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> night -> intro -> wake -> limiter -> destination.
 // `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
 // `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
-// `intro` likewise belongs to the start fade-in alone (one AudioParam per scheduler).
+// `intro` likewise belongs to the start fade-in alone, and `wake` to the alarm's crossfade (one
+// AudioParam per scheduler). The alarm sound itself bypasses all three: alarm -> alarmGain -> limiter.
 import type { NoiseColor, Placement, Sound } from '../data/types'
 import { renderBinauralBuffer } from './binaural'
 import { fadeTo } from './fade'
@@ -15,6 +16,7 @@ import type {
   EngineAudioBuffer,
   EngineAudioContext,
   EngineBufferSourceNode,
+  EngineDynamicsCompressorNode,
   EngineGainNode,
   EnginePannerNode,
   EngineStereoPannerNode,
@@ -44,6 +46,17 @@ const IDLE_BUFFER_BUDGET_BYTES = 24 * 1024 * 1024
 const BYTES_PER_SAMPLE = 4 // float32
 // cancelSleep() mid-fade: bring the night gain back without a jump.
 const NIGHT_RESTORE_SEC = 0.5
+// Dismissing a ringing alarm: short fade so the stop doesn't click.
+const ALARM_STOP_SEC = 0.5
+
+interface AlarmNodes {
+  soundId: string
+  atMs: number // wall-clock target, kept so the audio-clock schedule can be re-derived after a suspend
+  fadeSec: number
+  startAt: number // ctx.currentTime the alarm begins
+  source: EngineBufferSourceNode
+  gain: EngineGainNode
+}
 
 interface LoadedSound {
   buffer: EngineAudioBuffer
@@ -75,6 +88,10 @@ export class SoundEngine {
   private readonly master: EngineGainNode
   private readonly night: EngineGainNode
   private readonly intro: EngineGainNode
+  private readonly wake: EngineGainNode
+  private readonly limiter: EngineDynamicsCompressorNode
+  private alarm?: AlarmNodes
+  private alarmEndTimer?: ReturnType<typeof setTimeout>
   private startFadeSec = 0
   private readonly loadFile: (url: string) => Promise<EngineAudioBuffer>
   private readonly sounds = new Map<string, LoadedSound>()
@@ -88,9 +105,10 @@ export class SoundEngine {
     this.master = ctx.createGain()
     this.night = ctx.createGain()
     this.intro = ctx.createGain()
+    this.wake = ctx.createGain()
     // Brick-wall-ish limiter: stacking several full-scale noise layers can sum past 0 dBFS and clip.
     // Threshold sits just under full scale so normal mixes pass untouched.
-    const limiter = ctx.createDynamicsCompressor()
+    const limiter = (this.limiter = ctx.createDynamicsCompressor())
     limiter.threshold.value = -3
     limiter.knee.value = 0
     limiter.ratio.value = 20
@@ -98,7 +116,8 @@ export class SoundEngine {
     limiter.release.value = 0.25
     this.master.connect(this.night)
     this.night.connect(this.intro)
-    this.intro.connect(limiter)
+    this.intro.connect(this.wake)
+    this.wake.connect(limiter)
     limiter.connect(ctx.destination)
     this.loadFile = createAudioBufferLoader(ctx)
   }
@@ -232,6 +251,7 @@ export class SoundEngine {
 
     const playing = new Set<string>()
     for (const nodes of this.active.values()) playing.add(nodes.placement.soundId)
+    if (this.alarm) playing.add(this.alarm.soundId) // a re-derived alarm schedule needs its buffer
     for (const [id, loaded] of this.sounds) {
       if (cachedBytes <= IDLE_BUFFER_BUDGET_BYTES) break
       if (playing.has(id)) continue
@@ -319,7 +339,9 @@ export class SoundEngine {
       // Nothing is playing any more, so the jump back to 1 is silent — and the next sound after
       // the timer (store.addPlacement → onEnterForeground resume) isn't stuck at zero.
       this.resetNight(0)
-      void this.ctx.suspend()
+      // A suspended context has a frozen clock, so an armed alarm would never fire: keep it
+      // running (silent — every source is gone) until the alarm does.
+      if (!this.alarm) void this.ctx.suspend()
     }, durationSec * 1000)
   }
 
@@ -327,6 +349,85 @@ export class SoundEngine {
     clearTimeout(this.sleepStopTimer)
     this.sleepStopTimer = undefined
     this.resetNight(NIGHT_RESTORE_SEC)
+  }
+
+  /**
+   * Wake alarm at wall-clock `atMs`: the sound fades in over fadeSec on the audio clock while the
+   * mix crossfades out on the `wake` stage (instead of being cut). Once the crossfade is done the
+   * mix's sources are torn down, same as a finished sleep timer. Rings (loops) until cancelAlarm().
+   * Requires load() of the sound first. Only works while the app — and so the context — runs.
+   */
+  scheduleAlarm(soundId: string, atMs: number, fadeSec: number): void {
+    const loaded = this.sounds.get(soundId)
+    if (!loaded) throw new Error(`SoundEngine.scheduleAlarm: sound "${soundId}" is not loaded — call load() first`)
+    this.disarmAlarm()
+
+    const now = this.ctx.currentTime
+    const startAt = now + Math.max(0, (atMs - Date.now()) / 1000)
+    const endAt = startAt + Math.max(0, fadeSec)
+    const source = this.ctx.createBufferSource()
+    source.buffer = loaded.buffer
+    source.loop = true
+    if (loaded.loopStart !== undefined) source.loopStart = loaded.loopStart
+    if (loaded.loopEnd !== undefined) source.loopEnd = loaded.loopEnd
+    const gain = this.ctx.createGain()
+    source.connect(gain)
+    gain.connect(this.limiter)
+    gain.gain.value = 0
+    gain.gain.setValueAtTime(0, startAt) // anchor: without it the ramp would start at arm time
+    gain.gain.linearRampToValueAtTime(1, endAt)
+    source.start(startAt)
+
+    this.wake.gain.cancelScheduledValues(now)
+    this.wake.gain.setValueAtTime(1, startAt)
+    this.wake.gain.linearRampToValueAtTime(0, endAt)
+
+    this.alarm = { soundId, atMs, fadeSec, startAt, source, gain }
+    this.alarmEndTimer = setTimeout(() => this.endMixForAlarm(), (endAt - now) * 1000)
+  }
+
+  /** Disarm a pending alarm (the mix plays on), or dismiss a ringing one (everything goes quiet). */
+  cancelAlarm(): void {
+    const alarm = this.alarm
+    if (!alarm) return
+    const ringing = this.ctx.currentTime >= alarm.startAt
+    this.disarmAlarm(ALARM_STOP_SEC)
+    if (ringing) this.endMixForAlarm()
+    else fadeTo(this.wake.gain, this.ctx.currentTime, 1, NIGHT_RESTORE_SEC)
+  }
+
+  private disarmAlarm(fadeSec = 0): void {
+    clearTimeout(this.alarmEndTimer)
+    this.alarmEndTimer = undefined
+    const alarm = this.alarm
+    if (!alarm) return
+    this.alarm = undefined
+    const teardown = () => {
+      try {
+        alarm.source.stop()
+      } catch {
+        // never started — nothing to stop
+      }
+      alarm.source.disconnect()
+      alarm.gain.disconnect()
+    }
+    if (fadeSec > 0) {
+      fadeTo(alarm.gain.gain, this.ctx.currentTime, 0, fadeSec)
+      setTimeout(teardown, fadeSec * 1000)
+    } else {
+      teardown()
+    }
+  }
+
+  /** The alarm has taken over: drop the (now silent) mix and any sleep timer still pending. */
+  private endMixForAlarm(): void {
+    clearTimeout(this.alarmEndTimer)
+    this.alarmEndTimer = undefined
+    clearTimeout(this.sleepStopTimer)
+    this.sleepStopTimer = undefined
+    for (const id of [...this.active.keys()]) this.stop(id)
+    this.resetNight(0)
+    fadeTo(this.wake.gain, this.ctx.currentTime, 1, 0) // silent: nothing is routed through it now
   }
 
   private resetNight(durationSec: number): void {
@@ -352,11 +453,18 @@ export class SoundEngine {
   }
 
   onEnterForeground(): void {
-    if (this.ctx.state === 'suspended') void this.ctx.resume()
+    if (this.ctx.state !== 'suspended') return
+    void this.ctx.resume().then(() => {
+      // The audio clock stood still while suspended, so a not-yet-started alarm's schedule is now
+      // late by however long that was — re-derive it from the wall-clock target.
+      const alarm = this.alarm
+      if (alarm && this.ctx.currentTime < alarm.startAt) this.scheduleAlarm(alarm.soundId, alarm.atMs, alarm.fadeSec)
+    })
   }
 
   dispose(): void {
     this.cancelSleep()
+    this.disarmAlarm()
     for (const nodes of this.active.values()) this.cleanupNodes(nodes)
     this.active.clear()
     this.sounds.clear()

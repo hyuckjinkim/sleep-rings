@@ -56,7 +56,7 @@ export interface EngineBufferSourceNode extends EngineAudioNode {
   loop: boolean
   loopStart: number
   loopEnd: number
-  start(): void
+  start(when?: number): void
   stop(): void
 }
 

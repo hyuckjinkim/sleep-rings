@@ -653,8 +653,57 @@
   border-radius: var(--so-radius-md, 12px);
 }
 
+/* Wake alarm: its own card between the timer and the presets. */
+.mixer-alarm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--so-space-2, 0.5rem);
+  background: var(--so-bg-elevated, #12182b);
+  padding: var(--so-space-3, 0.75rem);
+  border-radius: var(--so-radius-md, 12px);
+  margin-bottom: var(--so-space-5, 1.5rem);
+}
+
+.mixer-alarm-title {
+  color: var(--so-text-secondary, #a8adc4);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.mixer-alarm-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--so-space-2, 0.5rem);
+}
+
+.mixer-alarm input[type='time'] {
+  min-height: 44px;
+  padding: 0 var(--so-space-3, 0.75rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: var(--so-bg-base, #0a0e1a);
+  color: var(--so-text-primary, #f0f0f5);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.mixer-alarm button[aria-pressed='true'] {
+  border-color: var(--so-accent, #93a5c8);
+  font-weight: 600;
+}
+
+.mixer-alarm button:disabled {
+  opacity: var(--so-state-idle-opacity, 0.55);
+}
+
+.mixer-alarm-note {
+  margin: 0;
+  color: var(--so-text-tertiary, #6b7290);
+  font-size: var(--so-font-size-xs, 0.75rem);
+}
+
 .mixer-sleep-timer button,
 .mixer-presets-save button,
+.mixer-alarm button,
 .mixer-presets-list button,
 .mixer-controls-row button {
   min-height: 44px; /* B4 */

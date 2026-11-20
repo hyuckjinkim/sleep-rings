@@ -9,8 +9,13 @@ import { soundEngine } from './mixer/engine/instance'
 
 // Once for the app's lifetime — safe on plain web too (@capacitor/app ships a Page Visibility
 // web fallback), see docs/android-build.md §4. The Android keep-alive service follows playback
-// (orbs placed, sleep timer not yet finished), not app foreground/background.
-const isMixPlaying = () => useMixStore.getState().current.placements.length > 0 && !useMixStore.getState().sleeping
+// (orbs placed, sleep timer not yet finished, or an alarm armed), not app foreground/background.
+// An armed alarm counts too: the WebView (and its running AudioContext) has to survive the night
+// in the background for the alarm to fire, even after the timer silenced the mix.
+const isMixPlaying = () => {
+  const s = useMixStore.getState()
+  return (s.current.placements.length > 0 && !s.sleeping) || s.alarmAt !== null
+}
 initBackgroundAudio(soundEngine, {
   isPlaying: isMixPlaying,
   subscribe: (onChange) => useMixStore.subscribe(onChange),

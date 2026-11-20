@@ -97,6 +97,16 @@
       "minutesShort": "m",
       "customStart": "Start"
     },
+    "alarm": {
+      "title": "Wake alarm",
+      "time": "Wake time",
+      "sound": "Wake sound",
+      "set": "Set alarm",
+      "cancel": "Cancel alarm",
+      "stop": "Stop alarm",
+      "armed": "Alarm at {{time}}",
+      "note": "Fades in gently at wake time. It only sounds while SleepRings stays open (it may run in the background) — closing the app turns the alarm off."
+    },
     "presets": {
       "namePlaceholder": "Mix name",
       "save": "Save",

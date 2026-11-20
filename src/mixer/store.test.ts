@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
-import { useMixStore } from './store'
+import { ALARM_FADE_SEC, nextAlarmAt, useMixStore } from './store'
 import { soundEngine } from './engine/instance'
 import { catalog } from '../library/catalog'
 import { usePlanStore } from '../plan'
@@ -361,6 +361,65 @@ describe('after the sleep timer finishes (engine stopped every source)', () => {
     useMixStore.getState().wake()
     await vi.advanceTimersByTimeAsync(0)
     expect(playSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('wake alarm', () => {
+  const T0 = new Date('2026-01-01T23:00:00').getTime()
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0)
+    useMixStore.setState({ alarmAt: null, alarmRinging: false })
+  })
+  afterEach(() => {
+    useMixStore.getState().dismissAlarm()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('nextAlarmAt() picks today when the time is still ahead, tomorrow otherwise', () => {
+    const now = new Date('2026-01-01T23:00:00')
+    expect(new Date(nextAlarmAt('23:30', now)).toString()).toBe(new Date('2026-01-01T23:30:00').toString())
+    expect(new Date(nextAlarmAt('07:00', now)).toString()).toBe(new Date('2026-01-02T07:00:00').toString())
+    expect(new Date(nextAlarmAt('23:00', now)).toString()).toBe(new Date('2026-01-02T23:00:00').toString())
+  })
+
+  it('arms on the free plan with the free wake sound, scheduling it on the engine', async () => {
+    const scheduleSpy = vi.spyOn(soundEngine, 'scheduleAlarm')
+    useMixStore.getState().armAlarm(T0 + 8 * 3600_000, 'nature-brook')
+    expect(useMixStore.getState().alarmAt).toBe(T0 + 8 * 3600_000)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(scheduleSpy).toHaveBeenCalledWith('nature-brook', T0 + 8 * 3600_000, ALARM_FADE_SEC)
+  })
+
+  it('refuses a wake sound the plan does not include (alarm-sound variety is paid)', () => {
+    useMixStore.getState().armAlarm(T0 + 3600_000, 'birds')
+    expect(useMixStore.getState().alarmAt).toBeNull()
+  })
+
+  it('rings at the alarm time, superseding a sleep timer that has not finished', () => {
+    useMixStore.getState().startSleepTimer(120)
+    useMixStore.getState().armAlarm(T0 + 3600_000, 'nature-brook')
+    vi.advanceTimersByTime(3600_000)
+    expect(useMixStore.getState()).toMatchObject({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
+    vi.advanceTimersByTime(3600_000)
+    expect(useMixStore.getState().alarmRinging).toBe(true) // the old timer never fired over it
+  })
+
+  it('dismissAlarm() stops it on the engine and clears the state', () => {
+    const cancelSpy = vi.spyOn(soundEngine, 'cancelAlarm')
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.advanceTimersByTime(1000)
+    useMixStore.getState().dismissAlarm()
+    expect(cancelSpy).toHaveBeenCalled()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false })
+  })
+
+  it('touching the mix while it rings (wake) stops the alarm too', () => {
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.advanceTimersByTime(1000)
+    useMixStore.getState().cancelSleepTimer()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false, sleeping: false })
   })
 })
 

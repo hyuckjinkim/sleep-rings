@@ -8,6 +8,7 @@ import '../i18n'
 import { SleepControls } from './SleepControls'
 import { useMixStore } from '../mixer/store'
 import { usePlaybackSettings } from './settings'
+import { usePlanStore } from '../plan'
 
 beforeEach(() => {
   useMixStore.setState({
@@ -17,6 +18,8 @@ beforeEach(() => {
     presets: [],
     sleepEndsAt: null,
     sleeping: false,
+    alarmAt: null,
+    alarmRinging: false,
     lastRemoved: null,
   })
   vi.useFakeTimers()
@@ -69,5 +72,30 @@ describe('custom h:m sleep timer', () => {
     render(<SleepControls />)
     fireEvent.change(screen.getByLabelText('직접 설정 분'), { target: { value: '0' } })
     expect(screen.getByRole('button', { name: '시작' })).toBeDisabled()
+  })
+})
+
+describe('wake alarm controls', () => {
+  it('shows the stay-open note, arms with the chosen time, and locks paid wake sounds on free', () => {
+    usePlanStore.setState({ plan: 'free' })
+    const armSpy = vi.spyOn(useMixStore.getState(), 'armAlarm')
+    render(<SleepControls />)
+    expect(screen.getByText(/앱을 종료하면 알람도 꺼져요/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '새소리' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '여울 소리' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.change(screen.getByLabelText('기상 시각'), { target: { value: '06:30' } })
+    fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
+    const [atMs, soundId] = armSpy.mock.calls[0]
+    expect(soundId).toBe('nature-brook')
+    expect(new Date(atMs).getHours()).toBe(6)
+    expect(new Date(atMs).getMinutes()).toBe(30)
+  })
+
+  it('offers a stop button while ringing', () => {
+    useMixStore.setState({ alarmAt: Date.now(), alarmRinging: true })
+    render(<SleepControls />)
+    fireEvent.click(screen.getByRole('button', { name: '알람 멈추기' }))
+    expect(useMixStore.getState().alarmRinging).toBe(false)
   })
 })
