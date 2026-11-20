@@ -858,8 +858,31 @@
   justify-content: center;
 }
 
+/* Title + settings stay pinned above the collapsed band (CollapsingHeader reads --app-bar-h). */
+main:has(.layout-collapse) {
+  --app-bar-h: 64px;
+}
+
+main:has(.layout-collapse) .app-title {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  width: 100%;
+  height: var(--app-bar-h);
+  line-height: var(--app-bar-h);
+  margin-top: -1.5rem; /* cancel main's top padding so the bar sits flush at the top */
+  text-align: center;
+  background: var(--so-bg-elevated, #12182b);
+}
+
+main:has(.layout-collapse) .app-header-icon-button {
+  position: fixed;
+  top: 10px;
+  z-index: 8;
+}
+
 .layout-collapse .mixer-top {
-  top: 64px; /* = CollapsingHeader COMPACT_H */
+  top: calc(var(--app-bar-h, 0px) + 64px); /* + CollapsingHeader COMPACT_H */
 }
 
 .mixer-collapse-field {

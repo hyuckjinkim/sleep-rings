@@ -72,7 +72,7 @@ export function App() {
           fontFamily: 'var(--so-font-family, system-ui, sans-serif)',
         }}
       >
-        <h1 style={{ fontSize: 'var(--so-font-size-md, 1.25rem)', fontWeight: 600, letterSpacing: '.02em', margin: 0 }}>
+        <h1 className="app-title">
           {t('app.title')}
         </h1>
         {/* Only on the mixer: the settings screen has its own close button, and stacking a gear

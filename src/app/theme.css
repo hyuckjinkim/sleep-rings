@@ -248,6 +248,13 @@ body {
 /* v2 G1: header shrink — pins a compact icon button (44px target kept, padding trimmed) into
    the top-right corner. Originally the language toggle; now the settings-screen entry point
    (language moved into the settings screen itself, see src/app/Settings.tsx). */
+.app-title {
+  font-size: var(--so-font-size-md, 1.25rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
 .app-header-icon-button {
   position: absolute;
   top: var(--so-space-3, 0.75rem);
