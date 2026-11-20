@@ -7,7 +7,8 @@ import { usePlanStore } from '../plan'
 import { shareUrl } from '../mixer/share'
 import type { Mix } from '../mixer/types'
 import { BEDTIME_NOTIFICATION_ID } from '../mobile/notifications'
-import { playLastMix } from '../sleep/persistence'
+import { playLastMix, saveMix } from '../sleep/persistence'
+import { soundEngine } from '../mixer/engine/instance'
 
 const reminderTap = vi.hoisted(() => ({ fire: (_id: number) => {} }))
 vi.mock('../mobile/notifications', async (importOriginal) => ({
@@ -70,6 +71,41 @@ describe('App', () => {
     expect(document.documentElement.lang).toBe('en')
 
     fireEvent.click(screen.getByRole('button', { name: '한국어' })) // restore for later tests
+  })
+})
+
+describe('App restores the saved mix once, not on every Mixer mount', () => {
+  function settingsRoundTrip() {
+    fireEvent.click(screen.getByRole('button', { name: '설정 열기' }))
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }))
+  }
+
+  it('keeps an orb added just before opening Settings (autosave still pending)', () => {
+    render(<App />)
+    act(() => {
+      useMixStore.getState().clearAll()
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    settingsRoundTrip()
+    expect(useMixStore.getState().current.placements.map((p) => p.soundId)).toEqual(['fan'])
+  })
+
+  it('does not restart a mix the sleep timer ended', async () => {
+    render(<App />)
+    act(() => {
+      useMixStore.getState().clearAll()
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    saveMix(useMixStore.getState().current)
+    await act(async () => {}) // the add's own load().then(play)
+    act(() => useMixStore.setState({ sleeping: true }))
+    const playSpy = vi.spyOn(soundEngine, 'play')
+    settingsRoundTrip()
+    await act(async () => {})
+    expect(playSpy).not.toHaveBeenCalled()
+    expect(useMixStore.getState().sleeping).toBe(true)
+    playSpy.mockRestore()
+    act(() => useMixStore.setState({ sleeping: false }))
   })
 })
 
