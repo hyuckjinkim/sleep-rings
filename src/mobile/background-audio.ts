@@ -115,6 +115,13 @@ export function initBackgroundAudio(target: BackgroundAudioTarget, source?: Play
     handle = h
   })
   const unsubscribe = source?.subscribe(syncKeepAliveService)
+  // Fresh boot = nothing audible yet. Clear a service left over from a previous WebView (e.g. the
+  // task was swiped away mid-playback — the service has no stopWithTask/onTaskRemoved handling),
+  // which the old stop-on-every-foreground path used to clean up implicitly.
+  serviceRunning = false
+  serviceQueue = serviceQueue.then(stopAndroidKeepAliveService).catch((err: unknown) => {
+    console.warn('[background-audio] keep-alive service boot cleanup failed', err)
+  })
   syncKeepAliveService()
 
   return () => {

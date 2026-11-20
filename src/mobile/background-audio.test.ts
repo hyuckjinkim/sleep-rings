@@ -77,6 +77,7 @@ describe('initBackgroundAudio keep-alive wiring', () => {
     const flush = () => new Promise((r) => setTimeout(r, 0))
 
     await flush()
+    expect(stopService).toHaveBeenCalledTimes(1) // boot cleanup of a leftover service
     expect(startService).not.toHaveBeenCalled() // restored but silent until the first gesture
 
     startKeepAliveAudio() // first gesture
@@ -89,12 +90,12 @@ describe('initBackgroundAudio keep-alive wiring', () => {
     expect(target.onEnterBackground).toHaveBeenCalled()
     expect(target.onEnterForeground).toHaveBeenCalled()
     expect(startService).toHaveBeenCalledTimes(1)
-    expect(stopService).not.toHaveBeenCalled()
+    expect(stopService).toHaveBeenCalledTimes(1) // app transitions never stop it
 
     playing = false // sleep timer finished / last orb removed
     notify()
     await flush()
-    expect(stopService).toHaveBeenCalledTimes(1)
+    expect(stopService).toHaveBeenCalledTimes(2)
 
     appStateListener!({ isActive: false })
     playing = true // e.g. lock-screen resume while hidden
