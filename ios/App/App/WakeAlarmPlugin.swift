@@ -47,10 +47,11 @@ public class WakeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
         Task {
             do {
                 let manager = AlarmManager.shared
-                if manager.authorizationState == .notDetermined {
-                    _ = try await manager.requestAuthorization()
+                var state = manager.authorizationState
+                if state == .notDetermined {
+                    state = try await manager.requestAuthorization()
                 }
-                guard manager.authorizationState == .authorized else {
+                guard state == .authorized else {
                     return call.reject("AlarmKit access was not granted")
                 }
                 Self.cancelAlarm() // one alarm at a time, re-armed under the same id
