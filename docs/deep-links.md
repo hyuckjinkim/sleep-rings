@@ -93,6 +93,13 @@ Add this inside `.MainActivity`, next to the existing launcher filter:
 `MainActivity` is already `singleTask`, so a link that arrives while the app is running is delivered
 as `appUrlOpen`.
 
+Android intent filters cannot match the URL fragment, so this filter claims **every** visit to the
+domain root, not just `#mix=` links. Once the link is verified, a phone with the app installed always
+opens the app instead of the web page at `/`. That is fine while the domain is only this app's web
+build. To keep `/` for the web, share under a dedicated path instead (e.g. `https://<DOMAIN>/m#mix=…`):
+change `shareUrl`'s base and use `android:path="/m"` here and `"/": "/m"` in the iOS file above.
+iOS can match the fragment (`"#": "mix=*"`), so the iOS file above only claims share links.
+
 ### 4. iOS Associated Domains entitlement
 
 1. In Xcode → App target → *Signing & Capabilities*, add **Associated Domains** with

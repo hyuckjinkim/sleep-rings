@@ -9,7 +9,7 @@ describe('registerServiceWorker', () => {
 
   beforeEach(() => {
     Object.defineProperty(navigator, 'serviceWorker', {
-      value: { register, ready: Promise.resolve({ active: { postMessage: vi.fn() } }) },
+      value: { register },
       configurable: true,
     })
   })
@@ -61,9 +61,6 @@ describe('public/sw.js', () => {
     if (!stores.has(name)) stores.set(name, new Map())
     const map = stores.get(name)!
     return {
-      add: async (r: string) => {
-        map.set(keyOf(r), await fetchFake(r))
-      },
       put: async (r: string | Req, res: Response) => {
         map.set(keyOf(r), res)
       },
@@ -92,12 +89,22 @@ describe('public/sw.js', () => {
     return responded
   }
   const request = (path: string, mode = 'cors'): Req => ({ url: `${ORIGIN}${path}`, method: 'GET', mode })
+  const SHELL_HTML = '<html><link href="./assets/icon-1.svg"><script src="/assets/index-abc.js"></script>v1</html>'
+  const defaultNetwork = (url: string): Response | null => {
+    const path = new URL(url).pathname
+    if (path === '/') return ok(SHELL_HTML, 'text/html')
+    if (path === '/assets/index-abc.js') return ok('import(`./web-lazy.js`);fetch("/sw.js");x("https://cdn.example/a.js")', 'text/javascript')
+    if (path === '/assets/web-lazy.js') return ok('import(`./web-missing.js`)', 'text/javascript')
+    if (path === '/assets/web-missing.js') return new Response('nope', { status: 404 })
+    return ok('data', 'application/javascript')
+  }
+  const cachedPaths = () => [...stores.get('sleeprings-v1')!.keys()].map((k) => new URL(k).pathname).sort()
 
   beforeEach(async () => {
     listeners = {}
     stores = new Map()
     fetchFake.mockClear()
-    network = (url) => (url.endsWith('/') ? ok('<html>v1</html>', 'text/html') : ok('data', 'application/javascript'))
+    network = defaultNetwork
     const self = {
       location: new URL(`${ORIGIN}/sw.js`),
       addEventListener: (type: string, fn: Handler) => (listeners[type] = fn),
@@ -116,6 +123,11 @@ describe('public/sw.js', () => {
     expect(stores.get('sleeprings-v1')!.has(`${ORIGIN}/`)).toBe(true)
   })
 
+  it('precaches the shell and every /assets/ file it reaches, lazy chunks included', () => {
+    // web-missing.js 404s and is skipped without failing install; /sw.js and other origins are ignored
+    expect(cachedPaths()).toEqual(['/', '/assets/icon-1.svg', '/assets/index-abc.js', '/assets/web-lazy.js'])
+  })
+
   it('navigations are network-first, then fall back to the cached shell offline (any URL)', async () => {
     network = () => ok('<html>v2</html>', 'text/html')
     expect(await (await dispatch('fetch', { request: request('/', 'navigate') }))!.text()).toBe('<html>v2</html>')
@@ -125,10 +137,10 @@ describe('public/sw.js', () => {
   })
 
   it('assets and sounds are cache-first after the first successful fetch', async () => {
-    await dispatch('fetch', { request: request('/assets/index-abc.js') })
+    await dispatch('fetch', { request: request('/assets/later-x.js') })
     await dispatch('fetch', { request: request('/sounds/seaside.m4a') })
     network = () => null
-    expect(await (await dispatch('fetch', { request: request('/assets/index-abc.js') }))!.text()).toBe('data')
+    expect(await (await dispatch('fetch', { request: request('/assets/later-x.js') }))!.text()).toBe('data')
     expect(await (await dispatch('fetch', { request: request('/sounds/seaside.m4a') }))!.text()).toBe('data')
   })
 
@@ -149,17 +161,13 @@ describe('public/sw.js', () => {
   })
 
   it('serves a cached asset offline even when the host sent Vary: Origin', async () => {
-    network = () => new Response('js', { status: 200, headers: { 'content-type': 'text/javascript', vary: 'Origin' } })
-    await dispatch('message', { data: [`${ORIGIN}/assets/index-abc.js`] })
+    network = (url) => {
+      const res = defaultNetwork(url)!
+      return new Response(res.body, { status: res.status, headers: { 'content-type': res.headers.get('content-type')!, vary: 'Origin' } })
+    }
+    stores.clear()
+    await dispatch('install')
     network = () => null
-    expect(await (await dispatch('fetch', { request: request('/assets/index-abc.js') }))!.text()).toBe('js')
-  })
-
-  it('caches the first-visit asset URLs the page posts, same-origin /assets/ only', async () => {
-    await dispatch('message', { data: [`${ORIGIN}/assets/web-x.js`, 'https://evil.example/assets/x.js', `${ORIGIN}/other.js`, 42] })
-    expect([...stores.get('sleeprings-v1')!.keys()].sort()).toEqual([`${ORIGIN}/`, `${ORIGIN}/assets/web-x.js`])
-    fetchFake.mockClear()
-    await dispatch('message', { data: [`${ORIGIN}/assets/web-x.js`] })
-    expect(fetchFake).not.toHaveBeenCalled() // already cached — not fetched again
+    expect(await (await dispatch('fetch', { request: request('/assets/web-lazy.js') }))!.text()).toBe('import(`./web-missing.js`)')
   })
 })

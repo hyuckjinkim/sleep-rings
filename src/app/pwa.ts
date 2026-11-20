@@ -7,11 +7,5 @@ export function registerServiceWorker(isProd: boolean = import.meta.env.PROD): v
   if (!isProd || Capacitor.isNativePlatform() || !('serviceWorker' in navigator)) return
   navigator.serviceWorker
     .register(`${import.meta.env.BASE_URL}sw.js`)
-    .then(() => navigator.serviceWorker.ready)
-    .then((registration) => {
-      // This first visit loaded its scripts before the worker existed — hand it their URLs so the
-      // next offline load has them (the worker caches only the ones it doesn't have yet).
-      registration.active?.postMessage(performance.getEntriesByType('resource').map((entry) => entry.name))
-    })
     .catch((err: unknown) => console.warn('[pwa] service worker registration failed', err))
 }

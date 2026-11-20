@@ -9,14 +9,38 @@ const SHELL = '/' // every navigation is the same SPA shell, so one fixed key se
 // src/audio/loader.ts), and a cache-first entry would keep that forever.
 const isCacheable = (res) => res.ok && !(res.headers.get('content-type') || '').includes('text/html')
 const isSound = (path) => /^\/sounds\/[^/]+\.m4a$/.test(path)
+// Quoted file references in HTML/JS: index.html's `/assets/…` and the entry's lazy `./web-….js` chunks.
+const FILE_REF = /["'`]((?:\.{1,2}\/|\/)?[\w./-]+\.(?:js|css|svg))["'`]/g
+
+// Precache the shell plus every /assets/ file it reaches (scripts are scanned for their lazy chunks),
+// so the very next load works offline, including code paths the first visit never ran.
+async function precache() {
+  const cache = await caches.open(CACHE)
+  const shell = await fetch(SHELL)
+  if (!shell.ok) throw new Error(`sw: shell fetch failed (${shell.status})`)
+  await cache.put(SHELL, shell.clone())
+  const seen = new Set()
+  const queue = [[await shell.text(), new URL(SHELL, self.location.href)]]
+  while (queue.length > 0) {
+    const [text, base] = queue.shift()
+    for (const [, ref] of text.matchAll(FILE_REF)) {
+      const url = new URL(ref, base)
+      if (url.origin !== self.location.origin || !url.pathname.startsWith('/assets/') || seen.has(url.href)) continue
+      seen.add(url.href)
+      try {
+        const res = await fetch(url.href)
+        if (!isCacheable(res)) continue
+        if (url.pathname.endsWith('.js')) queue.push([await res.clone().text(), url])
+        await cache.put(url.href, res)
+      } catch {
+        // one missing file must not block install — it gets cached on its next use instead
+      }
+    }
+  }
+}
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.add(SHELL))
-      .then(() => self.skipWaiting()),
-  )
+  event.waitUntil(precache().then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (event) => {
@@ -44,7 +68,7 @@ async function shellNetworkFirst(request) {
 // Hashed /assets/* never change under one name; sounds are cached the first time they're played.
 // ponytail: superseded hashed assets stay until VERSION is bumped — prune on activate if that grows.
 // ignoreVary: hosts send `Vary: Origin`, and crossorigin module scripts carry an Origin header the
-// worker's own prefetch below didn't — a hashed file is the same bytes either way.
+// worker's own precache fetch didn't — a hashed file is the same bytes either way.
 async function cacheFirst(request) {
   const cached = await caches.match(request, { ignoreVary: true })
   if (cached) return cached
@@ -60,27 +84,4 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
   if (request.mode === 'navigate') event.respondWith(shellNetworkFirst(request))
   else if (url.pathname.startsWith('/assets/') || isSound(url.pathname)) event.respondWith(cacheFirst(request))
-})
-
-// The page loaded its first-visit assets before this worker existed; it posts their URLs here
-// (src/app/pwa.ts) so the next offline load has them. Same-origin /assets/ only, never re-fetched.
-self.addEventListener('message', (event) => {
-  const urls = Array.isArray(event.data) ? event.data : []
-  event.waitUntil(
-    caches.open(CACHE).then((cache) =>
-      Promise.all(
-        urls.map(async (raw) => {
-          try {
-            const url = new URL(String(raw), self.location.href)
-            if (url.origin !== self.location.origin || !url.pathname.startsWith('/assets/')) return
-            if (await cache.match(url.href, { ignoreVary: true })) return
-            const res = await fetch(url.href)
-            if (isCacheable(res)) await cache.put(url.href, res)
-          } catch {
-            // offline or gone — it gets cached on its next use instead
-          }
-        }),
-      ),
-    ),
-  )
 })
