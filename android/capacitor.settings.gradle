@@ -23,5 +23,8 @@ project(':capawesome-capacitor-app-shortcuts').projectDir = new File('../node_mo
 include ':capgo-capacitor-app-intents'
 project(':capgo-capacitor-app-intents').projectDir = new File('../node_modules/@capgo/capacitor-app-intents/android')
 
+include ':capgo-capacitor-widget-kit'
+project(':capgo-capacitor-widget-kit').projectDir = new File('../node_modules/@capgo/capacitor-widget-kit/android')
+
 include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../node_modules/@revenuecat/purchases-capacitor/android')

@@ -4,6 +4,7 @@ import { App } from './app/App'
 import './app/theme.css'
 import i18n from './i18n'
 import { initBackgroundAudio, initMediaSession, setNowPlaying } from './mobile'
+import { setWidgetMixName } from './mobile/widget'
 import { UNTITLED_MIX_NAME, useMixStore } from './mixer/store'
 import { soundEngine } from './mixer/engine/instance'
 import { registerServiceWorker } from './app/pwa'
@@ -42,7 +43,14 @@ initMediaSession(
 )
 // Now Playing title follows the mix: a loaded preset's name, else the app name (setNowPlaying
 // skips unchanged titles, so the store's frequent ticks cost nothing).
-useMixStore.subscribe((s) => setNowPlaying(s.current.name === UNTITLED_MIX_NAME ? null : s.current.name))
+// The iOS widget shows the same name (setWidgetMixName skips unchanged ones too). Seeded once here:
+// subscribe only fires on changes, and a fresh install's widget would otherwise never get a name.
+const mixName = (name: string) => (name === UNTITLED_MIX_NAME ? null : name)
+setWidgetMixName(mixName(useMixStore.getState().current.name))
+useMixStore.subscribe((s) => {
+  setNowPlaying(mixName(s.current.name))
+  setWidgetMixName(mixName(s.current.name))
+})
 
 registerServiceWorker()
 

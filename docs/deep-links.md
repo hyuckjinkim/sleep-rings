@@ -12,8 +12,10 @@
   for cold starts. Both use the same decoder as the web.
 
   **Until the setup below is done, the OS never hands the app a link**, so the listener stays
-  idle. No custom URL scheme or verified domain is configured yet. Tapping a shared link on a
-  phone opens the web app in the browser, which works.
+  idle. No verified domain is configured yet. (iOS registers the `sleeprings://` scheme, but only
+  for the home-screen widget's `sleeprings://play-last-mix`, which `AppDelegate` handles itself;
+  share links stay https.) Tapping a shared link on a phone opens the web app in the browser,
+  which works.
 
 The fragment (`#mix=…`) never reaches a server. The decoder treats every link as untrusted input:
 - It rejects unknown versions and anything larger than 6000 characters.

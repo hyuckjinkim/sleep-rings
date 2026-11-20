@@ -16,6 +16,7 @@ dependencies {
     implementation project(':capawesome-team-capacitor-android-foreground-service')
     implementation project(':capawesome-capacitor-app-shortcuts')
     implementation project(':capgo-capacitor-app-intents')
+    implementation project(':capgo-capacitor-widget-kit')
     implementation project(':revenuecat-purchases-capacitor')
 
 }

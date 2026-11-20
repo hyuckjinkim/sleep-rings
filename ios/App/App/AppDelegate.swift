@@ -51,6 +51,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        // "Play last mix" widget tap (ios/App/SleepRingsWidget): replay it as the launcher shortcut's
+        // quick action, so JS takes the same route (app-shortcuts.ts → playLastMix()). Not forwarded
+        // to the App plugin: as a launch URL it would make setPlayLastMixShortcut skip this session.
+        // Async as above, for a cold launch. UNVERIFIED: written without Xcode, never built.
+        if url.scheme == "sleeprings" && url.host == "play-last-mix" {
+            let item = UIApplicationShortcutItem(type: "play-last-mix", localizedTitle: "Play last mix")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: NSNotification.Name(AppShortcutsPlugin.notificationName), object: nil, userInfo: [AppShortcutsPlugin.userInfoShortcutItemKey: item])
+            }
+            return true
+        }
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)

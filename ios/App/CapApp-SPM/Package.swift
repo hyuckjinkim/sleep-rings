@@ -18,6 +18,7 @@ let package = Package(
         .package(name: "CapacitorLocalNotifications", path: "../../../node_modules/@capacitor/local-notifications"),
         .package(name: "CapawesomeCapacitorAppShortcuts", path: "../../../node_modules/@capawesome/capacitor-app-shortcuts"),
         .package(name: "CapgoCapacitorAppIntents", path: "../../../node_modules/@capgo/capacitor-app-intents"),
+        .package(name: "CapgoCapacitorWidgetKit", path: "../../../node_modules/@capgo/capacitor-widget-kit"),
         .package(name: "RevenuecatPurchasesCapacitor", path: "../../../node_modules/@revenuecat/purchases-capacitor")
     ],
     targets: [
@@ -32,6 +33,7 @@ let package = Package(
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
                 .product(name: "CapawesomeCapacitorAppShortcuts", package: "CapawesomeCapacitorAppShortcuts"),
                 .product(name: "CapgoCapacitorAppIntents", package: "CapgoCapacitorAppIntents"),
+                .product(name: "CapgoCapacitorWidgetKit", package: "CapgoCapacitorWidgetKit"),
                 .product(name: "RevenuecatPurchasesCapacitor", package: "RevenuecatPurchasesCapacitor")
             ]
         )
