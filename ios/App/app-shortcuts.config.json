@@ -1,0 +1,11 @@
+{
+  "providerName": "CapgoGeneratedAppShortcuts",
+  "shortcuts": [
+    {
+      "actionName": "playLastMix",
+      "shortTitle": "Play last mix",
+      "systemImageName": "play.fill",
+      "phrases": ["Play {{applicationName}}", "Play last mix in {{applicationName}}"]
+    }
+  ]
+}

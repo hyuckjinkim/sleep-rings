@@ -20,5 +20,8 @@ project(':capawesome-team-capacitor-android-foreground-service').projectDir = ne
 include ':capawesome-capacitor-app-shortcuts'
 project(':capawesome-capacitor-app-shortcuts').projectDir = new File('../node_modules/@capawesome/capacitor-app-shortcuts/android')
 
+include ':capgo-capacitor-app-intents'
+project(':capgo-capacitor-app-intents').projectDir = new File('../node_modules/@capgo/capacitor-app-intents/android')
+
 include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../node_modules/@revenuecat/purchases-capacitor/android')

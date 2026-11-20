@@ -15,6 +15,7 @@ dependencies {
     implementation project(':capacitor-local-notifications')
     implementation project(':capawesome-team-capacitor-android-foreground-service')
     implementation project(':capawesome-capacitor-app-shortcuts')
+    implementation project(':capgo-capacitor-app-intents')
     implementation project(':revenuecat-purchases-capacitor')
 
 }

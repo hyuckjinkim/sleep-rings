@@ -25,6 +25,13 @@ vi.mock('../mobile/app-shortcuts', () => ({
     return () => {}
   },
 }))
+const siriIntent = vi.hoisted(() => ({ fire: () => {} }))
+vi.mock('../mobile/app-intents', () => ({
+  onPlayLastMixIntent: (cb: () => void) => {
+    siriIntent.fire = cb
+    return () => {}
+  },
+}))
 vi.mock('../sleep/persistence', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../sleep/persistence')>()),
   playLastMix: vi.fn().mockResolvedValue(true),
@@ -153,5 +160,16 @@ describe('App "play last mix" launcher shortcut', () => {
     })
     await act(async () => shortcutTap.fire())
     expect(screen.getByText('마지막 믹스를 재생할까요?')).toBeInTheDocument()
+  })
+})
+
+describe('App Siri "Play last mix" intent', () => {
+  it('takes the same path as the launcher shortcut', async () => {
+    vi.mocked(playLastMix).mockClear().mockResolvedValueOnce(true)
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '설정 열기' }))
+    await act(async () => siriIntent.fire())
+    expect(playLastMix).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('.mixer-field')).toBeInTheDocument()
   })
 })
