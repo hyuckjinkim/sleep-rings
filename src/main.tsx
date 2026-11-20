@@ -6,6 +6,7 @@ import i18n from './i18n'
 import { initBackgroundAudio, initMediaSession, setNowPlaying } from './mobile'
 import { UNTITLED_MIX_NAME, useMixStore } from './mixer/store'
 import { soundEngine } from './mixer/engine/instance'
+import { registerServiceWorker } from './app/pwa'
 
 // Once for the app's lifetime — safe on plain web too (@capacitor/app ships a Page Visibility
 // web fallback), see docs/android-build.md §4. The Android keep-alive service follows playback
@@ -42,6 +43,8 @@ initMediaSession(
 // Now Playing title follows the mix: a loaded preset's name, else the app name (setNowPlaying
 // skips unchanged titles, so the store's frequent ticks cost nothing).
 useMixStore.subscribe((s) => setNowPlaying(s.current.name === UNTITLED_MIX_NAME ? null : s.current.name))
+
+registerServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
