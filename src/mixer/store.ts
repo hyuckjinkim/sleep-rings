@@ -139,6 +139,10 @@ interface MixStore {
   deletePreset(id: string): void
   startSleepTimer(minutes: number): void
   cancelSleepTimer(): void
+  /** Leave the post-timer "sleeping" state: the engine tore every source down at timer end, so
+   * clearing the flag alone would leave orbs on screen (and the app counted as playing) with
+   * nothing audible. Restarts every placement. No-op unless sleeping. */
+  wake(): void
 }
 
 let sleepTimeout: ReturnType<typeof setTimeout> | undefined
@@ -162,6 +166,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
     hapticTap()
     setMediaSessionPlaying(true)
     soundEngine.onEnterForeground() // MEDIUM-2: re-resume if a completed sleep timer suspended the context
+    get().wake() // the other orbs were stopped at timer end too — bring them back with this one
     const placement: Placement = {
       id: makeId('p'),
       soundId,
@@ -357,17 +362,30 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   startSleepTimer(minutes) {
     soundEngine.onEnterForeground() // MEDIUM-2
+    get().wake()
     clearTimeout(sleepTimeout)
     const durationSec = Math.max(0, minutes) * 60
     soundEngine.scheduleSleep(durationSec, SLEEP_FADE_SEC)
     set({ sleepEndsAt: Date.now() + durationSec * 1000, sleeping: false })
-    sleepTimeout = setTimeout(() => set({ sleeping: true, sleepEndsAt: null }), durationSec * 1000)
+    sleepTimeout = setTimeout(() => {
+      set({ sleeping: true, sleepEndsAt: null })
+      setMediaSessionPlaying(false)
+    }, durationSec * 1000)
   },
 
   cancelSleepTimer() {
     soundEngine.onEnterForeground() // MEDIUM-2: lets the "off" recovery path also un-suspend
+    get().wake()
     clearTimeout(sleepTimeout)
     soundEngine.cancelSleep()
     set({ sleepEndsAt: null, sleeping: false })
+  },
+
+  wake() {
+    if (!get().sleeping) return
+    set({ sleeping: false })
+    const placements = get().current.placements
+    if (placements.length > 0) setMediaSessionPlaying(true)
+    for (const p of placements) startPlayback(p) // engine.play() is a no-op for anything still active
   },
 }))

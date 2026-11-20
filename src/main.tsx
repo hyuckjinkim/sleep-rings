@@ -23,7 +23,17 @@ initBackgroundAudio(soundEngine, {
 })
 // Lock-screen / notification transport controls. Standard navigator.mediaSession, no plugin;
 // no-ops where unsupported (docs/android-build.md §8).
-initMediaSession(soundEngine, 'SleepRings')
+// Lock-screen "play" after a finished sleep timer must restart the orbs, not just un-suspend.
+initMediaSession(
+  {
+    onEnterBackground: () => soundEngine.onEnterBackground(),
+    onEnterForeground: () => {
+      soundEngine.onEnterForeground()
+      useMixStore.getState().wake()
+    },
+  },
+  'SleepRings',
+)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

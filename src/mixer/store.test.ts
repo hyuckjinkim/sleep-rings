@@ -315,6 +315,55 @@ describe('sleep timer', () => {
   })
 })
 
+describe('after the sleep timer finishes (engine stopped every source)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  async function finishTimerWithTwoOrbs() {
+    useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    useMixStore.getState().addPlacement('noise-pink', 0.5, 1)
+    useMixStore.getState().startSleepTimer(15)
+    vi.advanceTimersByTime(15 * 60 * 1000)
+    expect(useMixStore.getState().sleeping).toBe(true)
+    await vi.advanceTimersByTimeAsync(0) // flush the pending load().then(play) from the adds
+    return vi.spyOn(soundEngine, 'play')
+  }
+
+  it('"Off" restarts every orb, so "not sleeping" really means audible', async () => {
+    const playSpy = await finishTimerWithTwoOrbs()
+    useMixStore.getState().cancelSleepTimer()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(useMixStore.getState().sleeping).toBe(false)
+    expect(playSpy.mock.calls.map(([p]) => p.soundId).sort()).toEqual(['noise-pink', 'noise-white'])
+  })
+
+  it('adding an orb brings the stopped ones back too, not just the new one', async () => {
+    const playSpy = await finishTimerWithTwoOrbs()
+    useMixStore.getState().addPlacement('noise-brown', 0.4, 2)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(playSpy.mock.calls.map(([p]) => p.soundId).sort()).toEqual(['noise-brown', 'noise-pink', 'noise-white'])
+  })
+
+  it('starting a new timer restarts them as well', async () => {
+    const playSpy = await finishTimerWithTwoOrbs()
+    useMixStore.getState().startSleepTimer(30)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(playSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('wake() does nothing while not sleeping', async () => {
+    const playSpy = vi.spyOn(soundEngine, 'play')
+    useMixStore.getState().wake()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(playSpy).not.toHaveBeenCalled()
+  })
+})
+
 describe('B2: plan gate', () => {
   it('startPlayback (via addPlacement) refuses a sound the current plan does not allow', () => {
     const playSpy = vi.spyOn(soundEngine, 'play')
