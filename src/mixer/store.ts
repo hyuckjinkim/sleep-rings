@@ -157,6 +157,7 @@ interface MixStore {
   sleeping: boolean // true once a sleep timer's fade+stop has completed
   alarmAt: number | null // epoch ms of an armed (or ringing) wake alarm — in-memory only, like the engine schedule
   alarmRinging: boolean
+  bedtimeAt: number | null // epoch ms of a pending bedtime start — in-memory only, like the alarm
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
   lastRemovedAll: Placement[] | null // clear-all undo buffer, same single-slot/timeout shape as lastRemoved
   layerLimitNotice: LayerLimitNotice | null // B2: transient, cleared after UNDO_TIMEOUT_MS
@@ -184,6 +185,11 @@ interface MixStore {
   armAlarm(atMs: number, soundId: string): void
   /** Disarm a pending alarm, or stop a ringing one. */
   dismissAlarm(): void
+  /** Hold the current mix silent until atMs, then fade it in. Free. The arming tap is the user
+   * gesture that unlocks audio, and the context stays alive (silently playing) until then. */
+  armBedtime(atMs: number): void
+  /** Drop a pending bedtime start — the mix plays now. */
+  cancelBedtime(): void
 }
 
 let sleepTimeout: ReturnType<typeof setTimeout> | undefined
@@ -191,6 +197,7 @@ let undoTimeout: ReturnType<typeof setTimeout> | undefined
 let undoAllTimeout: ReturnType<typeof setTimeout> | undefined
 let layerLimitTimeout: ReturnType<typeof setTimeout> | undefined
 let alarmTimeout: ReturnType<typeof setTimeout> | undefined
+let bedtimeTimeout: ReturnType<typeof setTimeout> | undefined
 
 export const useMixStore = create<MixStore>((set, get) => ({
   current: emptyMix(),
@@ -201,6 +208,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   sleeping: false,
   alarmAt: null,
   alarmRinging: false,
+  bedtimeAt: null,
   lastRemoved: null,
   lastRemovedAll: null,
   layerLimitNotice: null,
@@ -412,7 +420,10 @@ export const useMixStore = create<MixStore>((set, get) => ({
     soundEngine.onEnterForeground() // MEDIUM-2
     get().wake()
     clearTimeout(sleepTimeout)
-    const durationSec = Math.max(0, minutes) * 60
+    // With a bedtime start pending, the timer counts from that start, not from now.
+    const bedtimeAt = get().bedtimeAt
+    const waitSec = bedtimeAt ? Math.max(0, (bedtimeAt - Date.now()) / 1000) : 0
+    const durationSec = Math.max(0, minutes) * 60 + waitSec
     soundEngine.scheduleSleep(durationSec, fadeSec)
     set({ sleepEndsAt: Date.now() + durationSec * 1000, sleeping: false })
     sleepTimeout = setTimeout(() => {
@@ -465,5 +476,27 @@ export const useMixStore = create<MixStore>((set, get) => ({
       set({ sleeping: true, sleepEndsAt: null })
     }
     set({ alarmAt: null, alarmRinging: false })
+  },
+
+  armBedtime(atMs) {
+    soundEngine.onEnterForeground() // a frozen (suspended) audio clock would never reach the start
+    clearTimeout(bedtimeTimeout)
+    // A timer counting from now would end the mix before it starts; set it again after arming.
+    if (get().sleepEndsAt) {
+      clearTimeout(sleepTimeout)
+      soundEngine.cancelSleep()
+      set({ sleepEndsAt: null })
+    }
+    soundEngine.scheduleStart(atMs) // hold first, so the orbs wake() restarts below stay silent
+    set({ bedtimeAt: atMs })
+    get().wake() // a finished sleep timer stopped every source — bring them back, held
+    // UI only — the start itself is on the audio clock above, immune to timer throttling.
+    bedtimeTimeout = setTimeout(() => set({ bedtimeAt: null }), Math.max(0, atMs - Date.now()))
+  },
+
+  cancelBedtime() {
+    clearTimeout(bedtimeTimeout)
+    soundEngine.cancelStart()
+    set({ bedtimeAt: null })
   },
 }))

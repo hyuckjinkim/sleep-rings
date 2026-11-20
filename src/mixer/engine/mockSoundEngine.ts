@@ -39,6 +39,12 @@ export function createMockSoundEngine(): SoundEngine {
     cancelSleep() {
       log('cancelSleep')
     },
+    scheduleStart(atMs) {
+      log('scheduleStart', atMs)
+    },
+    cancelStart() {
+      log('cancelStart')
+    },
     scheduleAlarm(soundId, atMs, fadeSec) {
       log('scheduleAlarm', soundId, atMs, fadeSec)
     },

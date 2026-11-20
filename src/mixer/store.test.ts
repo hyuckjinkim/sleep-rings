@@ -443,6 +443,69 @@ describe('wake alarm', () => {
   })
 })
 
+describe('bedtime start', () => {
+  const T0 = new Date('2026-01-01T22:00:00').getTime()
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0)
+    useMixStore.setState({ bedtimeAt: null })
+  })
+  afterEach(() => {
+    useMixStore.getState().cancelBedtime()
+    useMixStore.getState().cancelSleepTimer()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('holds the mix on the engine until the start time, then clears the armed state', () => {
+    const scheduleSpy = vi.spyOn(soundEngine, 'scheduleStart')
+    useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    expect(scheduleSpy).toHaveBeenCalledWith(T0 + 3600_000)
+    expect(useMixStore.getState().bedtimeAt).toBe(T0 + 3600_000)
+    vi.advanceTimersByTime(3600_000)
+    expect(useMixStore.getState().bedtimeAt).toBeNull()
+  })
+
+  it('cancelBedtime() un-holds the mix on the engine', () => {
+    const cancelSpy = vi.spyOn(soundEngine, 'cancelStart')
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    useMixStore.getState().cancelBedtime()
+    expect(cancelSpy).toHaveBeenCalled()
+    expect(useMixStore.getState().bedtimeAt).toBeNull()
+  })
+
+  it('arming restarts a mix a finished sleep timer had stopped (held silent)', async () => {
+    useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    useMixStore.getState().startSleepTimer(1)
+    vi.advanceTimersByTime(60_000)
+    expect(useMixStore.getState().sleeping).toBe(true)
+    const scheduleSpy = vi.spyOn(soundEngine, 'scheduleStart')
+    const playSpy = vi.spyOn(soundEngine, 'play')
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    expect(useMixStore.getState().sleeping).toBe(false)
+    await vi.advanceTimersByTimeAsync(0) // synth load() resolves, then play()
+    expect(playSpy).toHaveBeenCalled()
+    expect(scheduleSpy.mock.invocationCallOrder[0]).toBeLessThan(playSpy.mock.invocationCallOrder[0])
+  })
+
+  it('arming drops a running sleep timer, which would otherwise end the mix before it starts', () => {
+    const cancelSleepSpy = vi.spyOn(soundEngine, 'cancelSleep')
+    useMixStore.getState().startSleepTimer(30)
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    expect(cancelSleepSpy).toHaveBeenCalled()
+    expect(useMixStore.getState().sleepEndsAt).toBeNull()
+  })
+
+  it('a sleep timer set while armed counts from the start time', () => {
+    const sleepSpy = vi.spyOn(soundEngine, 'scheduleSleep')
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    useMixStore.getState().startSleepTimer(30, 60)
+    expect(sleepSpy).toHaveBeenLastCalledWith(3600 + 1800, 60)
+    expect(useMixStore.getState().sleepEndsAt).toBe(T0 + 3600_000 + 1800_000)
+  })
+})
+
 describe('paid per-sound controls reach the engine only on a plan that includes them', () => {
   const base = {
     id: 'p',

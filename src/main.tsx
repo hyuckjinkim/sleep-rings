@@ -11,10 +11,11 @@ import { soundEngine } from './mixer/engine/instance'
 // web fallback), see docs/android-build.md §4. The Android keep-alive service follows playback
 // (orbs placed, sleep timer not yet finished, or an alarm armed), not app foreground/background.
 // An armed alarm counts too: the WebView (and its running AudioContext) has to survive the night
-// in the background for the alarm to fire, even after the timer silenced the mix.
+// in the background for the alarm to fire, even after the timer silenced the mix. A pending bedtime
+// start likewise — arming it is the visible moment the service is allowed to start.
 const isMixPlaying = () => {
   const s = useMixStore.getState()
-  return (s.current.placements.length > 0 && !s.sleeping) || s.alarmAt !== null
+  return (s.current.placements.length > 0 && !s.sleeping) || s.alarmAt !== null || s.bedtimeAt !== null
 }
 initBackgroundAudio(soundEngine, {
   isPlaying: isMixPlaying,

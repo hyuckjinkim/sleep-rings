@@ -115,6 +115,14 @@
       "minutesShort": "분",
       "customStart": "시작"
     },
+    "bedtime": {
+      "title": "예약 시작",
+      "time": "시작 시각",
+      "set": "이때 시작",
+      "cancel": "지금 재생",
+      "armed": "{{time}}에 시작",
+      "note": "지금 믹스가 그때까지 조용히 있다가 천천히 커져요. SleepRings가 켜져 있어야 해요(백그라운드 실행은 괜찮아요). 앱을 종료하면 예약도 취소돼요."
+    },
     "alarm": {
       "title": "기상 알람",
       "time": "기상 시각",

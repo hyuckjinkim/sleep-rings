@@ -115,6 +115,14 @@
       "minutesShort": "m",
       "customStart": "Start"
     },
+    "bedtime": {
+      "title": "Bedtime start",
+      "time": "Start time",
+      "set": "Start then",
+      "cancel": "Play now",
+      "armed": "Starts at {{time}}",
+      "note": "The current mix stays silent until then and fades in at that time. SleepRings has to stay open (it may run in the background) — closing the app cancels it."
+    },
     "alarm": {
       "title": "Wake alarm",
       "time": "Wake time",

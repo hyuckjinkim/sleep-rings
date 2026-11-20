@@ -23,7 +23,7 @@ let lastShareUrl: string | null = null
 export function App() {
   const { t } = useTranslation()
   // §2.2: the background layer breathes only while something is actually audible.
-  const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping)
+  const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping && s.bedtimeAt === null)
   const [screen, setScreen] = useState<Screen>('mixer')
   const [shareUpsell, setShareUpsell] = useState<Exclude<Plan, 'free'> | null>(null)
 

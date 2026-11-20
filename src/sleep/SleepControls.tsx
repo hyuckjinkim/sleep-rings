@@ -32,6 +32,10 @@ export function SleepControls() {
   const dismissAlarm = useMixStore((s) => s.dismissAlarm)
   const [wakeTime, setWakeTime] = useState('07:00')
   const [wakeSound, setWakeSound] = useState(WAKE_SOUNDS[0])
+  const bedtimeAt = useMixStore((s) => s.bedtimeAt)
+  const armBedtime = useMixStore((s) => s.armBedtime)
+  const cancelBedtime = useMixStore((s) => s.cancelBedtime)
+  const [bedtime, setBedtime] = useState('23:00')
   const sleepEndsAt = useMixStore((s) => s.sleepEndsAt)
   const sleeping = useMixStore((s) => s.sleeping)
   const startSleepTimer = useMixStore((s) => s.startSleepTimer)
@@ -152,6 +156,37 @@ export function SleepControls() {
               {t('mixer.sleep.customStart')}
             </button>
           </span>
+        </div>
+
+        <div className="mixer-alarm" role="group" aria-labelledby="mixer-bedtime-title">
+          <span className="mixer-alarm-title" id="mixer-bedtime-title">
+            {t('mixer.bedtime.title')}
+          </span>
+          {bedtimeAt ? (
+            <div className="mixer-alarm-row">
+              <span className="mixer-sleep-remaining">
+                {t('mixer.bedtime.armed', {
+                  time: new Date(bedtimeAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+                })}
+              </span>
+              <button type="button" onClick={cancelBedtime}>
+                {t('mixer.bedtime.cancel')}
+              </button>
+            </div>
+          ) : (
+            <div className="mixer-alarm-row">
+              <input
+                type="time"
+                value={bedtime}
+                onChange={(e) => setBedtime(e.target.value)}
+                aria-label={t('mixer.bedtime.time')}
+              />
+              <button type="button" disabled={!bedtime || !hasPlacements} onClick={() => armBedtime(nextAlarmAt(bedtime))}>
+                {t('mixer.bedtime.set')}
+              </button>
+            </div>
+          )}
+          <p className="mixer-alarm-note">{t('mixer.bedtime.note')}</p>
         </div>
 
         <div className="mixer-alarm" role="group" aria-labelledby="mixer-alarm-title">

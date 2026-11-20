@@ -127,3 +127,26 @@ describe('share button', () => {
     expect(await screen.findByText('링크를 복사하지 못했어요')).toBeInTheDocument()
   })
 })
+
+describe('bedtime start', () => {
+  it('is disabled for an empty mix, arms for the picked time, and can be cancelled', () => {
+    const now = new Date('2026-01-01T21:00:00')
+    vi.setSystemTime(now)
+    useMixStore.setState({ bedtimeAt: null })
+    render(<SleepControls />)
+    const startButton = screen.getByRole('button', { name: '이때 시작' })
+    expect(startButton).toBeDisabled()
+    expect(screen.getByText(/SleepRings가 켜져 있어야 해요/)).toBeInTheDocument()
+
+    act(() => {
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    fireEvent.change(screen.getByLabelText('시작 시각'), { target: { value: '22:30' } })
+    fireEvent.click(startButton)
+    expect(useMixStore.getState().bedtimeAt).toBe(new Date('2026-01-01T22:30:00').getTime())
+    expect(screen.getByText(/에 시작$/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '지금 재생' }))
+    expect(useMixStore.getState().bedtimeAt).toBeNull()
+  })
+})

@@ -1,11 +1,12 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> [vary] -> master -> night -> intro -> wake -> limiter -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> [vary] -> master -> night -> intro -> wake -> bedtime -> limiter -> destination.
 // `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
 // `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
 // `intro` likewise belongs to the start fade-in alone, and `wake` to the alarm's crossfade (one
-// AudioParam per scheduler). The alarm sound itself bypasses all three: alarm -> alarmGain -> limiter.
+// AudioParam per scheduler). `bedtime` holds the mix silent until a scheduled start. The alarm sound
+// itself bypasses all of these: alarm -> alarmGain -> limiter.
 import type { NoiseColor, Placement, Sound } from '../data/types'
 import { renderBinauralBuffer } from './binaural'
 import { fadeTo } from './fade'
@@ -106,9 +107,11 @@ export class SoundEngine {
   private readonly night: EngineGainNode
   private readonly intro: EngineGainNode
   private readonly wake: EngineGainNode
+  private readonly bedtime: EngineGainNode
   private readonly limiter: EngineDynamicsCompressorNode
   private alarm?: AlarmNodes
   private alarmEndTimer?: ReturnType<typeof setTimeout>
+  private bedtimeStart?: { atMs: number; startAt: number } // wall-clock target + its audio-clock time
   private startFadeSec = 0
   private userVolume = 1
   private volumeCap = 1 // user-set ceiling: master = userVolume * volumeCap, alarm peaks at volumeCap
@@ -125,6 +128,7 @@ export class SoundEngine {
     this.night = ctx.createGain()
     this.intro = ctx.createGain()
     this.wake = ctx.createGain()
+    this.bedtime = ctx.createGain()
     // Brick-wall-ish limiter: stacking several full-scale noise layers can sum past 0 dBFS and clip.
     // Threshold sits just under full scale so normal mixes pass untouched.
     const limiter = (this.limiter = ctx.createDynamicsCompressor())
@@ -136,7 +140,8 @@ export class SoundEngine {
     this.master.connect(this.night)
     this.night.connect(this.intro)
     this.intro.connect(this.wake)
-    this.wake.connect(limiter)
+    this.wake.connect(this.bedtime)
+    this.bedtime.connect(limiter)
     limiter.connect(ctx.destination)
     this.loadFile = createAudioBufferLoader(ctx)
   }
@@ -425,7 +430,7 @@ export class SoundEngine {
       this.resetNight(0)
       // A suspended context has a frozen clock, so an armed alarm would never fire: keep it
       // running (silent — every source is gone) until the alarm does.
-      if (!this.alarm) void this.ctx.suspend()
+      if (!this.alarm && !this.isStartPending()) void this.ctx.suspend()
     }, durationSec * 1000)
   }
 
@@ -433,6 +438,33 @@ export class SoundEngine {
     clearTimeout(this.sleepStopTimer)
     this.sleepStopTimer = undefined
     this.resetNight(NIGHT_RESTORE_SEC)
+  }
+
+  /**
+   * Bedtime start at wall-clock `atMs`: the mix is held silent on the `bedtime` stage (sources keep
+   * running, which also keeps the context — and the start — alive), then fades in on the audio
+   * clock over the start fade-in length (or the short click guard). Only works while the app runs.
+   */
+  scheduleStart(atMs: number): void {
+    const now = this.ctx.currentTime
+    const holdFrom = now + NIGHT_RESTORE_SEC
+    const startAt = Math.max(holdFrom, now + (atMs - Date.now()) / 1000)
+    const gain = this.bedtime.gain
+    fadeTo(gain, now, 0, NIGHT_RESTORE_SEC) // a mix already playing goes quiet without a click
+    gain.setValueAtTime(0, startAt)
+    gain.linearRampToValueAtTime(1, startAt + Math.max(this.startFadeSec, FADE_IN_SEC))
+    this.bedtimeStart = { atMs, startAt }
+  }
+
+  /** Drop a pending bedtime start: the mix becomes audible now. */
+  cancelStart(): void {
+    if (!this.bedtimeStart) return
+    this.bedtimeStart = undefined
+    fadeTo(this.bedtime.gain, this.ctx.currentTime, 1, NIGHT_RESTORE_SEC)
+  }
+
+  private isStartPending(): boolean {
+    return !!this.bedtimeStart && this.ctx.currentTime < this.bedtimeStart.startAt
   }
 
   /**
@@ -545,12 +577,15 @@ export class SoundEngine {
       // late by however long that was — re-derive it from the wall-clock target.
       const alarm = this.alarm
       if (alarm && this.ctx.currentTime < alarm.startAt) this.scheduleAlarm(alarm.soundId, alarm.atMs, alarm.fadeSec)
+      const start = this.bedtimeStart // same for a pending bedtime start
+      if (start && this.ctx.currentTime < start.startAt) this.scheduleStart(start.atMs)
     })
   }
 
   dispose(): void {
     this.cancelSleep()
     this.disarmAlarm()
+    this.bedtimeStart = undefined
     for (const nodes of this.active.values()) this.cleanupNodes(nodes)
     this.active.clear()
     this.sounds.clear()

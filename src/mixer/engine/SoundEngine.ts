@@ -35,6 +35,11 @@ export interface SoundEngine {
   scheduleSleep(durationSec: number, fadeSec: number): void
   cancelSleep(): void
 
+  /** Bedtime start at wall-clock atMs (epoch ms): the mix is held silent (sources keep running, so
+   * the context stays alive) and fades in at atMs on the audio clock. cancelStart() un-holds now. */
+  scheduleStart(atMs: number): void
+  cancelStart(): void
+
   /** Wake alarm at wall-clock atMs (epoch ms): the loaded sound fades in over fadeSec while the mix
    * crossfades out. Needs the app (AudioContext) running — a finished sleep timer won't suspend
    * while one is armed. cancelAlarm() disarms, or dismisses one that's already ringing (and then

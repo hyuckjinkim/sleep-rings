@@ -29,8 +29,8 @@ const BINAURAL_SOUND: Sound = {
   license: { spdx: 'no-license-required', sourceName: 'synth' },
 }
 
-// master, night, intro, wake — created by the constructor before any placement gain.
-const GLOBAL_GAINS = 4
+// master, night, intro, wake, bedtime — created by the constructor before any placement gain.
+const GLOBAL_GAINS = 5
 
 function placement(overrides: Partial<Placement> = {}): Placement {
   return {
@@ -214,21 +214,23 @@ describe('SoundEngine', () => {
     expect(master.gain.value).toBe(0.5)
   })
 
-  // createGain order in the constructor: [0] master, [1] night, [2] intro, [3] wake — placement gains come after.
+  // createGain order in the constructor: [0] master, [1] night, [2] intro, [3] wake, [4] bedtime — placement gains come after.
   function gainNode(index: number) {
     return vi.mocked(ctx.createGain).mock.results[index].value
   }
 
-  it('wires master -> night -> intro -> wake -> limiter -> destination with conservative limiter settings', () => {
+  it('wires master -> night -> intro -> wake -> bedtime -> limiter -> destination with conservative limiter settings', () => {
     const master = gainNode(0)
     const night = gainNode(1)
     const intro = gainNode(2)
     const wake = gainNode(3)
+    const bedtime = gainNode(4)
     const limiter = vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
     expect(master.connect).toHaveBeenCalledWith(night)
     expect(night.connect).toHaveBeenCalledWith(intro)
     expect(intro.connect).toHaveBeenCalledWith(wake)
-    expect(wake.connect).toHaveBeenCalledWith(limiter)
+    expect(wake.connect).toHaveBeenCalledWith(bedtime)
+    expect(bedtime.connect).toHaveBeenCalledWith(limiter)
     expect(limiter.connect).toHaveBeenCalledWith(ctx.destination)
     expect(limiter.threshold.value).toBe(-3)
     expect(limiter.ratio.value).toBe(20)
@@ -567,6 +569,68 @@ describe('SoundEngine', () => {
 
     it('throws if the wake sound was never loaded', () => {
       expect(() => engine.scheduleAlarm('nope', T0, 10)).toThrow(/not loaded/)
+    })
+  })
+
+  describe('bedtime start (mix held silent on the audio clock, then faded in)', () => {
+    const T0 = new Date('2026-01-01T22:00:00').getTime()
+    const bedtime = () => gainNode(4).gain
+
+    beforeEach(async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(T0)
+      ctx.currentTime = 100
+      await engine.load(NOISE_SOUND)
+      engine.play(placement())
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('fades the playing mix out now, holds it at 0, and ramps it in at the audio-clock start time', () => {
+      engine.scheduleStart(T0 + 3600_000)
+      expect(bedtime().cancelScheduledValues).toHaveBeenCalledWith(100)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenCalledWith(0, 100.5)
+      expect(bedtime().setValueAtTime).toHaveBeenLastCalledWith(0, 3700)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 3700 + FADE_IN_SEC)
+      expect(engine.inspect('p1')).not.toBeNull() // sources keep running (silently) through the hold
+    })
+
+    it('fades in over the start fade-in length when one is set', () => {
+      engine.setStartFade(30)
+      engine.scheduleStart(T0 + 60_000)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 160 + 30)
+    })
+
+    it('a start time already passed starts right after the short hold-in ramp', () => {
+      engine.scheduleStart(T0 - 5000)
+      expect(bedtime().setValueAtTime).toHaveBeenLastCalledWith(0, 100.5)
+    })
+
+    it('cancelStart() brings the mix back now', () => {
+      engine.scheduleStart(T0 + 3600_000)
+      ctx.currentTime = 200
+      engine.cancelStart()
+      expect(bedtime().cancelScheduledValues).toHaveBeenLastCalledWith(200)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 200.5)
+    })
+
+    it('a sleep timer ending before the start does not suspend the context', () => {
+      engine.scheduleStart(T0 + 3600_000)
+      engine.scheduleSleep(600, 60)
+      vi.advanceTimersByTime(600_000)
+      ctx.currentTime = 700
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it('re-derives a pending start from the wall clock after the context was suspended', async () => {
+      engine.scheduleStart(T0 + 3600_000)
+      ctx.state = 'suspended' // clock froze at 100 while 10 minutes of wall time passed
+      vi.setSystemTime(T0 + 600_000)
+      engine.onEnterForeground()
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(bedtime().setValueAtTime).toHaveBeenLastCalledWith(0, 100 + 3000)
     })
   })
 
