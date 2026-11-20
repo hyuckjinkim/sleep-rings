@@ -1,12 +1,13 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> [vary] -> master -> night -> intro -> wake -> bedtime -> limiter -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> [vary] -> master -> night -> intro -> wake -> bedtime -> limiter -> cap -> destination.
 // `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
 // `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
 // `intro` likewise belongs to the start fade-in alone, and `wake` to the alarm's crossfade (one
 // AudioParam per scheduler). `bedtime` holds the mix silent until a scheduled start. The alarm sound
-// itself bypasses all of these: alarm -> alarmGain -> limiter.
+// itself bypasses all of these: alarm -> alarmGain -> limiter. `cap` is the user's volume ceiling, after
+// the limiter, so it bounds the summed output (every layer and the alarm together), not each layer.
 import type { NoiseColor, Placement, Sound } from '../data/types'
 import { renderBinauralBuffer } from './binaural'
 import { fadeTo } from './fade'
@@ -89,6 +90,7 @@ interface PlacementNodes {
   gain: EngineGainNode
   toneable: boolean
   tone: EngineBiquadFilterNode | null // created only while placement.tone != 0
+  toneCutDb: number | null // last gain written to `tone`: reading it back gives float32, never equal to the double
   vary: EngineGainNode | null // created only while placement.variation is on
   quality: PanQuality
   placement: Placement
@@ -108,13 +110,13 @@ export class SoundEngine {
   private readonly intro: EngineGainNode
   private readonly wake: EngineGainNode
   private readonly bedtime: EngineGainNode
+  private readonly cap: EngineGainNode
   private readonly limiter: EngineDynamicsCompressorNode
   private alarm?: AlarmNodes
   private alarmEndTimer?: ReturnType<typeof setTimeout>
   private bedtimeStart?: { atMs: number; startAt: number } // wall-clock target + its audio-clock time
   private startFadeSec = 0
-  private userVolume = 1
-  private volumeCap = 1 // user-set ceiling: master = userVolume * volumeCap, alarm peaks at volumeCap
+  private fadeOutEndsAt = 0 // ctx.currentTime the last stop(id, fadeSec) finishes fading out
   private readonly loadFile: (url: string) => Promise<EngineAudioBuffer>
   private readonly sounds = new Map<string, LoadedSound>()
   private readonly noiseBuffers = new Map<NoiseColor, EngineAudioBuffer>()
@@ -129,6 +131,7 @@ export class SoundEngine {
     this.intro = ctx.createGain()
     this.wake = ctx.createGain()
     this.bedtime = ctx.createGain()
+    this.cap = ctx.createGain()
     // Brick-wall-ish limiter: stacking several full-scale noise layers can sum past 0 dBFS and clip.
     // Threshold sits just under full scale so normal mixes pass untouched.
     const limiter = (this.limiter = ctx.createDynamicsCompressor())
@@ -142,7 +145,8 @@ export class SoundEngine {
     this.intro.connect(this.wake)
     this.wake.connect(this.bedtime)
     this.bedtime.connect(limiter)
-    limiter.connect(ctx.destination)
+    limiter.connect(this.cap)
+    this.cap.connect(ctx.destination)
     this.loadFile = createAudioBufferLoader(ctx)
   }
 
@@ -214,9 +218,17 @@ export class SoundEngine {
     // can't carry a long ramp — setPlacement's raw writes would cancel it.
     if (this.active.size === 0 && this.startFadeSec > 0) {
       const now = this.ctx.currentTime
-      this.intro.gain.cancelScheduledValues(now)
-      this.intro.gain.setValueAtTime(0, now)
-      this.intro.gain.linearRampToValueAtTime(1, now + this.startFadeSec)
+      let rampFrom = now
+      if (now < this.fadeOutEndsAt) {
+        // Orbs still fading out (a preset swap, clear-all then a new orb) share this stage: take it
+        // down with them instead of cutting them off, then fade in from there.
+        fadeTo(this.intro.gain, now, 0, FADE_IN_SEC)
+        rampFrom = now + FADE_IN_SEC
+      } else {
+        this.intro.gain.cancelScheduledValues(now)
+        this.intro.gain.setValueAtTime(0, now)
+      }
+      this.intro.gain.linearRampToValueAtTime(1, rampFrom + this.startFadeSec)
     }
 
     const target = this.computeGain(placement, this.quality, panBypass, true)
@@ -226,6 +238,7 @@ export class SoundEngine {
       gain,
       toneable: loaded.toneable === true,
       tone: null,
+      toneCutDb: null,
       vary: null,
       quality: this.quality,
       placement,
@@ -256,6 +269,7 @@ export class SoundEngine {
     this.active.delete(placementId)
     if (fadeSec > 0) {
       fadeTo(nodes.gain.gain, this.ctx.currentTime, 0, fadeSec)
+      this.fadeOutEndsAt = Math.max(this.fadeOutEndsAt, this.ctx.currentTime + fadeSec)
       setTimeout(() => this.cleanupNodes(nodes), fadeSec * 1000)
     } else {
       this.cleanupNodes(nodes)
@@ -334,6 +348,7 @@ export class SoundEngine {
     const tone = nodes.toneable ? Math.min(1, Math.max(-1, placement.tone ?? 0)) : 0
     if (tone !== 0 && !nodes.tone) {
       nodes.tone = this.ctx.createBiquadFilter()
+      nodes.toneCutDb = null
       rewire = true
     } else if (tone === 0 && nodes.tone) {
       nodes.tone.disconnect()
@@ -347,7 +362,10 @@ export class SoundEngine {
         nodes.tone.type = type
         nodes.tone.frequency.value = tone < 0 ? TONE_DARK_SHELF_HZ : TONE_BRIGHT_SHELF_HZ
       }
-      if (nodes.tone.gain.value !== cutDb) nodes.tone.gain.value = cutDb
+      if (nodes.toneCutDb !== cutDb) {
+        nodes.tone.gain.value = cutDb
+        nodes.toneCutDb = cutDb
+      }
     }
     if (placement.variation && !nodes.vary) {
       nodes.vary = this.ctx.createGain()
@@ -371,24 +389,16 @@ export class SoundEngine {
   }
 
   setMasterVolume(v: number): void {
-    this.userVolume = Math.min(1, Math.max(0, v))
-    this.master.gain.value = this.userVolume * this.volumeCap
+    this.master.gain.value = Math.min(1, Math.max(0, v))
   }
 
   /**
-   * Ceiling on everything this engine outputs (0..1). Applied as arithmetic on `master` rather than
-   * a new node; every stage after master (night/intro/wake) and every placement gain stays <= 1, so
-   * the mix's summed gain can't pass it. The alarm, which bypasses master, peaks at it too.
+   * Ceiling on everything this engine outputs (0..1), on the `cap` stage after the limiter: the
+   * limiter keeps the summed layers (and the alarm) under full scale, so scaling its output bounds
+   * the total, however many layers are stacked. Independent of the user's volume on `master`.
    */
   setVolumeCap(cap: number): void {
-    this.volumeCap = Math.min(1, Math.max(0, cap))
-    this.master.gain.value = this.userVolume * this.volumeCap
-    const alarm = this.alarm
-    if (!alarm) return
-    // ponytail: a ringing alarm jumps (over ALARM_STOP_SEC) to the new cap rather than finishing
-    // its fade-in toward it — changing the cap mid-alarm is rare enough not to deserve more.
-    if (this.ctx.currentTime < alarm.startAt) this.scheduleAlarm(alarm.soundId, alarm.atMs, alarm.fadeSec)
-    else fadeTo(alarm.gain.gain, this.ctx.currentTime, this.volumeCap, ALARM_STOP_SEC)
+    this.cap.gain.value = Math.min(1, Math.max(0, cap))
   }
 
   /** Switch panning quality at runtime, rewiring every active chain's spatial node in place. */
@@ -495,7 +505,7 @@ export class SoundEngine {
     gain.connect(this.limiter)
     gain.gain.value = 0
     gain.gain.setValueAtTime(0, startAt) // anchor: without it the ramp would start at arm time
-    gain.gain.linearRampToValueAtTime(this.volumeCap, endAt)
+    gain.gain.linearRampToValueAtTime(1, endAt) // capped downstream, on the `cap` stage
     source.start(startAt)
 
     this.wake.gain.cancelScheduledValues(now)

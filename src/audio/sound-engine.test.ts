@@ -29,8 +29,8 @@ const BINAURAL_SOUND: Sound = {
   license: { spdx: 'no-license-required', sourceName: 'synth' },
 }
 
-// master, night, intro, wake, bedtime — created by the constructor before any placement gain.
-const GLOBAL_GAINS = 5
+// master, night, intro, wake, bedtime, cap — created by the constructor before any placement gain.
+const GLOBAL_GAINS = 6
 
 function placement(overrides: Partial<Placement> = {}): Placement {
   return {
@@ -214,24 +214,26 @@ describe('SoundEngine', () => {
     expect(master.gain.value).toBe(0.5)
   })
 
-  // createGain order in the constructor: [0] master, [1] night, [2] intro, [3] wake, [4] bedtime — placement gains come after.
+  // createGain order in the constructor: [0] master, [1] night, [2] intro, [3] wake, [4] bedtime, [5] cap — placement gains come after.
   function gainNode(index: number) {
     return vi.mocked(ctx.createGain).mock.results[index].value
   }
 
-  it('wires master -> night -> intro -> wake -> bedtime -> limiter -> destination with conservative limiter settings', () => {
+  it('wires master -> night -> intro -> wake -> bedtime -> limiter -> cap -> destination with conservative limiter settings', () => {
     const master = gainNode(0)
     const night = gainNode(1)
     const intro = gainNode(2)
     const wake = gainNode(3)
     const bedtime = gainNode(4)
+    const cap = gainNode(5)
     const limiter = vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
     expect(master.connect).toHaveBeenCalledWith(night)
     expect(night.connect).toHaveBeenCalledWith(intro)
     expect(intro.connect).toHaveBeenCalledWith(wake)
     expect(wake.connect).toHaveBeenCalledWith(bedtime)
     expect(bedtime.connect).toHaveBeenCalledWith(limiter)
-    expect(limiter.connect).toHaveBeenCalledWith(ctx.destination)
+    expect(limiter.connect).toHaveBeenCalledWith(cap)
+    expect(cap.connect).toHaveBeenCalledWith(ctx.destination)
     expect(limiter.threshold.value).toBe(-3)
     expect(limiter.ratio.value).toBe(20)
     expect(limiter.attack.value).toBeLessThanOrEqual(0.005)
@@ -323,6 +325,20 @@ describe('SoundEngine', () => {
     expect(gainNode(2).gain.linearRampToValueAtTime).not.toHaveBeenCalled()
   })
 
+  it('start fade-in takes the intro stage down with orbs still fading out instead of cutting them', async () => {
+    await engine.load(NOISE_SOUND)
+    const intro = gainNode(2).gain
+    engine.setStartFade(30)
+    engine.play(placement({ id: 'old' }))
+    ctx.currentTime = 50
+    engine.stop('old', 0.2) // e.g. openMix, or clear-all then a new orb
+    vi.mocked(intro.setValueAtTime).mockClear()
+    engine.play(placement({ id: 'new' }))
+    expect(intro.setValueAtTime).not.toHaveBeenCalledWith(0, 50) // no hard cut at 0
+    expect(intro.linearRampToValueAtTime).toHaveBeenCalledWith(0, 50 + FADE_IN_SEC)
+    expect(intro.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 50 + FADE_IN_SEC + 30)
+  })
+
   it('a sleep-timer reset never cancels the start fade-in (separate stages)', async () => {
     await engine.load(NOISE_SOUND)
     const intro = gainNode(2).gain
@@ -377,6 +393,16 @@ describe('SoundEngine', () => {
       for (let i = 0; i < 5; i++) engine.setPlacement(placement({ tone: -0.5, angle: i }))
       expect(gainDescriptor).not.toHaveBeenCalled()
       expect(ctx.createBiquadFilter).toHaveBeenCalledTimes(1)
+    })
+
+    it('an unchanged tone is recognised even though the filter reads back float32', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: 0.33 })) // -3.96 dB: not exactly representable as float32
+      const f = filter()
+      const gainDescriptor = vi.fn()
+      Object.defineProperty(f.gain, 'value', { get: () => Math.fround(-0.33 * 12), set: gainDescriptor })
+      engine.setPlacement(placement({ tone: 0.33, angle: 1 }))
+      expect(gainDescriptor).not.toHaveBeenCalled()
     })
 
     it('ignores tone on non-noise sounds', async () => {
@@ -442,46 +468,48 @@ describe('SoundEngine', () => {
   })
 
   describe('volume cap', () => {
-    // Product of every gain a placement's signal passes through, master onwards.
-    function summedGain(placementGain: number): number {
-      return placementGain * [0, 1, 2, 3].reduce((acc, i) => acc * gainNode(i).gain.value, 1)
-    }
+    const limiter = () => vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
+    const cap = () => gainNode(5)
 
-    it('the summed mix gain never exceeds the cap, whatever the master volume or call order', async () => {
-      await engine.load(NOISE_SOUND)
-      engine.play(placement({ volume: 1, radius: 0 }))
-      ctx.currentTime = 10 // past the per-orb fade-in (the mock resolves ramps instantly anyway)
-      const pGain = gainNode(GLOBAL_GAINS).gain.value
-      for (const cap of [1, 0.75, 0.5, 0.3, 0]) {
-        for (const vol of [0, 0.3, 0.9, 1, 5]) {
-          engine.setVolumeCap(cap)
-          engine.setMasterVolume(vol)
-          expect(summedGain(pGain)).toBeLessThanOrEqual(cap + 1e-9)
-          engine.setMasterVolume(vol)
-          engine.setVolumeCap(cap) // boot order: restoreMix sets master after the cap
-          expect(summedGain(pGain)).toBeLessThanOrEqual(cap + 1e-9)
-        }
-      }
+    it('sits after the limiter, as the last stage before the speakers, so it bounds the summed output', () => {
+      expect(limiter().connect).toHaveBeenCalledWith(cap())
+      expect(limiter().connect).not.toHaveBeenCalledWith(ctx.destination)
+      expect(cap().connect).toHaveBeenCalledWith(ctx.destination)
+      const toDestination = vi.mocked(ctx.createGain).mock.results.filter(({ value }) =>
+        vi.mocked(value.connect).mock.calls.some(([target]) => target === ctx.destination),
+      )
+      expect(toDestination.map(({ value }) => value)).toEqual([cap()])
     })
 
-    it('scales master rather than replacing the user volume, so lifting the cap restores it', () => {
+    it('the final stage holds the cap, whatever the master volume or call order', () => {
+      for (const c of [1, 0.75, 0.5, 0.3, 0]) {
+        for (const vol of [0, 0.3, 0.9, 1, 5]) {
+          engine.setVolumeCap(c)
+          engine.setMasterVolume(vol)
+          expect(cap().gain.value).toBe(c)
+          engine.setMasterVolume(vol)
+          engine.setVolumeCap(c) // boot order: restoreMix sets master after the cap
+          expect(cap().gain.value).toBe(c)
+        }
+      }
+      engine.setVolumeCap(5)
+      expect(cap().gain.value).toBe(1)
+    })
+
+    it('leaves master to the user volume alone', () => {
       engine.setMasterVolume(0.8)
       engine.setVolumeCap(0.5)
-      expect(gainNode(0).gain.value).toBeCloseTo(0.4)
-      engine.setVolumeCap(1)
       expect(gainNode(0).gain.value).toBeCloseTo(0.8)
     })
 
-    it('the wake alarm (which bypasses master) peaks at the cap', async () => {
+    it('the wake alarm ramps to full into the limiter, and is capped downstream with everything else', async () => {
       vi.useFakeTimers()
       await engine.load(NOISE_SOUND)
       engine.setVolumeCap(0.3)
       engine.scheduleAlarm('pink-noise', Date.now() + 60_000, 120)
-      const alarmGain = gainNode(GLOBAL_GAINS).gain
-      expect(alarmGain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.3, expect.any(Number))
-      engine.setVolumeCap(0.5) // before it rings: re-scheduled toward the new ceiling
-      const rescheduled = gainNode(GLOBAL_GAINS + 1).gain
-      expect(rescheduled.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.5, expect.any(Number))
+      const alarmGain = gainNode(GLOBAL_GAINS)
+      expect(alarmGain.gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, expect.any(Number))
+      expect(alarmGain.connect).toHaveBeenCalledWith(limiter())
       vi.useRealTimers()
     })
   })
