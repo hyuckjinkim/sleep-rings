@@ -7,7 +7,7 @@ import { catalog, isAvailable } from '../library/catalog'
 import { canUseFeature, canUseSound, maxLayers, requiredPlan } from '../plan'
 import { planRank } from '../plan/tiers'
 import type { Plan } from '../plan'
-import { UNTITLED_MIX_NAME } from './store'
+import { UNTITLED_MIX_NAME } from './types'
 import { clamp, normalizeAngle } from './geometry'
 
 const SHARE_VERSION = 1

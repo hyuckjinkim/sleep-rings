@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_SHARE_PARAM_LENGTH, decodeShareUrl, encodeMix, shareParam, shareUrl } from './share'
-import { UNTITLED_MIX_NAME } from './store'
+import { UNTITLED_MIX_NAME } from './types'
 import type { Mix, Placement } from './types'
 
 const BASE = 'https://example.test/'

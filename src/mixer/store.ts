@@ -3,6 +3,7 @@
 // imperatively via rAF. Persistence (auto-save/restore/presets IO) lives in src/sleep/ —
 // this store never touches localStorage itself, only exposes state + set()/subscribe().
 import { create } from 'zustand'
+import { UNTITLED_MIX_NAME } from './types'
 import type { Mix, Placement, Orbit } from './types'
 import { soundEngine } from './engine/instance'
 import { catalog, isAvailable } from '../library/catalog'
@@ -50,9 +51,6 @@ export function nextAlarmAt(hhmm: string, now: Date = new Date()): number {
 export function defaultOrbit(): Orbit {
   return { mode: 'random', shape: { kind: 'circle' }, speed: DEFAULT_ORBIT_SPEED, direction: randomDirection() }
 }
-
-/** Name of a mix nobody named (i.e. not a loaded preset). */
-export const UNTITLED_MIX_NAME = 'Untitled'
 
 export function emptyMix(): Mix {
   return { id: makeId('mix'), name: UNTITLED_MIX_NAME, placements: [], masterVolume: 1, updatedAt: Date.now() }
