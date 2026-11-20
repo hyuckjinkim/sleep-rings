@@ -1,5 +1,5 @@
 export { initBackgroundAudio, startKeepAliveAudio, stopKeepAliveAudio } from './background-audio'
 export type { BackgroundAudioTarget, PlaybackSource } from './background-audio'
 export { startAndroidKeepAliveService, stopAndroidKeepAliveService } from './foreground-service'
-export { initMediaSession, setMediaSessionPlaying } from './media-session'
+export { initMediaSession, setMediaSessionPlaying, setNowPlaying } from './media-session'
 export { hapticTap, isHapticsEnabled, setHapticsEnabled } from './haptics'

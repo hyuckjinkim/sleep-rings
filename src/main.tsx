@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
 import './app/theme.css'
 import i18n from './i18n'
-import { initBackgroundAudio, initMediaSession } from './mobile'
-import { useMixStore } from './mixer/store'
+import { initBackgroundAudio, initMediaSession, setNowPlaying } from './mobile'
+import { UNTITLED_MIX_NAME, useMixStore } from './mixer/store'
 import { soundEngine } from './mixer/engine/instance'
 
 // Once for the app's lifetime — safe on plain web too (@capacitor/app ships a Page Visibility
@@ -37,8 +37,10 @@ initMediaSession(
       useMixStore.getState().wake()
     },
   },
-  'SleepRings',
 )
+// Now Playing title follows the mix: a loaded preset's name, else the app name (setNowPlaying
+// skips unchanged titles, so the store's frequent ticks cost nothing).
+useMixStore.subscribe((s) => setNowPlaying(s.current.name === UNTITLED_MIX_NAME ? null : s.current.name))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -49,8 +49,11 @@ export function defaultOrbit(): Orbit {
   return { mode: 'random', shape: { kind: 'circle' }, speed: DEFAULT_ORBIT_SPEED, direction: randomDirection() }
 }
 
+/** Name of a mix nobody named (i.e. not a loaded preset). */
+export const UNTITLED_MIX_NAME = 'Untitled'
+
 export function emptyMix(): Mix {
-  return { id: makeId('mix'), name: 'Untitled', placements: [], masterVolume: 1, updatedAt: Date.now() }
+  return { id: makeId('mix'), name: UNTITLED_MIX_NAME, placements: [], masterVolume: 1, updatedAt: Date.now() }
 }
 
 export type PlacementPatch = Partial<Omit<Placement, 'id' | 'soundId' | 'orbit'>> & { orbit?: Partial<Orbit> }
