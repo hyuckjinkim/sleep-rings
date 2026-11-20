@@ -67,15 +67,18 @@ describe('public/sw.js', () => {
       put: async (r: string | Req, res: Response) => {
         map.set(keyOf(r), res)
       },
-      match: async (r: string | Req) => map.get(keyOf(r)),
+      match: async (r: string | Req, opts?: { ignoreVary?: boolean }) => varyAware(map.get(keyOf(r)), opts),
     }
   }
+  // Real caches compare Vary'd request headers; the fake just misses unless told to ignore Vary.
+  const varyAware = (res: Response | undefined, opts?: { ignoreVary?: boolean }) =>
+    res && (!res.headers.has('vary') || opts?.ignoreVary) ? res : undefined
   const cachesFake = {
     open: async (name: string) => cacheOf(name),
     keys: async () => [...stores.keys()],
     delete: async (name: string) => stores.delete(name),
-    match: async (r: string | Req) => {
-      for (const map of stores.values()) if (map.has(keyOf(r))) return map.get(keyOf(r))
+    match: async (r: string | Req, opts?: { ignoreVary?: boolean }) => {
+      for (const map of stores.values()) if (map.has(keyOf(r))) return varyAware(map.get(keyOf(r)), opts)
       return undefined
     },
   }
@@ -143,6 +146,13 @@ describe('public/sw.js', () => {
     expect(await dispatch('fetch', { request: { ...request('/assets/a.js'), method: 'POST' } })).toBeUndefined()
     expect(await dispatch('fetch', { request: { url: 'https://cdn.example/x.js', method: 'GET' } })).toBeUndefined()
     expect(await dispatch('fetch', { request: request('/mobile/silence.wav') })).toBeUndefined()
+  })
+
+  it('serves a cached asset offline even when the host sent Vary: Origin', async () => {
+    network = () => new Response('js', { status: 200, headers: { 'content-type': 'text/javascript', vary: 'Origin' } })
+    await dispatch('message', { data: [`${ORIGIN}/assets/index-abc.js`] })
+    network = () => null
+    expect(await (await dispatch('fetch', { request: request('/assets/index-abc.js') }))!.text()).toBe('js')
   })
 
   it('caches the first-visit asset URLs the page posts, same-origin /assets/ only', async () => {

@@ -43,8 +43,10 @@ async function shellNetworkFirst(request) {
 
 // Hashed /assets/* never change under one name; sounds are cached the first time they're played.
 // ponytail: superseded hashed assets stay until VERSION is bumped — prune on activate if that grows.
+// ignoreVary: hosts send `Vary: Origin`, and crossorigin module scripts carry an Origin header the
+// worker's own prefetch below didn't — a hashed file is the same bytes either way.
 async function cacheFirst(request) {
-  const cached = await caches.match(request)
+  const cached = await caches.match(request, { ignoreVary: true })
   if (cached) return cached
   const res = await fetch(request)
   if (isCacheable(res)) await (await caches.open(CACHE)).put(request, res.clone())
@@ -71,7 +73,7 @@ self.addEventListener('message', (event) => {
           try {
             const url = new URL(String(raw), self.location.href)
             if (url.origin !== self.location.origin || !url.pathname.startsWith('/assets/')) return
-            if (await cache.match(url.href)) return
+            if (await cache.match(url.href, { ignoreVary: true })) return
             const res = await fetch(url.href)
             if (isCacheable(res)) await cache.put(url.href, res)
           } catch {
