@@ -24,7 +24,14 @@
         "off": "끔",
         "seconds": "{{count}}초",
         "minutes": "{{count}}분"
-      }
+      },
+      "volumeCap": "최대 볼륨",
+      "capOption": {
+        "none": "제한 없음",
+        "percent": "{{percent}}%",
+        "nursery": "아기방"
+      },
+      "nurseryHint": "아기방 모드는 최대 볼륨을 낮게 제한해요. 기기는 아기 침대 안이나 위에 두지 말고 방 반대편처럼 멀리 두세요. 밤새 틀어 두기보다 슬립 타이머를 함께 써 주세요."
     },
     "playbackNotification": {
       "body": "수면 믹스 재생 중",

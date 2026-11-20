@@ -13,7 +13,7 @@ import { UpgradeSheet } from '../plan/UpgradeSheet'
 import type { Plan } from '../plan'
 import { getPurchaseAdapter, isPurchaseAvailable } from '../plan'
 import { usePlaybackSettings } from '../sleep/settings'
-import { FADE_IN_OPTIONS, SLEEP_FADE_OPTIONS } from '../sleep/persistence'
+import { FADE_IN_OPTIONS, NURSERY_VOLUME_CAP, SLEEP_FADE_OPTIONS, VOLUME_CAP_OPTIONS } from '../sleep/persistence'
 import pkg from '../../package.json'
 import './settings.css'
 
@@ -63,6 +63,8 @@ export function Settings({ onClose }: SettingsProps) {
   const setFadeInSec = usePlaybackSettings((s) => s.setFadeInSec)
   const sleepFadeSec = usePlaybackSettings((s) => s.sleepFadeSec)
   const setSleepFadeSec = usePlaybackSettings((s) => s.setSleepFadeSec)
+  const volumeCap = usePlaybackSettings((s) => s.volumeCap)
+  const setVolumeCap = usePlaybackSettings((s) => s.setVolumeCap)
 
   const rootRef = useRef<HTMLDivElement>(null)
   useDialogFocus(rootRef, onClose)
@@ -136,6 +138,30 @@ export function Settings({ onClose }: SettingsProps) {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-section">
+        <span className="settings-label" id="settings-cap-label">
+          {t('app.settings.volumeCap')}
+        </span>
+        <div className="settings-lang" role="group" aria-labelledby="settings-cap-label">
+          {[...VOLUME_CAP_OPTIONS, NURSERY_VOLUME_CAP].map((cap) => (
+            <button
+              key={cap}
+              type="button"
+              className="app-lang-toggle"
+              aria-pressed={volumeCap === cap}
+              onClick={() => setVolumeCap(cap)}
+            >
+              {cap === NURSERY_VOLUME_CAP
+                ? t('app.settings.capOption.nursery')
+                : cap === 1
+                  ? t('app.settings.capOption.none')
+                  : t('app.settings.capOption.percent', { percent: Math.round(cap * 100) })}
+            </button>
+          ))}
+        </div>
+        {volumeCap === NURSERY_VOLUME_CAP && <p className="settings-plan-hint">{t('app.settings.nurseryHint')}</p>}
       </section>
 
       <section className="settings-section">

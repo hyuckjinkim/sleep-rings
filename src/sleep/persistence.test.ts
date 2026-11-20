@@ -1,6 +1,7 @@
 import { beforeEach, describe, it, expect } from 'vitest'
 import {
   DEFAULT_PLAYBACK_SETTINGS,
+  NURSERY_VOLUME_CAP,
   loadMix,
   loadPlaybackSettings,
   loadPresets,
@@ -86,19 +87,19 @@ describe('restoreMix', () => {
 
 describe('playback settings persistence', () => {
   it('round-trips fade settings with the schema version', () => {
-    savePlaybackSettings({ fadeInSec: 30, sleepFadeSec: 300 })
+    savePlaybackSettings({ fadeInSec: 30, sleepFadeSec: 300, volumeCap: NURSERY_VOLUME_CAP })
     expect(JSON.parse(localStorage.getItem('so.playbackSettings')!).version).toBe(1)
-    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 30, sleepFadeSec: 300 })
+    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 30, sleepFadeSec: 300, volumeCap: NURSERY_VOLUME_CAP })
   })
 
-  it('defaults to no start fade and a 60s sleep fade when nothing is stored', () => {
+  it('defaults to no start fade, a 60s sleep fade and no volume cap when nothing is stored', () => {
     expect(loadPlaybackSettings()).toEqual(DEFAULT_PLAYBACK_SETTINGS)
-    expect(DEFAULT_PLAYBACK_SETTINGS).toEqual({ fadeInSec: 0, sleepFadeSec: 60 })
+    expect(DEFAULT_PLAYBACK_SETTINGS).toEqual({ fadeInSec: 0, sleepFadeSec: 60, volumeCap: 1 })
   })
 
   it('replaces an out-of-list value with its default without dropping the other field', () => {
-    localStorage.setItem('so.playbackSettings', JSON.stringify({ version: 1, fadeInSec: 7, sleepFadeSec: 600 }))
-    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 0, sleepFadeSec: 600 })
+    localStorage.setItem('so.playbackSettings', JSON.stringify({ version: 1, fadeInSec: 7, sleepFadeSec: 600, volumeCap: 3 }))
+    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 0, sleepFadeSec: 600, volumeCap: 1 })
   })
 
   it('falls back to defaults on corrupt JSON', () => {

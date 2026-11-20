@@ -24,6 +24,9 @@ export interface SoundEngine {
   /** Global volume (0..1). */
   setMasterVolume(v: number): void
 
+  /** Hard ceiling (0..1) on total output, alarm included; independent of setMasterVolume. */
+  setVolumeCap(cap: number): void
+
   /** Runtime panning quality switch (hrtf<->stereo), re-wires graph even mid-playback. */
   setPanQuality(q: 'hrtf' | 'stereo'): void
 

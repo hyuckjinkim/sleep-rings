@@ -16,12 +16,19 @@ export const FADE_IN_OPTIONS = [0, 10, 30, 60] as const
 /** Sleep-timer fade-out choices, seconds. */
 export const SLEEP_FADE_OPTIONS = [30, 60, 180, 300, 600] as const
 
+/** Max-volume ceilings offered in Settings (1 = no limit). */
+export const VOLUME_CAP_OPTIONS = [1, 0.75, 0.5] as const
+/** "Nursery" preset: a low ceiling, shown with keep-the-device-away guidance. No dB claims — a
+ * phone can't know the sound level at the listener's ear. */
+export const NURSERY_VOLUME_CAP = 0.3
+
 export interface PlaybackSettings {
   fadeInSec: number
   sleepFadeSec: number
+  volumeCap: number
 }
 
-export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = { fadeInSec: 0, sleepFadeSec: 60 }
+export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = { fadeInSec: 0, sleepFadeSec: 60, volumeCap: 1 }
 
 interface StoredMix {
   version: number
@@ -77,6 +84,7 @@ export function loadPlaybackSettings(): PlaybackSettings {
     return {
       fadeInSec: pick(FADE_IN_OPTIONS, raw.fadeInSec, DEFAULT_PLAYBACK_SETTINGS.fadeInSec),
       sleepFadeSec: pick(SLEEP_FADE_OPTIONS, raw.sleepFadeSec, DEFAULT_PLAYBACK_SETTINGS.sleepFadeSec),
+      volumeCap: pick([...VOLUME_CAP_OPTIONS, NURSERY_VOLUME_CAP], raw.volumeCap, DEFAULT_PLAYBACK_SETTINGS.volumeCap),
     }
   } catch {
     return { ...DEFAULT_PLAYBACK_SETTINGS }

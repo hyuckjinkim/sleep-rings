@@ -1,4 +1,4 @@
-// Playback preferences (start fade-in, sleep-timer fade-out). Same shape as src/screen/store.ts:
+// Playback preferences (start fade-in, sleep-timer fade-out, volume cap). Same shape as src/screen/store.ts:
 // a tiny store that persists itself and pushes its values into the engine. The mixer store never
 // imports this — startSleepTimer() takes the fade length as an argument instead.
 import { create } from 'zustand'
@@ -9,12 +9,13 @@ import type { PlaybackSettings } from './persistence'
 interface PlaybackSettingsStore extends PlaybackSettings {
   setFadeInSec(sec: number): void
   setSleepFadeSec(sec: number): void
+  setVolumeCap(cap: number): void
 }
 
 function persist(patch: Partial<PlaybackSettings>): void {
-  const { fadeInSec, sleepFadeSec } = { ...usePlaybackSettings.getState(), ...patch }
+  const { fadeInSec, sleepFadeSec, volumeCap } = { ...usePlaybackSettings.getState(), ...patch }
   try {
-    savePlaybackSettings({ fadeInSec, sleepFadeSec })
+    savePlaybackSettings({ fadeInSec, sleepFadeSec, volumeCap })
   } catch {
     // ponytail: storage full/blocked — the setting still applies for this session
   }
@@ -22,6 +23,7 @@ function persist(patch: Partial<PlaybackSettings>): void {
 
 const initial = loadPlaybackSettings()
 soundEngine.setStartFade(initial.fadeInSec)
+soundEngine.setVolumeCap(initial.volumeCap)
 
 export const usePlaybackSettings = create<PlaybackSettingsStore>((set) => ({
   ...initial,
@@ -35,5 +37,11 @@ export const usePlaybackSettings = create<PlaybackSettingsStore>((set) => ({
   setSleepFadeSec(sleepFadeSec) {
     persist({ sleepFadeSec })
     set({ sleepFadeSec })
+  },
+
+  setVolumeCap(volumeCap) {
+    persist({ volumeCap })
+    soundEngine.setVolumeCap(volumeCap)
+    set({ volumeCap })
   },
 }))

@@ -331,6 +331,51 @@ describe('SoundEngine', () => {
     expect(intro.cancelScheduledValues).toHaveBeenCalledTimes(1) // only play()'s own
   })
 
+  describe('volume cap', () => {
+    // Product of every gain a placement's signal passes through, master onwards.
+    function summedGain(placementGain: number): number {
+      return placementGain * [0, 1, 2, 3].reduce((acc, i) => acc * gainNode(i).gain.value, 1)
+    }
+
+    it('the summed mix gain never exceeds the cap, whatever the master volume or call order', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ volume: 1, radius: 0 }))
+      ctx.currentTime = 10 // past the per-orb fade-in (the mock resolves ramps instantly anyway)
+      const pGain = gainNode(GLOBAL_GAINS).gain.value
+      for (const cap of [1, 0.75, 0.5, 0.3, 0]) {
+        for (const vol of [0, 0.3, 0.9, 1, 5]) {
+          engine.setVolumeCap(cap)
+          engine.setMasterVolume(vol)
+          expect(summedGain(pGain)).toBeLessThanOrEqual(cap + 1e-9)
+          engine.setMasterVolume(vol)
+          engine.setVolumeCap(cap) // boot order: restoreMix sets master after the cap
+          expect(summedGain(pGain)).toBeLessThanOrEqual(cap + 1e-9)
+        }
+      }
+    })
+
+    it('scales master rather than replacing the user volume, so lifting the cap restores it', () => {
+      engine.setMasterVolume(0.8)
+      engine.setVolumeCap(0.5)
+      expect(gainNode(0).gain.value).toBeCloseTo(0.4)
+      engine.setVolumeCap(1)
+      expect(gainNode(0).gain.value).toBeCloseTo(0.8)
+    })
+
+    it('the wake alarm (which bypasses master) peaks at the cap', async () => {
+      vi.useFakeTimers()
+      await engine.load(NOISE_SOUND)
+      engine.setVolumeCap(0.3)
+      engine.scheduleAlarm('pink-noise', Date.now() + 60_000, 120)
+      const alarmGain = gainNode(GLOBAL_GAINS).gain
+      expect(alarmGain.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.3, expect.any(Number))
+      engine.setVolumeCap(0.5) // before it rings: re-scheduled toward the new ceiling
+      const rescheduled = gainNode(GLOBAL_GAINS + 1).gain
+      expect(rescheduled.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.5, expect.any(Number))
+      vi.useRealTimers()
+    })
+  })
+
   describe('wake alarm (audio-clock scheduled, crossfades the mix out)', () => {
     const T0 = new Date('2026-01-01T23:00:00').getTime()
     const BIRDS: Sound = { ...NOISE_SOUND, id: 'birds' } // shares the pink buffer — cheap to render

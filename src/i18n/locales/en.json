@@ -24,7 +24,14 @@
         "off": "Off",
         "seconds": "{{count}}s",
         "minutes": "{{count}} min"
-      }
+      },
+      "volumeCap": "Maximum volume",
+      "capOption": {
+        "none": "No limit",
+        "percent": "{{percent}}%",
+        "nursery": "Nursery"
+      },
+      "nurseryHint": "Nursery mode keeps the maximum volume low. Place the device across the room from the crib — never in or on it — and use the sleep timer rather than playing all night."
     },
     "playbackNotification": {
       "body": "Playing your sleep mix",

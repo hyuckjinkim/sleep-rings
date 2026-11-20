@@ -5,6 +5,7 @@ import { Settings } from './Settings'
 import { usePlanStore } from '../plan'
 import { useScreenStore } from '../screen/store'
 import { usePlaybackSettings } from '../sleep/settings'
+import { NURSERY_VOLUME_CAP } from '../sleep/persistence'
 
 const showBannerWhenReady = vi.fn().mockResolvedValue(undefined)
 const hideBanner = vi.fn().mockResolvedValue(undefined)
@@ -122,5 +123,23 @@ describe('Settings fade preferences', () => {
     expect(within(fadeOut).getByRole('button', { name: '1분' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(within(fadeOut).getByRole('button', { name: '10분' }))
     expect(usePlaybackSettings.getState().sleepFadeSec).toBe(600)
+  })
+})
+
+describe('Settings volume cap', () => {
+  it('nursery sets the low cap and shows the keep-away guidance; other choices hide it', () => {
+    usePlaybackSettings.setState({ volumeCap: 1 })
+    render(<Settings onClose={() => {}} />)
+    const group = screen.getByRole('group', { name: '최대 볼륨' })
+    expect(within(group).getByRole('button', { name: '제한 없음' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByText(/아기 침대/)).toBeNull()
+
+    fireEvent.click(within(group).getByRole('button', { name: '아기방' }))
+    expect(usePlaybackSettings.getState().volumeCap).toBe(NURSERY_VOLUME_CAP)
+    expect(screen.getByText(/아기 침대/)).toBeInTheDocument()
+
+    fireEvent.click(within(group).getByRole('button', { name: '50%' }))
+    expect(usePlaybackSettings.getState().volumeCap).toBe(0.5)
+    expect(screen.queryByText(/아기 침대/)).toBeNull()
   })
 })

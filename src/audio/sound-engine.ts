@@ -93,6 +93,8 @@ export class SoundEngine {
   private alarm?: AlarmNodes
   private alarmEndTimer?: ReturnType<typeof setTimeout>
   private startFadeSec = 0
+  private userVolume = 1
+  private volumeCap = 1 // user-set ceiling: master = userVolume * volumeCap, alarm peaks at volumeCap
   private readonly loadFile: (url: string) => Promise<EngineAudioBuffer>
   private readonly sounds = new Map<string, LoadedSound>()
   private readonly noiseBuffers = new Map<NoiseColor, EngineAudioBuffer>()
@@ -295,7 +297,24 @@ export class SoundEngine {
   }
 
   setMasterVolume(v: number): void {
-    this.master.gain.value = Math.min(1, Math.max(0, v))
+    this.userVolume = Math.min(1, Math.max(0, v))
+    this.master.gain.value = this.userVolume * this.volumeCap
+  }
+
+  /**
+   * Ceiling on everything this engine outputs (0..1). Applied as arithmetic on `master` rather than
+   * a new node; every stage after master (night/intro/wake) and every placement gain stays <= 1, so
+   * the mix's summed gain can't pass it. The alarm, which bypasses master, peaks at it too.
+   */
+  setVolumeCap(cap: number): void {
+    this.volumeCap = Math.min(1, Math.max(0, cap))
+    this.master.gain.value = this.userVolume * this.volumeCap
+    const alarm = this.alarm
+    if (!alarm) return
+    // ponytail: a ringing alarm jumps (over ALARM_STOP_SEC) to the new cap rather than finishing
+    // its fade-in toward it — changing the cap mid-alarm is rare enough not to deserve more.
+    if (this.ctx.currentTime < alarm.startAt) this.scheduleAlarm(alarm.soundId, alarm.atMs, alarm.fadeSec)
+    else fadeTo(alarm.gain.gain, this.ctx.currentTime, this.volumeCap, ALARM_STOP_SEC)
   }
 
   /** Switch panning quality at runtime, rewiring every active chain's spatial node in place. */
@@ -375,7 +394,7 @@ export class SoundEngine {
     gain.connect(this.limiter)
     gain.gain.value = 0
     gain.gain.setValueAtTime(0, startAt) // anchor: without it the ramp would start at arm time
-    gain.gain.linearRampToValueAtTime(1, endAt)
+    gain.gain.linearRampToValueAtTime(this.volumeCap, endAt)
     source.start(startAt)
 
     this.wake.gain.cancelScheduledValues(now)

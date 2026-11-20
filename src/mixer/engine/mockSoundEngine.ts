@@ -27,6 +27,9 @@ export function createMockSoundEngine(): SoundEngine {
     setMasterVolume(v) {
       log('setMasterVolume', v)
     },
+    setVolumeCap(cap) {
+      log('setVolumeCap', cap)
+    },
     setPanQuality(q) {
       log('setPanQuality', q)
     },
