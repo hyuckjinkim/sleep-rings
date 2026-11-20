@@ -178,6 +178,22 @@ describe('wake alarm controls', () => {
     expect(screen.queryByRole('button', { name: '권한 설정 열기' })).not.toBeInTheDocument()
   })
 
+  it('on iOS, says what AlarmKit plays and points to Settings, not "Alarms & reminders"', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('ios')
+    vi.mocked(canScheduleNativeWakeAlarm).mockResolvedValueOnce(false)
+    render(<SleepControls />)
+    await act(async () => {})
+    expect(screen.getByText(/설정에서 SleepRings의 알람을 허용/)).toBeInTheDocument()
+    expect(screen.queryByText(/‘알람 및 리마인더’ 권한/)).not.toBeInTheDocument()
+
+    vi.mocked(openExactAlarmSettings).mockResolvedValueOnce(true)
+    fireEvent.click(screen.getByRole('button', { name: '설정 열기' }))
+    await act(async () => {})
+    expect(screen.getByText(/대신 시스템 알람음이 울려요/)).toBeInTheDocument()
+    expect(screen.queryByText(/알람 볼륨으로 천천히 커져요/)).not.toBeInTheDocument() // Android's fade promise
+  })
+
   it('shows no native notes on web', () => {
     render(<SleepControls />)
     expect(screen.queryByText(/소리 대신 알림이 와요/)).not.toBeInTheDocument()

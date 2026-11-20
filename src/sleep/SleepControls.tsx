@@ -58,8 +58,9 @@ export function SleepControls() {
   const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
   const [now, setNow] = useState(Date.now())
   const [notificationsDenied, setNotificationsDenied] = useState(false) // app-wide, so both sections
-  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null) // Android closed-app alarm, wake-alarm.ts
+  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null) // closed-app alarm, wake-alarm.ts
   const isNative = Capacitor.isNativePlatform()
+  const alarmIos = Capacitor.getPlatform() === 'ios' ? 'Ios' : '' // AlarmKit: no fade, Settings-page access
 
   useEffect(() => {
     if (!sleepEndsAt) return
@@ -117,7 +118,8 @@ export function SleepControls() {
     void scheduleReminder(id, atMs, text, isArmed).then((ok) => setNotificationsDenied(!ok))
   }
 
-  // Back from the system "Alarms & reminders" screen: move an armed alarm's backup to the native one.
+  // Back from the system "Alarms & reminders" screen (iOS: the app's Settings page): move an armed
+  // alarm's backup to the native one.
   async function handleOpenExactAlarmSettings() {
     if (!(await openExactAlarmSettings())) return
     setExactAlarm(true)
@@ -301,7 +303,7 @@ export function SleepControls() {
             <p className="mixer-alarm-note" role="status">
               {t(
                 exactAlarm
-                  ? 'mixer.alarm.closedAppSound'
+                  ? `mixer.alarm.closedAppSound${alarmIos}`
                   : notificationsDenied
                     ? 'mixer.notificationsDenied'
                     : 'mixer.alarm.nativeNote',
@@ -310,10 +312,10 @@ export function SleepControls() {
           )}
           {exactAlarm === false && (
             <>
-              <p className="mixer-alarm-note">{t('mixer.alarm.exactNeeded')}</p>
+              <p className="mixer-alarm-note">{t(`mixer.alarm.exactNeeded${alarmIos}`)}</p>
               <div className="mixer-alarm-row">
                 <button type="button" onClick={() => void handleOpenExactAlarmSettings()}>
-                  {t('mixer.alarm.exactOpen')}
+                  {t(`mixer.alarm.exactOpen${alarmIos}`)}
                 </button>
               </div>
             </>

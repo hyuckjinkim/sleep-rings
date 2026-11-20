@@ -12,6 +12,7 @@
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		5A3C1E0B2F00000000000002 /* CapgoGeneratedAppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3C1E0B2F00000000000001 /* CapgoGeneratedAppShortcuts.swift */; };
+		5A3C1E0B2F00000000000004 /* WakeAlarmPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3C1E0B2F00000000000003 /* WakeAlarmPlugin.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
@@ -24,6 +25,7 @@
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		5A3C1E0B2F00000000000001 /* CapgoGeneratedAppShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapgoGeneratedAppShortcuts.swift; sourceTree = "<group>"; };
+		5A3C1E0B2F00000000000003 /* WakeAlarmPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WakeAlarmPlugin.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -67,6 +69,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				5A3C1E0B2F00000000000001 /* CapgoGeneratedAppShortcuts.swift */,
+				5A3C1E0B2F00000000000003 /* WakeAlarmPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -160,6 +163,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				5A3C1E0B2F00000000000002 /* CapgoGeneratedAppShortcuts.swift in Sources */,
+				5A3C1E0B2F00000000000004 /* WakeAlarmPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -308,6 +312,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.6.0; /* x-release-version */
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AlarmKit,
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sleeprings.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -330,6 +339,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.6.0; /* x-release-version */
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AlarmKit,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.sleeprings.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

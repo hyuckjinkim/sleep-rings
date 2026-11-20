@@ -143,7 +143,10 @@
       "notificationBody": "It's your wake time.",
       "closedAppSound": "Fades in gently at wake time, at alarm volume — even if SleepRings is closed. Tap Stop in its notification or open SleepRings to stop it.",
       "exactNeeded": "To sound the alarm even when the app is closed, allow “Alarms & reminders” for SleepRings.",
-      "exactOpen": "Open Alarms & reminders"
+      "exactOpen": "Open Alarms & reminders",
+      "closedAppSoundIos": "Fades in gently at wake time while SleepRings is open. If it's closed, the system alarm sound rings instead — tap Stop on the alarm to turn it off.",
+      "exactNeededIos": "To sound the alarm even when the app is closed, allow alarms for SleepRings in Settings.",
+      "exactOpenIos": "Open Settings"
     },
     "presets": {
       "namePlaceholder": "Mix name",
