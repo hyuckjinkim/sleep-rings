@@ -7,7 +7,8 @@ const SHELL = '/' // every navigation is the same SPA shell, so one fixed key se
 
 // Real files only: an SPA host answers a missing file with index.html + 200 (same rule as
 // src/audio/loader.ts), and a cache-first entry would keep that forever.
-const isCacheable = (res) => res.ok && !(res.headers.get('content-type') || '').includes('text/html')
+const isCacheable = (res) => res.ok && !isHtml(res)
+const isHtml = (res) => (res.headers.get('content-type') || '').includes('text/html')
 const isSound = (path) => /^\/sounds\/[^/]+\.m4a$/.test(path)
 // Quoted file references in HTML/JS: index.html's `/assets/…` and the entry's lazy `./web-….js` chunks.
 const FILE_REF = /["'`]((?:\.{1,2}\/|\/)?[\w./-]+\.(?:js|css|svg))["'`]/g
@@ -52,11 +53,22 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// Off the response path: a failed write (e.g. storage quota full) must never fail the response.
+// The clone is taken now, before the caller consumes the body.
+function cacheInBackground(key, res) {
+  const copy = res.clone()
+  caches
+    .open(CACHE)
+    .then((cache) => cache.put(key, copy))
+    .catch(() => {})
+}
+
 // Network first so a deploy shows up on the next online load; the cached shell only when offline.
+// Only an HTML answer is the shell: a navigation can also land on a file, a redirect target, etc.
 async function shellNetworkFirst(request) {
   try {
     const res = await fetch(request)
-    if (res.ok) await (await caches.open(CACHE)).put(SHELL, res.clone())
+    if (res.ok && isHtml(res)) cacheInBackground(SHELL, res)
     return res
   } catch (err) {
     const cached = await caches.match(SHELL)
@@ -73,7 +85,7 @@ async function cacheFirst(request) {
   const cached = await caches.match(request, { ignoreVary: true })
   if (cached) return cached
   const res = await fetch(request)
-  if (isCacheable(res)) await (await caches.open(CACHE)).put(request, res.clone())
+  if (isCacheable(res)) cacheInBackground(request, res)
   return res
 }
 

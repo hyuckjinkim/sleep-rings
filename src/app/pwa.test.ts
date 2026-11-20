@@ -50,6 +50,7 @@ describe('public/sw.js', () => {
   let listeners: Record<string, Handler>
   let stores: Map<string, Map<string, Response>>
   let network: (url: string) => Response | null // null = offline
+  let putFails: boolean // e.g. storage quota full
 
   const keyOf = (r: string | Req) => new URL(typeof r === 'string' ? r : r.url, ORIGIN).href
   const fetchFake = vi.fn(async (r: string | Req) => {
@@ -62,6 +63,7 @@ describe('public/sw.js', () => {
     const map = stores.get(name)!
     return {
       put: async (r: string | Req, res: Response) => {
+        if (putFails) throw new DOMException('quota', 'QuotaExceededError')
         map.set(keyOf(r), res)
       },
       match: async (r: string | Req, opts?: { ignoreVary?: boolean }) => varyAware(map.get(keyOf(r)), opts),
@@ -98,6 +100,7 @@ describe('public/sw.js', () => {
     if (path === '/assets/web-missing.js') return new Response('nope', { status: 404 })
     return ok('data', 'application/javascript')
   }
+  const flush = () => new Promise((r) => setTimeout(r, 0)) // background cache writes land
   const cachedPaths = () => [...stores.get('sleeprings-v1')!.keys()].map((k) => new URL(k).pathname).sort()
 
   beforeEach(async () => {
@@ -105,6 +108,7 @@ describe('public/sw.js', () => {
     stores = new Map()
     fetchFake.mockClear()
     network = defaultNetwork
+    putFails = false
     const self = {
       location: new URL(`${ORIGIN}/sw.js`),
       addEventListener: (type: string, fn: Handler) => (listeners[type] = fn),
@@ -131,14 +135,33 @@ describe('public/sw.js', () => {
   it('navigations are network-first, then fall back to the cached shell offline (any URL)', async () => {
     network = () => ok('<html>v2</html>', 'text/html')
     expect(await (await dispatch('fetch', { request: request('/', 'navigate') }))!.text()).toBe('<html>v2</html>')
+    await flush()
     network = () => null
     const offline = await dispatch('fetch', { request: request('/?utm=x', 'navigate') })
     expect(await offline!.text()).toBe('<html>v2</html>')
   })
 
+  it('only an HTML answer replaces the cached shell', async () => {
+    network = () => ok('{"not":"the app"}', 'application/json')
+    await dispatch('fetch', { request: request('/', 'navigate') })
+    await flush()
+    network = () => null
+    expect(await (await dispatch('fetch', { request: request('/', 'navigate') }))!.text()).toBe(SHELL_HTML)
+  })
+
+  it('a failing cache write (quota full) never fails the response', async () => {
+    putFails = true
+    network = () => ok('<html>v2</html>', 'text/html')
+    expect(await (await dispatch('fetch', { request: request('/', 'navigate') }))!.text()).toBe('<html>v2</html>')
+    network = defaultNetwork
+    expect(await (await dispatch('fetch', { request: request('/assets/later-x.js') }))!.text()).toBe('data')
+    expect(await (await dispatch('fetch', { request: request('/sounds/seaside.m4a') }))!.text()).toBe('data')
+  })
+
   it('assets and sounds are cache-first after the first successful fetch', async () => {
     await dispatch('fetch', { request: request('/assets/later-x.js') })
     await dispatch('fetch', { request: request('/sounds/seaside.m4a') })
+    await flush()
     network = () => null
     expect(await (await dispatch('fetch', { request: request('/assets/later-x.js') }))!.text()).toBe('data')
     expect(await (await dispatch('fetch', { request: request('/sounds/seaside.m4a') }))!.text()).toBe('data')
