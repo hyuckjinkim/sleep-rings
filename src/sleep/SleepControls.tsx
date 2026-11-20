@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
-import { nextAlarmAt, useMixStore } from '../mixer/store'
+import { ALARM_FADE_SEC, nextAlarmAt, useMixStore } from '../mixer/store'
 import { PUBLIC_WEB_URL, shareUrl } from '../mixer/share'
 import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
+import { canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
 // Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
 // their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
 const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
@@ -57,6 +58,7 @@ export function SleepControls() {
   const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
   const [now, setNow] = useState(Date.now())
   const [notificationsDenied, setNotificationsDenied] = useState(false) // app-wide, so both sections
+  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null) // Android closed-app alarm, wake-alarm.ts
   const isNative = Capacitor.isNativePlatform()
 
   useEffect(() => {
@@ -67,6 +69,7 @@ export function SleepControls() {
 
   useEffect(() => {
     void areRemindersDenied().then(setNotificationsDenied) // a check, never a prompt
+    void canScheduleNativeWakeAlarm().then(setExactAlarm) // likewise
   }, [])
 
   useEffect(() => {
@@ -104,7 +107,22 @@ export function SleepControls() {
     }
     if (!isArmed()) return
     const text = { title: t(`mixer.${kind}.notificationTitle`), body: t(`mixer.${kind}.notificationBody`) }
+    if (kind === 'alarm') {
+      void scheduleAlarmBackup(atMs, wakeSound, ALARM_FADE_SEC, text, isArmed).then((backup) => {
+        setNotificationsDenied(backup.notificationsDenied)
+        setExactAlarm(backup.exactAlarm)
+      })
+      return
+    }
     void scheduleReminder(id, atMs, text, isArmed).then((ok) => setNotificationsDenied(!ok))
+  }
+
+  // Back from the system "Alarms & reminders" screen: move an armed alarm's backup to the native one.
+  async function handleOpenExactAlarmSettings() {
+    if (!(await openExactAlarmSettings())) return
+    setExactAlarm(true)
+    const at = useMixStore.getState().alarmAt
+    if (at) scheduleBackup(ALARM_NOTIFICATION_ID, at, 'alarm')
   }
 
   function handleArmAlarm() {
@@ -277,11 +295,28 @@ export function SleepControls() {
               </div>
             </>
           )}
-          <p className="mixer-alarm-note">{t('mixer.alarm.note')}</p>
+          {/* With the native alarm, "closing the app turns it off" is no longer true — closedAppSound says it all. */}
+          {!exactAlarm && <p className="mixer-alarm-note">{t('mixer.alarm.note')}</p>}
           {isNative && (
             <p className="mixer-alarm-note" role="status">
-              {t(notificationsDenied ? 'mixer.notificationsDenied' : 'mixer.alarm.nativeNote')}
+              {t(
+                exactAlarm
+                  ? 'mixer.alarm.closedAppSound'
+                  : notificationsDenied
+                    ? 'mixer.notificationsDenied'
+                    : 'mixer.alarm.nativeNote',
+              )}
             </p>
+          )}
+          {exactAlarm === false && (
+            <>
+              <p className="mixer-alarm-note">{t('mixer.alarm.exactNeeded')}</p>
+              <div className="mixer-alarm-row">
+                <button type="button" onClick={() => void handleOpenExactAlarmSettings()}>
+                  {t('mixer.alarm.exactOpen')}
+                </button>
+              </div>
+            </>
           )}
         </div>
 

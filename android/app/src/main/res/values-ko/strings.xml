@@ -4,4 +4,8 @@
     <string name="title_activity_main">SleepRings</string>
     <string name="play_last_mix">마지막 믹스 재생</string>
     <string name="widget_description">SleepRings를 열고 마지막 믹스를 재생해요</string>
+    <!-- Closed-app wake alarm notification (WakeAlarmService) -->
+    <string name="wake_alarm_title">기상 알람</string>
+    <string name="wake_alarm_text">일어날 시간이에요.</string>
+    <string name="wake_alarm_stop">중지</string>
 </resources>

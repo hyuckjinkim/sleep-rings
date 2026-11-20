@@ -140,7 +140,10 @@
       "note": "기상 시각에 소리가 천천히 커져요. SleepRings가 켜져 있을 때만 울려요(백그라운드 실행은 괜찮아요). 앱을 종료하면 알람도 꺼져요.",
       "nativeNote": "앱이 종료돼 있으면 소리 대신 알림이 와요.",
       "notificationTitle": "기상 알람",
-      "notificationBody": "일어날 시간이에요."
+      "notificationBody": "일어날 시간이에요.",
+      "closedAppSound": "기상 시각에 알람 볼륨으로 천천히 커져요. 앱이 종료돼 있어도 울려요. 알림의 ‘중지’를 누르거나 SleepRings를 열면 멈춰요.",
+      "exactNeeded": "앱이 종료돼 있을 때도 소리로 깨우려면 SleepRings에 ‘알람 및 리마인더’ 권한을 허용해 주세요.",
+      "exactOpen": "권한 설정 열기"
     },
     "presets": {
       "namePlaceholder": "믹스 이름",

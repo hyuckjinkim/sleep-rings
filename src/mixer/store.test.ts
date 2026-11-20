@@ -5,10 +5,15 @@ import { catalog } from '../library/catalog'
 import { usePlanStore } from '../plan'
 import type { Sound } from './types'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
+import { NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
   cancelReminder: vi.fn(),
+}))
+vi.mock('../mobile/wake-alarm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/wake-alarm')>()),
+  cancelNativeWakeAlarm: vi.fn(),
 }))
 
 beforeEach(() => {
@@ -449,6 +454,28 @@ describe('wake alarm', () => {
     vi.mocked(cancelReminder).mockClear()
     useMixStore.getState().dismissAlarm()
     expect(cancelReminder).toHaveBeenCalledWith(ALARM_NOTIFICATION_ID)
+  })
+
+  it('keeps the native alarm in sync: re-arm and dismiss cancel it', () => {
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+    useMixStore.getState().armAlarm(T0 + 60_000, 'nature-brook')
+    expect(cancelNativeWakeAlarm).toHaveBeenCalledTimes(1) // a re-arm drops the previous one first
+    useMixStore.getState().dismissAlarm() // cancel / stop share this path
+    expect(cancelNativeWakeAlarm).toHaveBeenCalledTimes(2)
+  })
+
+  it('an on-time in-app alarm cancels the native one; a late one leaves it to ring', () => {
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+    vi.advanceTimersByTime(1000)
+    expect(cancelNativeWakeAlarm).toHaveBeenCalledTimes(1)
+
+    useMixStore.getState().armAlarm(T0 + 2000, 'nature-brook')
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+    vi.setSystemTime(Date.now() + NATIVE_ALARM_DELAY_MS) // the app was frozen: wall clock moved, timers didn't
+    vi.advanceTimersByTime(1000)
+    expect(useMixStore.getState().alarmRinging).toBe(true)
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
   })
 
   it('touching the mix while it rings (wake) stops the alarm too', () => {

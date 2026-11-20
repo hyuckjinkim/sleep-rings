@@ -11,12 +11,23 @@ import { usePlaybackSettings } from './settings'
 import { usePlanStore } from '../plan'
 import { Capacitor } from '@capacitor/core'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
+import { canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
+import { ALARM_FADE_SEC } from '../mixer/store'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
   scheduleReminder: vi.fn().mockResolvedValue(true),
   areRemindersDenied: vi.fn().mockResolvedValue(false),
 }))
+vi.mock('../mobile/wake-alarm', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../mobile/wake-alarm')>()
+  return {
+    ...real,
+    canScheduleNativeWakeAlarm: vi.fn().mockResolvedValue(null),
+    openExactAlarmSettings: vi.fn().mockResolvedValue(false),
+    scheduleAlarmBackup: vi.fn(real.scheduleAlarmBackup),
+  }
+})
 
 beforeEach(() => {
   useMixStore.setState({
@@ -109,6 +120,7 @@ describe('wake alarm controls', () => {
     expect(screen.getByText('앱이 종료돼 있으면 소리 대신 알림이 와요.')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('기상 시각'), { target: { value: '06:30' } })
     fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
+    await act(async () => {}) // the alarm's backup first checks for the native alarm (wake-alarm.ts)
     const [id, atMs, text, isArmed] = vi.mocked(scheduleReminder).mock.calls[0]
     expect(id).toBe(ALARM_NOTIFICATION_ID)
     expect(atMs).toBe(useMixStore.getState().alarmAt)
@@ -130,6 +142,40 @@ describe('wake alarm controls', () => {
     await act(async () => {})
     expect(screen.getAllByText(/알림이 꺼져 있어/)).toHaveLength(2)
     vi.mocked(Capacitor.isNativePlatform).mockRestore()
+  })
+
+  it('on Android with "Alarms & reminders" access, promises the closed-app sound', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    vi.mocked(canScheduleNativeWakeAlarm).mockResolvedValueOnce(true)
+    render(<SleepControls />)
+    await act(async () => {})
+    expect(screen.getByText(/앱이 종료돼 있어도 울려요/)).toBeInTheDocument()
+    expect(screen.queryByText(/앱을 종료하면 알람도 꺼져요/)).not.toBeInTheDocument() // no longer true
+    expect(screen.queryByText('앱이 종료돼 있으면 소리 대신 알림이 와요.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '권한 설정 열기' })).not.toBeInTheDocument()
+  })
+
+  it('without that access, says so, and granting it moves the armed alarm to the native one', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    vi.mocked(canScheduleNativeWakeAlarm).mockResolvedValueOnce(false)
+    render(<SleepControls />)
+    await act(async () => {})
+    expect(screen.getByText(/‘알람 및 리마인더’ 권한/)).toBeInTheDocument()
+    expect(screen.getByText('앱이 종료돼 있으면 소리 대신 알림이 와요.')).toBeInTheDocument() // the stage 3 backup
+
+    vi.mocked(scheduleAlarmBackup).mockClear().mockResolvedValueOnce({ notificationsDenied: false, exactAlarm: false })
+    fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
+    const at = useMixStore.getState().alarmAt
+    expect(vi.mocked(scheduleAlarmBackup).mock.calls[0].slice(0, 3)).toEqual([at, 'nature-brook', ALARM_FADE_SEC])
+    await act(async () => {})
+
+    vi.mocked(openExactAlarmSettings).mockResolvedValueOnce(true)
+    vi.mocked(scheduleAlarmBackup).mockClear().mockResolvedValueOnce({ notificationsDenied: false, exactAlarm: true })
+    fireEvent.click(screen.getByRole('button', { name: '권한 설정 열기' }))
+    await act(async () => {})
+    expect(vi.mocked(scheduleAlarmBackup).mock.calls[0][0]).toBe(at)
+    expect(screen.getByText(/앱이 종료돼 있어도 울려요/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '권한 설정 열기' })).not.toBeInTheDocument()
   })
 
   it('shows no native notes on web', () => {

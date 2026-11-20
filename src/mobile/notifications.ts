@@ -31,9 +31,7 @@ export async function scheduleReminder(
 ): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return true
   try {
-    let { display } = await LocalNotifications.checkPermissions()
-    if (display !== 'granted' && display !== 'denied') display = (await LocalNotifications.requestPermissions()).display
-    if (display !== 'granted') return false
+    if (!(await requestReminderPermission())) return false
     // Exact only if the user already allows it: isExactNotification:true without that permission
     // makes schedule() jump to the system "Alarms & reminders" screen on every arm tap. Inexact
     // (allowWhileIdle) may arrive a few minutes late on Android 12+.
@@ -59,6 +57,13 @@ export async function scheduleReminder(
     console.warn('[notifications] schedule failed', err)
     return false
   }
+}
+
+/** Notification permission, prompting only while undecided. Throws on plugin failure. */
+export async function requestReminderPermission(): Promise<boolean> {
+  let { display } = await LocalNotifications.checkPermissions()
+  if (display !== 'granted' && display !== 'denied') display = (await LocalNotifications.requestPermissions()).display
+  return display === 'granted'
 }
 
 /** Whether the user already refused notifications — checked without prompting. False on web. */

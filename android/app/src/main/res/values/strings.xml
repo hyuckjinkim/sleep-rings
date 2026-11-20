@@ -11,4 +11,8 @@
     <!-- Home-screen widget + Quick Settings tile (Korean in values-ko/) -->
     <string name="play_last_mix">Play last mix</string>
     <string name="widget_description">Opens SleepRings and plays your last mix</string>
+    <!-- Closed-app wake alarm notification (WakeAlarmService) -->
+    <string name="wake_alarm_title">Wake alarm</string>
+    <string name="wake_alarm_text">It\'s your wake time.</string>
+    <string name="wake_alarm_stop">Stop</string>
 </resources>

@@ -9,6 +9,7 @@ import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
 import { hapticTap, setMediaSessionPlaying } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
+import { NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
 import { canUseFeature, canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
@@ -456,6 +457,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
     soundEngine.onEnterForeground() // a frozen (suspended) audio clock would never reach the alarm
     clearTimeout(alarmTimeout)
     soundEngine.cancelAlarm()
+    cancelNativeWakeAlarm() // re-arm: the caller schedules the new one (SleepControls)
     set({ alarmAt: atMs, alarmRinging: false })
     // Not via startPlayback(): the alarm isn't a placement, and it must not ride the layer cap.
     void soundEngine.load(sound).then(() => {
@@ -464,6 +466,9 @@ export const useMixStore = create<MixStore>((set, get) => ({
     // UI only — the sound itself is scheduled on the audio clock above, immune to timer throttling.
     alarmTimeout = setTimeout(() => {
       cancelReminder(ALARM_NOTIFICATION_ID) // the app is alive and ringing — no backup needed
+      // Same for the native alarm, but only if this timer is on time: a late one means the app was
+      // frozen, and then the audio clock is late too — let the native alarm ring (wake-alarm.ts).
+      if (Date.now() - atMs < NATIVE_ALARM_DELAY_MS / 2) cancelNativeWakeAlarm()
       clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
       set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
     }, Math.max(0, atMs - Date.now()))
@@ -472,6 +477,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   dismissAlarm() {
     clearTimeout(alarmTimeout)
     cancelReminder(ALARM_NOTIFICATION_ID)
+    cancelNativeWakeAlarm()
     // The audio clock can reach the alarm before the UI timer above flips alarmRinging; if it had
     // started, the engine just tore the mix down, so the state must say "sleeping" (not playing).
     if (soundEngine.cancelAlarm()) {
