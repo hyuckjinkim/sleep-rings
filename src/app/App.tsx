@@ -20,8 +20,10 @@ import './backdrop.css'
 
 type Screen = 'mixer' | 'settings'
 
-// iOS can hand the same cold-start link to both getLaunchUrl() and appUrlOpen.
-let lastShareUrl: string | null = null
+// iOS can hand the same cold-start link to both getLaunchUrl() and appUrlOpen: the same URL within
+// SHARE_DEDUPE_MS is one open. Later, it's the user opening that link again.
+const SHARE_DEDUPE_MS = 1000
+let lastShare: { url: string; at: number } | null = null
 
 export function App() {
   const { t, i18n } = useTranslation()
@@ -50,8 +52,8 @@ export function App() {
   // saved mix doesn't overwrite the shared one.
   useEffect(() => {
     function openShareLink(url: string) {
-      if (url === lastShareUrl) return
-      lastShareUrl = url
+      if (lastShare?.url === url && Date.now() - lastShare.at < SHARE_DEDUPE_MS) return
+      lastShare = { url, at: Date.now() }
       const shared = decodeShareUrl(url, usePlanStore.getState().plan)
       if (!shared) return
       if (shared.mix.placements.length > 0) {
@@ -67,11 +69,18 @@ export function App() {
       if (shared.lockedPlan) setShareUpsell(shared.lockedPlan)
     }
 
-    if (shareParam(location.href) !== null) {
+    function openFromPageUrl() {
+      if (shareParam(location.href) === null) return
       openShareLink(location.href)
       history.replaceState(history.state, '', location.pathname + location.search)
     }
-    if (!Capacitor.isNativePlatform()) return
+
+    openFromPageUrl()
+    if (!Capacitor.isNativePlatform()) {
+      // A link pasted into an already open tab only changes the hash: no reload, so no mount.
+      window.addEventListener('hashchange', openFromPageUrl)
+      return () => window.removeEventListener('hashchange', openFromPageUrl)
+    }
     void CapacitorApp.getLaunchUrl().then((launch) => {
       if (launch?.url) openShareLink(launch.url)
     })

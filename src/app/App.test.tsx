@@ -148,6 +148,31 @@ describe('App share links', () => {
     expect(screen.getByText(/공유받은 믹스의 일부 소리는/)).toBeInTheDocument()
   })
 
+  it('opens a link pasted into the already open tab (hash change, no reload)', () => {
+    render(<App />)
+    act(() => {
+      history.replaceState(null, '', shareUrl(sharedMix(['noise-pink']), location.href).replace(location.origin, ''))
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    })
+    expect(useMixStore.getState().current.placements.map((p) => p.soundId)).toEqual(['noise-pink'])
+    expect(location.hash).toBe('')
+  })
+
+  it('opens the same link again later (only a near-simultaneous duplicate is dropped)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const url = shareUrl(sharedMix(['noise-white']), location.href).replace(location.origin, '')
+    history.replaceState(null, '', url)
+    render(<App />)
+    act(() => useMixStore.getState().clearAll())
+    vi.setSystemTime(Date.now() + 5000)
+    act(() => {
+      history.replaceState(null, '', url)
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    })
+    expect(useMixStore.getState().current.placements.map((p) => p.soundId)).toEqual(['noise-white'])
+    vi.useRealTimers()
+  })
+
   it('ignores a malformed link without breaking the app', () => {
     history.replaceState(null, '', '/#mix=garbage!!')
     render(<App />)
