@@ -17,6 +17,8 @@ import { soundEngine } from '../mixer/engine/instance'
 import type { Mix } from '../mixer/types'
 import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
 import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { Capacitor } from '@capacitor/core'
+import { usePlanStore } from '../plan'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
@@ -185,10 +187,13 @@ describe('wake alarm persistence (the native alarm and notification 1001 outlive
     useMixStore.setState({ alarmAt: null, alarmSound: null, alarmRinging: false })
     vi.mocked(cancelReminder).mockClear()
     vi.mocked(cancelNativeWakeAlarm).mockClear()
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
   })
   afterEach(() => {
     unsubscribe?.()
     useMixStore.getState().dismissAlarm()
+    usePlanStore.setState({ plan: 'free' })
+    vi.mocked(Capacitor.isNativePlatform).mockRestore()
     vi.useRealTimers()
   })
 
@@ -200,11 +205,35 @@ describe('wake alarm persistence (the native alarm and notification 1001 outlive
     expect(cancelReminder).not.toHaveBeenCalled()
   })
 
-  it('a past, missing or corrupt record cancels the native alarm and notification 1001', () => {
+  it('falls back to the free wake sound when the plan no longer includes the saved one (downgrade)', () => {
+    usePlanStore.setState({ plan: 'free' })
+    store({ version: 1, alarmAt: T0 + 3600_000, wakeSound: 'birds' }) // armed on a paid plan
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: T0 + 3600_000, alarmSound: 'nature-brook' })
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+    expect(cancelReminder).not.toHaveBeenCalled()
+  })
+
+  it('a missing record leaves the native alarm and notification 1001 alone (failed write, older build)', () => {
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState().alarmAt).toBeNull()
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+    expect(cancelReminder).not.toHaveBeenCalled()
+  })
+
+  it('on web a future alarm is not restored (no gesture, no native backup) and the stale record goes', () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false)
+    store({ version: 1, alarmAt: T0 + 3600_000, wakeSound: 'nature-brook' })
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState().alarmAt).toBeNull()
+    expect(localStorage.getItem('so.alarm')).toBeNull()
+  })
+
+  it('a past or corrupt record cancels the native alarm and notification 1001', () => {
     for (const setup of [
       () => store({ version: 1, alarmAt: T0 - 1000, wakeSound: 'nature-brook' }),
-      () => localStorage.removeItem('so.alarm'),
       () => localStorage.setItem('so.alarm', '{nope'),
+      () => store({ version: 1, alarmAt: 'soon' }),
     ]) {
       setup()
       vi.mocked(cancelNativeWakeAlarm).mockClear()

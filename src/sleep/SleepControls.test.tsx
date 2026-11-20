@@ -199,6 +199,17 @@ describe('wake alarm controls', () => {
     expect(screen.queryByText(/소리 대신 알림이 와요/)).not.toBeInTheDocument()
   })
 
+  it('after a downgrade, a picked wake sound the plan lost falls back to the free one (Set still arms)', () => {
+    usePlanStore.setState({ plan: 'tier10000' })
+    render(<SleepControls />)
+    fireEvent.click(screen.getByRole('button', { name: '새소리' }))
+    act(() => usePlanStore.setState({ plan: 'free' }))
+    expect(screen.getByRole('button', { name: '여울 소리' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
+    expect(useMixStore.getState().alarmSound).toBe('nature-brook')
+    act(() => useMixStore.getState().dismissAlarm())
+  })
+
   it('offers a stop button while ringing', () => {
     useMixStore.setState({ alarmAt: Date.now(), alarmRinging: true })
     render(<SleepControls />)

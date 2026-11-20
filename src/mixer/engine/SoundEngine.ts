@@ -9,8 +9,8 @@ export interface SoundEngine {
   /** Whether the AudioContext is actually rendering — false while autoplay is still blocked. */
   isRunning(): boolean
 
-  /** Whether the wake alarm is audible now: scheduled, its start reached, on a running context. */
-  isAlarmSounding(): boolean
+  /** Whether the wake alarm is audible now: scheduled, its start reached (within slackSec), on a running context. */
+  isAlarmSounding(slackSec: number): boolean
 
   /** Load a catalog sound (fetch+decode for files, ensure cached buffer for noise). Idempotent. */
   load(sound: Sound): Promise<void>

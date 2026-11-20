@@ -10,7 +10,7 @@ import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
 import { hapticTap, setMediaSessionPlaying } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
-import { NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { ALARM_ON_TIME_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
 import { canUseFeature, canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
@@ -38,6 +38,10 @@ export const PLACEMENT_FADE_SEC = 0.2
 
 // Wake alarm: how long the wake sound takes to fade in (and the mix to fade out under it).
 export const ALARM_FADE_SEC = 5 * 60
+
+// Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
+// their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
+export const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
 
 /** Next wall-clock occurrence (epoch ms) of a "HH:MM" wake time: today if still ahead, else tomorrow. */
 export function nextAlarmAt(hhmm: string, now: Date = new Date()): number {
@@ -158,7 +162,7 @@ interface MixStore {
   alarmAt: number | null // epoch ms of an armed (or ringing) wake alarm — persisted by src/sleep/persistence.ts
   alarmSound: string | null // its wake sound, persisted with it
   alarmRinging: boolean
-  bedtimeAt: number | null // epoch ms of a pending bedtime start — in-memory only, like the alarm
+  bedtimeAt: number | null // epoch ms of a pending bedtime start — in-memory only (unlike the alarm)
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
   lastRemovedAll: Placement[] | null // clear-all undo buffer, same single-slot/timeout shape as lastRemoved
   layerLimitNotice: LayerLimitNotice | null // B2: transient, cleared after UNDO_TIMEOUT_MS
@@ -482,14 +486,18 @@ export const useMixStore = create<MixStore>((set, get) => ({
     alarmTimeout = setTimeout(() => {
       // Drop the backups only if the in-app alarm is really audible: a suspended context (no gesture
       // yet after a relaunch, an interrupted session) rings nothing. Two alarms, never none.
-      if (soundEngine.isAlarmSounding()) {
+      if (soundEngine.isAlarmSounding(ALARM_ON_TIME_MS / 1000)) {
         cancelReminder(ALARM_NOTIFICATION_ID) // the app is alive and ringing — no backup needed
         // Same for the native alarm, but only if this timer is on time: a late one means the app was
         // frozen, and then the audio clock is late too — let the native alarm ring (wake-alarm.ts).
-        if (Date.now() - atMs < NATIVE_ALARM_DELAY_MS / 2) cancelNativeWakeAlarm()
+        if (Date.now() - atMs < ALARM_ON_TIME_MS) cancelNativeWakeAlarm()
+        clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
+        set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
+      } else {
+        // Nothing audible, so the mix wasn't torn down: not "sleeping", and a Stop leaves it playing.
+        // dismissAlarm sets the flag if the audio clock reached the alarm after all.
+        set({ alarmRinging: true })
       }
-      clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
-      set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
     }, Math.max(0, atMs - Date.now()))
   },
 

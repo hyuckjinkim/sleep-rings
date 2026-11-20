@@ -169,10 +169,10 @@ export class SoundEngine {
   }
 
   /** Whether the wake alarm is (about to be) audible: armed, its start reached on a running clock.
-   * The 1 s slack covers a UI timer that fires a little ahead of the audio clock. */
-  isAlarmSounding(): boolean {
+   * `slackSec` covers a UI timer that fires ahead of the audio clock (overnight drift). */
+  isAlarmSounding(slackSec: number): boolean {
     const alarm = this.alarm
-    return !!alarm && this.ctx.state === 'running' && this.ctx.currentTime >= alarm.startAt - 1
+    return !!alarm && this.ctx.state === 'running' && this.ctx.currentTime >= alarm.startAt - slackSec
   }
 
   /** Load a catalog sound (fetch+decode for files, cached buffer for synth/binaural). Idempotent. */

@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
-import { ALARM_FADE_SEC, nextAlarmAt, useMixStore } from '../mixer/store'
+import { ALARM_FADE_SEC, WAKE_SOUNDS, nextAlarmAt, useMixStore } from '../mixer/store'
 import { PUBLIC_WEB_URL, shareUrl } from '../mixer/share'
 import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
 import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
-// Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
-// their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
-const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
 
 const PRESET_MINUTES = [15, 30, 45, 60, 90]
 
@@ -33,7 +30,9 @@ export function SleepControls() {
   const armAlarm = useMixStore((s) => s.armAlarm)
   const dismissAlarm = useMixStore((s) => s.dismissAlarm)
   const [wakeTime, setWakeTime] = useState('07:00')
-  const [wakeSound, setWakeSound] = useState(WAKE_SOUNDS[0])
+  const [pickedWakeSound, setWakeSound] = useState(WAKE_SOUNDS[0])
+  // A pick the plan no longer includes (a downgrade) falls back to the free one, or Set would do nothing.
+  const wakeSound = canUseSound(pickedWakeSound, plan) ? pickedWakeSound : WAKE_SOUNDS[0]
   const bedtimeAt = useMixStore((s) => s.bedtimeAt)
   const armBedtime = useMixStore((s) => s.armBedtime)
   const cancelBedtime = useMixStore((s) => s.cancelBedtime)

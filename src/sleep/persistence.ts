@@ -2,11 +2,12 @@
 // owns the state shape/mutations and never imports this file, so store.test.ts stays
 // localStorage-free. This module reads/writes and pokes the store via its public API.
 import { Capacitor } from '@capacitor/core'
-import { emptyMix, startPlayback, useMixStore } from '../mixer/store'
+import { WAKE_SOUNDS, emptyMix, startPlayback, useMixStore } from '../mixer/store'
 import { soundEngine } from '../mixer/engine/instance'
 import { startKeepAliveAudio } from '../mobile'
 import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
 import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { canUseSound, getPlan } from '../plan'
 import type { Mix } from '../mixer/types'
 
 const CURRENT_SCHEMA = 1
@@ -112,11 +113,17 @@ export function restoreMix(): void {
   for (const placement of mix.placements) startPlayback(placement)
 }
 
-function loadAlarm(): { alarmAt: number; wakeSound: string } | null {
+/** undefined: no record (or unreadable storage); null: a corrupt one. */
+function loadAlarm(): { alarmAt: number; wakeSound: string } | null | undefined {
+  let stored: string | null
   try {
-    const raw = JSON.parse(localStorage.getItem(ALARM_KEY) ?? 'null') as
-      | { version?: unknown; alarmAt?: unknown; wakeSound?: unknown }
-      | null
+    stored = localStorage.getItem(ALARM_KEY)
+  } catch {
+    return undefined
+  }
+  if (stored === null) return undefined
+  try {
+    const raw = JSON.parse(stored) as { version?: unknown; alarmAt?: unknown; wakeSound?: unknown } | null
     if (!raw || raw.version !== CURRENT_SCHEMA || typeof raw.alarmAt !== 'number' || typeof raw.wakeSound !== 'string') {
       return null
     }
@@ -131,7 +138,8 @@ function saveAlarm(alarmAt: number | null, wakeSound: string | null): void {
     if (alarmAt === null) localStorage.removeItem(ALARM_KEY)
     else localStorage.setItem(ALARM_KEY, JSON.stringify({ version: CURRENT_SCHEMA, alarmAt, wakeSound }))
   } catch {
-    // ponytail: storage full/blocked — the alarm still works for this session, just not across a relaunch
+    // ponytail: storage full/blocked — the alarm still works for this session; after a relaunch its
+    // native backups still ring (restoreAlarm leaves them alone without a record), the UI just can't show it
   }
 }
 
@@ -139,16 +147,24 @@ function saveAlarm(alarmAt: number | null, wakeSound: string | null): void {
  * Boot: the armed wake alarm outlives the app (the native alarm and backup notification 1001 do),
  * so the UI must too, or a relaunch shows no alarm and no Cancel while those still ring. One still
  * ahead is re-armed in-app, its native backups kept (the engine re-derives the schedule once the
- * context is unlocked); a past or missing one takes the native pieces down with it. Then keeps the
- * stored copy in step with the store for the app's lifetime. Call once.
+ * context is unlocked), with the free wake sound if the plan no longer includes the saved one; a
+ * past or corrupt record takes the native pieces down with it. No record (a failed write, an older
+ * build) touches nothing — the native alarm may still be valid. On web nothing is restored: with no
+ * gesture and no native backup it couldn't ring, so the stale record is just dropped. Then keeps
+ * the stored copy in step with the store for the app's lifetime. Call once.
  */
 export function restoreAlarm(): () => void {
   const saved = loadAlarm()
-  if (saved && saved.alarmAt > Date.now()) useMixStore.getState().armAlarm(saved.alarmAt, saved.wakeSound, true)
-  if (useMixStore.getState().alarmAt === null) {
-    cancelNativeWakeAlarm()
-    cancelReminder(ALARM_NOTIFICATION_ID)
-    saveAlarm(null, null)
+  if (saved !== undefined) {
+    if (saved && saved.alarmAt > Date.now() && Capacitor.isNativePlatform()) {
+      const usable = WAKE_SOUNDS.includes(saved.wakeSound) && canUseSound(saved.wakeSound, getPlan())
+      useMixStore.getState().armAlarm(saved.alarmAt, usable ? saved.wakeSound : WAKE_SOUNDS[0], true)
+    }
+    if (useMixStore.getState().alarmAt === null) {
+      cancelNativeWakeAlarm()
+      cancelReminder(ALARM_NOTIFICATION_ID)
+      saveAlarm(null, null)
+    }
   }
   let last = useMixStore.getState().alarmAt
   return useMixStore.subscribe((state) => {

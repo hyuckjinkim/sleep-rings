@@ -31,6 +31,9 @@ interface WakeAlarmPlugin {
 const WakeAlarm = registerPlugin<WakeAlarmPlugin>('WakeAlarm')
 
 export const NATIVE_ALARM_DELAY_MS = 15_000
+/** How far the in-app alarm may be off (UI timer vs audio clock, overnight drift) and still count as
+ * on time — half the native delay, so it is decided well before the native alarm would ring. */
+export const ALARM_ON_TIME_MS = NATIVE_ALARM_DELAY_MS / 2
 
 const isAndroid = () => Capacitor.getPlatform() === 'android'
 const isIos = () => Capacitor.getPlatform() === 'ios'

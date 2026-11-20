@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
-import { ALARM_FADE_SEC, enginePlacement, nextAlarmAt, useMixStore } from './store'
+import { ALARM_FADE_SEC, defaultOrbit, enginePlacement, nextAlarmAt, useMixStore } from './store'
 import { soundEngine } from './engine/instance'
 import { catalog } from '../library/catalog'
 import { usePlanStore } from '../plan'
 import type { Sound } from './types'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
-import { NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { ALARM_ON_TIME_MS, NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
@@ -489,6 +489,26 @@ describe('wake alarm', () => {
     expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
   })
 
+  it('an alarm that is not audible yet leaves the mix and its sleep timer alone (Stop then keeps it playing)', () => {
+    useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    useMixStore.getState().startSleepTimer(120)
+    const sleepEndsAt = useMixStore.getState().sleepEndsAt
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.spyOn(soundEngine, 'isAlarmSounding').mockReturnValue(false) // e.g. context still suspended
+    vi.advanceTimersByTime(1000)
+    expect(useMixStore.getState()).toMatchObject({ alarmRinging: true, sleeping: false, sleepEndsAt })
+    useMixStore.getState().dismissAlarm() // the audio clock never got there: cancelAlarm() reports false
+    expect(useMixStore.getState()).toMatchObject({ alarmRinging: false, sleeping: false })
+  })
+
+  it('asks the engine with the shared on-time slack (half the native delay)', () => {
+    const sounding = vi.spyOn(soundEngine, 'isAlarmSounding')
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.advanceTimersByTime(1000)
+    expect(sounding).toHaveBeenCalledWith(ALARM_ON_TIME_MS / 1000)
+    expect(ALARM_ON_TIME_MS).toBe(NATIVE_ALARM_DELAY_MS / 2)
+  })
+
   it('a restored alarm (boot) keeps the native alarm set before the relaunch', () => {
     vi.mocked(cancelNativeWakeAlarm).mockClear()
     useMixStore.getState().armAlarm(T0 + 60_000, 'nature-brook', true)
@@ -500,8 +520,11 @@ describe('wake alarm', () => {
     useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
     vi.advanceTimersByTime(1000)
     const cancelSpy = vi.spyOn(soundEngine, 'cancelAlarm')
-    useMixStore.getState().openMix({ ...useMixStore.getState().current, placements: [] })
+    const placement = { id: 'p1', soundId: 'noise-white', radius: 0.3, angle: 0, orbit: defaultOrbit(), locked: false, volume: 1 }
+    useMixStore.getState().openMix({ ...useMixStore.getState().current, placements: [placement] })
     expect(cancelSpy).toHaveBeenCalled()
+    vi.advanceTimersByTime((ALARM_FADE_SEC + 1) * 1000) // past the crossfade the alarm would have ended it at
+    expect(useMixStore.getState().current.placements.map((p) => p.id)).toEqual(['p1'])
     expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false, sleeping: false })
   })
 

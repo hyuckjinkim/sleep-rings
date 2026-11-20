@@ -4,6 +4,7 @@ import { FADE_IN_SEC, SoundEngine } from './sound-engine'
 import { THROTTLE_SEC } from './spatial'
 import { createMockAudioContext } from './test-support/mock-audio-context'
 import type { EngineAudioContext } from './web-audio-types'
+import { ALARM_ON_TIME_MS } from '../mobile/wake-alarm'
 
 const NOISE_SOUND: Sound = {
   id: 'pink-noise',
@@ -593,14 +594,23 @@ describe('SoundEngine', () => {
     })
 
     it('isAlarmSounding() is true only once the alarm has started on a running context', () => {
-      expect(engine.isAlarmSounding()).toBe(false) // nothing armed
+      expect(engine.isAlarmSounding(0)).toBe(false) // nothing armed
       engine.scheduleAlarm('birds', T0 + 60_000, 300) // starts at 160
       ctx.state = 'running'
-      expect(engine.isAlarmSounding()).toBe(false)
+      expect(engine.isAlarmSounding(0)).toBe(false)
       ctx.currentTime = 160
-      expect(engine.isAlarmSounding()).toBe(true)
+      expect(engine.isAlarmSounding(0)).toBe(true)
       ctx.state = 'suspended' // a frozen clock rings nothing
-      expect(engine.isAlarmSounding()).toBe(false)
+      expect(engine.isAlarmSounding(0)).toBe(false)
+    })
+
+    it('isAlarmSounding() counts a start within the on-time slack (UI timer ahead of a drifted clock)', () => {
+      engine.scheduleAlarm('birds', T0 + 60_000, 300) // starts at 160
+      ctx.state = 'running'
+      ctx.currentTime = 160 - 7
+      expect(engine.isAlarmSounding(ALARM_ON_TIME_MS / 1000)).toBe(true)
+      ctx.currentTime = 160 - 8
+      expect(engine.isAlarmSounding(ALARM_ON_TIME_MS / 1000)).toBe(false)
     })
 
     it('init() re-derives an alarm scheduled before the context was unlocked (boot restore)', async () => {
