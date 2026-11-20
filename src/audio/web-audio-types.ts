@@ -42,6 +42,12 @@ export interface EngineDynamicsCompressorNode extends EngineAudioNode {
   release: EngineAudioParam
 }
 
+export interface EngineBiquadFilterNode extends EngineAudioNode {
+  type: BiquadFilterType
+  frequency: EngineAudioParam
+  gain: EngineAudioParam
+}
+
 export interface EngineAudioBuffer {
   readonly duration: number
   readonly length: number
@@ -69,6 +75,7 @@ export interface EngineAudioContext {
   createPanner(): EnginePannerNode
   createStereoPanner(): EngineStereoPannerNode
   createDynamicsCompressor(): EngineDynamicsCompressorNode
+  createBiquadFilter(): EngineBiquadFilterNode
   createBufferSource(): EngineBufferSourceNode
   createBuffer(numberOfChannels: number, length: number, sampleRate: number): EngineAudioBuffer
   decodeAudioData(data: ArrayBuffer): Promise<EngineAudioBuffer>

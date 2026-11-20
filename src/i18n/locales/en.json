@@ -86,7 +86,15 @@
       "orbitShape": "Orbit shape",
       "volumeCurveOn": "Turn on volume swell",
       "volumeCurveOff": "Turn off volume swell",
-      "volumeCurveDepth": "Swell depth"
+      "volumeCurveDepth": "Swell depth",
+      "tone": "Tone (darker ↔ brighter)",
+      "toneNeutral": "Neutral",
+      "toneDarker": "Darker",
+      "toneBrighter": "Brighter",
+      "paidLocked": "{{feature}} · {{tier}}"
+    },
+    "paidFeature": {
+      "tone": "Noise tone"
     },
     "master": {
       "volume": "Master volume"
@@ -152,7 +160,8 @@
       "restoring": "Restoring…",
       "failed": "Purchase failed. Please try again.",
       "comingSoon": "Purchases are coming soon. ({{price}})",
-      "bodyGeneric": "Upgrading to {{tier}} unlocks more sounds and more layers."
+      "bodyGeneric": "Upgrading to {{tier}} unlocks more sounds and more layers.",
+      "featureBody": "{{feature}} is available from {{tier}}."
     },
     "layerLimit": {
       "replaced": "Layers are full — replaced the oldest sound.",

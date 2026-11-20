@@ -5,6 +5,7 @@ import type {
   EngineAudioBuffer,
   EngineAudioContext,
   EngineAudioParam,
+  EngineBiquadFilterNode,
   EngineBufferSourceNode,
   EngineDynamicsCompressorNode,
   EngineGainNode,
@@ -96,6 +97,14 @@ export function createMockAudioContext(sampleRate = 48000): EngineAudioContext {
         ratio: createParam(12),
         attack: createParam(0.003),
         release: createParam(0.25),
+      }),
+    ),
+    createBiquadFilter: vi.fn(
+      (): EngineBiquadFilterNode => ({
+        ...createAudioNode(),
+        type: 'lowpass',
+        frequency: createParam(350),
+        gain: createParam(0),
       }),
     ),
     createBufferSource: vi.fn(

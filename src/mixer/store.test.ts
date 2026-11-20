@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
-import { ALARM_FADE_SEC, nextAlarmAt, useMixStore } from './store'
+import { ALARM_FADE_SEC, enginePlacement, nextAlarmAt, useMixStore } from './store'
 import { soundEngine } from './engine/instance'
 import { catalog } from '../library/catalog'
 import { usePlanStore } from '../plan'
@@ -420,6 +420,37 @@ describe('wake alarm', () => {
     vi.advanceTimersByTime(1000)
     useMixStore.getState().cancelSleepTimer()
     expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false, sleeping: false })
+  })
+})
+
+describe('paid per-sound controls reach the engine only on a plan that includes them', () => {
+  const base = {
+    id: 'p',
+    soundId: 'noise-pink',
+    radius: 0.5,
+    angle: 0,
+    orbit: { mode: 'fixed' as const, shape: { kind: 'circle' as const }, speed: 0, direction: 1 as const },
+    locked: false,
+    volume: 1,
+    tone: -0.5,
+  }
+
+  it('free (or a lapsed subscription): tone is dropped, the rest untouched', () => {
+    usePlanStore.setState({ plan: 'free' })
+    expect(enginePlacement(base)).toEqual({ ...base, tone: undefined })
+  })
+
+  it('lowest paid tier and above: passed through as-is', () => {
+    usePlanStore.setState({ plan: 'tier2000' })
+    expect(enginePlacement(base)).toBe(base)
+  })
+
+  it('updatePlacement on free never hands the engine a tone', () => {
+    const setSpy = vi.spyOn(soundEngine, 'setPlacement')
+    const id = useMixStore.getState().addPlacement('noise-pink', 0.4, 0)
+    useMixStore.getState().updatePlacement(id, { tone: 0.8 })
+    expect(setSpy.mock.lastCall?.[0].tone).toBeUndefined()
+    setSpy.mockRestore()
   })
 })
 

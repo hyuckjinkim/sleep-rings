@@ -1,7 +1,7 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> night -> intro -> wake -> limiter -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> master -> night -> intro -> wake -> limiter -> destination.
 // `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
 // `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
 // `intro` likewise belongs to the start fade-in alone, and `wake` to the alarm's crossfade (one
@@ -15,6 +15,7 @@ import { MAX_DISTANCE, RAMP_SEC, REF_DISTANCE, angleToPosition, fallbackGain, fa
 import type {
   EngineAudioBuffer,
   EngineAudioContext,
+  EngineBiquadFilterNode,
   EngineBufferSourceNode,
   EngineDynamicsCompressorNode,
   EngineGainNode,
@@ -46,6 +47,11 @@ const IDLE_BUFFER_BUDGET_BYTES = 24 * 1024 * 1024
 const BYTES_PER_SAMPLE = 4 // float32
 // cancelSleep() mid-fade: bring the night gain back without a jump.
 const NIGHT_RESTORE_SEC = 0.5
+// Noise tone tilt: one shelf filter that only ever cuts (never boosts), so it can't push the mix
+// past the volume cap. Darker = cut the highs, brighter = cut the lows.
+const TONE_MAX_CUT_DB = 12
+const TONE_DARK_SHELF_HZ = 1000
+const TONE_BRIGHT_SHELF_HZ = 400
 // Dismissing a ringing alarm: short fade so the stop doesn't click.
 const ALARM_STOP_SEC = 0.5
 
@@ -66,12 +72,15 @@ interface LoadedSound {
   // Panner/StereoPanner would collapse or reposition that separation, so they skip the spatial
   // node entirely (docs/design/audio-engine.md gap notes, E3 §6).
   panBypass?: boolean
+  toneable?: boolean // synthesized noise colors only (category 'noise')
 }
 
 interface PlacementNodes {
   source: EngineBufferSourceNode
   spatial: EnginePannerNode | EngineStereoPannerNode | null
   gain: EngineGainNode
+  toneable: boolean
+  tone: EngineBiquadFilterNode | null // created only while placement.tone != 0
   quality: PanQuality
   placement: Placement
   lastRampAt: number
@@ -145,7 +154,10 @@ export class SoundEngine {
       return
     }
     if (sound.source.kind === 'synth') {
-      this.sounds.set(sound.id, { buffer: this.renderAndCacheNoise(sound.source.generator) })
+      this.sounds.set(sound.id, {
+        buffer: this.renderAndCacheNoise(sound.source.generator),
+        toneable: sound.category === 'noise',
+      })
       return
     }
     if (sound.source.kind === 'binaural') {
@@ -176,7 +188,6 @@ export class SoundEngine {
     const gain = this.ctx.createGain()
     source.connect(spatial ?? gain)
     if (spatial) spatial.connect(gain)
-    gain.connect(this.master)
 
     // MEDIUM-1 follow-up (v020-review.md): the fade-in ramp's own target must be curve-free —
     // otherwise the very placement being modulated could start its fade already offset by
@@ -196,6 +207,8 @@ export class SoundEngine {
       source,
       spatial,
       gain,
+      toneable: loaded.toneable === true,
+      tone: null,
       quality: this.quality,
       placement,
       lastRampAt: -Infinity,
@@ -204,6 +217,8 @@ export class SoundEngine {
       fadeInEndsAt: this.ctx.currentTime + FADE_IN_SEC,
     }
     this.active.set(placement.id, nodes)
+
+    this.applyEffects(nodes, placement, true)
 
     gain.gain.value = 0
     fadeTo(gain.gain, this.ctx.currentTime, target, FADE_IN_SEC)
@@ -289,6 +304,37 @@ export class SoundEngine {
       nodes.lastGain = g
     }
     if (!nodes.panBypass && !placement.locked) this.applySpatial(nodes, placement, false)
+    this.applyEffects(nodes, placement)
+  }
+
+  /**
+   * Optional per-placement nodes after `gain` (so setPanQuality's source->spatial rewiring never
+   * sees them). Created lazily and only touched when something changed — setPlacement runs every
+   * animation frame while an orb orbits.
+   */
+  private applyEffects(nodes: PlacementNodes, placement: Placement, rewire = false): void {
+    const tone = nodes.toneable ? Math.min(1, Math.max(-1, placement.tone ?? 0)) : 0
+    if (tone !== 0 && !nodes.tone) {
+      nodes.tone = this.ctx.createBiquadFilter()
+      rewire = true
+    } else if (tone === 0 && nodes.tone) {
+      nodes.tone.disconnect()
+      nodes.tone = null
+      rewire = true
+    }
+    if (nodes.tone) {
+      const type: BiquadFilterType = tone < 0 ? 'highshelf' : 'lowshelf'
+      const cutDb = -Math.abs(tone) * TONE_MAX_CUT_DB
+      if (nodes.tone.type !== type) {
+        nodes.tone.type = type
+        nodes.tone.frequency.value = tone < 0 ? TONE_DARK_SHELF_HZ : TONE_BRIGHT_SHELF_HZ
+      }
+      if (nodes.tone.gain.value !== cutDb) nodes.tone.gain.value = cutDb
+    }
+    if (!rewire) return
+    nodes.gain.disconnect()
+    const chain = [nodes.gain, nodes.tone].filter((n) => n !== null)
+    chain.forEach((node, i) => node.connect(chain[i + 1] ?? this.master))
   }
 
   /** Fade-in length (seconds) applied when playback starts from silence. 0 = off. */
@@ -564,5 +610,6 @@ export class SoundEngine {
     nodes.source.disconnect()
     nodes.spatial?.disconnect()
     nodes.gain.disconnect()
+    nodes.tone?.disconnect()
   }
 }

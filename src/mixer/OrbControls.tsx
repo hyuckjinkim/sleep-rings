@@ -1,9 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
 import { useDialogFocus } from '../a11y/useDialogFocus'
 import { radiusToVolume, volumeToRadius } from './geometry'
 import { shapeForEccentricity } from './Orb'
+import { soundCategory } from '../library/catalog'
+import { canUseFeature, featurePlan, usePlanStore } from '../plan'
+import type { PaidFeature } from '../plan'
+import { UpgradeSheet } from '../plan/UpgradeSheet'
 
 interface OrbControlsProps {
   placementId: string
@@ -28,6 +33,8 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const updatePlacement = useMixStore((s) => s.updatePlacement)
   const toggleLocked = useMixStore((s) => s.toggleLocked)
   const removePlacement = useMixStore((s) => s.removePlacement)
+  const plan = usePlanStore((s) => s.plan)
+  const [upsell, setUpsell] = useState<PaidFeature | null>(null)
 
   useDialogFocus(rootRef, onClose)
 
@@ -39,6 +46,7 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
       const target = e.target as Element
       if (rootRef.current?.contains(target)) return
       if (target.closest?.('.mixer-orb')) return
+      if (target.closest?.('.mixer-upgrade-backdrop')) return // the paid-control upsell opened from here
       onClose()
     }
     document.addEventListener('pointerdown', handlePointerDown)
@@ -52,6 +60,23 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const isFixed = placement.orbit.mode === 'fixed'
   const curveDepth = placement.orbit.volumeCurve?.depth ?? 0
   const hasCurve = curveDepth > 0
+  const isNoise = soundCategory(placement.soundId) === 'noise'
+  const tonePercent = Math.round((placement.tone ?? 0) * 100)
+
+  /** Paid control: the real thing when the plan includes it, else a button that explains + sells it. */
+  function paidControl(feature: PaidFeature, control: ReactNode) {
+    if (canUseFeature(feature, plan)) return control
+    return (
+      <div className="mixer-controls-row">
+        <button type="button" onClick={() => setUpsell(feature)}>
+          {t('mixer.controls.paidLocked', {
+            feature: t(`mixer.paidFeature.${feature}`),
+            tier: t(`plan.tier.${featurePlan(feature)}`),
+          })}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -159,6 +184,39 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
             onChange={(e) => updatePlacement(placementId, { orbit: { volumeCurve: { depth: Number(e.target.value) / 100 } } })}
           />
         </div>
+      )}
+      {isNoise &&
+        paidControl(
+          'tone',
+          <div className="mixer-controls-row">
+            <label htmlFor="orb-tone">{t('mixer.controls.tone')}</label>
+            <input
+              id="orb-tone"
+              type="range"
+              min={-100}
+              max={100}
+              step={10}
+              value={tonePercent}
+              aria-valuetext={
+                tonePercent === 0
+                  ? t('mixer.controls.toneNeutral')
+                  : tonePercent < 0
+                    ? t('mixer.controls.toneDarker')
+                    : t('mixer.controls.toneBrighter')
+              }
+              onChange={(e) => updatePlacement(placementId, { tone: Number(e.target.value) / 100 })}
+            />
+          </div>,
+        )}
+      {upsell && (
+        <UpgradeSheet
+          plan={featurePlan(upsell)}
+          message={t('plan.upgrade.featureBody', {
+            feature: t(`mixer.paidFeature.${upsell}`),
+            tier: t(`plan.tier.${featurePlan(upsell)}`),
+          })}
+          onClose={() => setUpsell(null)}
+        />
       )}
     </div>
   )

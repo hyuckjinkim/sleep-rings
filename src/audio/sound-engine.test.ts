@@ -331,6 +331,66 @@ describe('SoundEngine', () => {
     expect(intro.cancelScheduledValues).toHaveBeenCalledTimes(1) // only play()'s own
   })
 
+  describe('noise tone (cut-only shelf after the placement gain)', () => {
+    const filter = (i = 0) => vi.mocked(ctx.createBiquadFilter).mock.results[i].value
+    const master = () => gainNode(0)
+    const pGain = () => gainNode(GLOBAL_GAINS)
+
+    it('no tone: no filter node at all, gain goes straight to master', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement())
+      expect(ctx.createBiquadFilter).not.toHaveBeenCalled()
+      expect(pGain().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('darker cuts the highs, brighter cuts the lows — never a boost', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: -0.5 }))
+      expect(pGain().connect).toHaveBeenLastCalledWith(filter())
+      expect(filter().connect).toHaveBeenLastCalledWith(master())
+      expect(filter().type).toBe('highshelf')
+      expect(filter().gain.value).toBe(-6)
+
+      engine.setPlacement(placement({ tone: 1 }))
+      expect(filter().type).toBe('lowshelf')
+      expect(filter().gain.value).toBe(-12)
+      engine.setPlacement(placement({ tone: 5 })) // clamped
+      expect(filter().gain.value).toBeLessThanOrEqual(0)
+    })
+
+    it('back to 0 removes the filter and rewires gain -> master', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: 0.3 }))
+      engine.setPlacement(placement({ tone: 0 }))
+      expect(filter().disconnect).toHaveBeenCalled()
+      expect(pGain().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('a per-frame setPlacement with an unchanged tone never touches the filter', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: -0.5 }))
+      const f = filter()
+      const gainDescriptor = vi.fn()
+      Object.defineProperty(f.gain, 'value', { get: () => -6, set: gainDescriptor })
+      for (let i = 0; i < 5; i++) engine.setPlacement(placement({ tone: -0.5, angle: i }))
+      expect(gainDescriptor).not.toHaveBeenCalled()
+      expect(ctx.createBiquadFilter).toHaveBeenCalledTimes(1)
+    })
+
+    it('ignores tone on non-noise sounds', async () => {
+      await engine.load({ ...NOISE_SOUND, id: 'rainy', category: 'rain' })
+      engine.play(placement({ soundId: 'rainy', tone: -1 }))
+      expect(ctx.createBiquadFilter).not.toHaveBeenCalled()
+    })
+
+    it('stop() tears the filter down with the rest of the chain', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: -1 }))
+      engine.stop('p1')
+      expect(filter().disconnect).toHaveBeenCalled()
+    })
+  })
+
   describe('volume cap', () => {
     // Product of every gain a placement's signal passes through, master onwards.
     function summedGain(placementGain: number): number {

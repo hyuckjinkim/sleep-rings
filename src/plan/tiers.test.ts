@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canUseSound, maxLayers, maxPresets, requiredPlan } from './tiers'
+import { canUseFeature, canUseSound, featurePlan, maxLayers, maxPresets, requiredPlan } from './tiers'
 import type { Plan } from './types'
 
 const PLANS: Plan[] = ['free', 'tier2000', 'tier5000', 'tier10000']
@@ -68,5 +68,14 @@ describe('canUseSound', () => {
   it('the future file-based library is locked below tier10000', () => {
     expect(canUseSound('garden-rain', 'tier5000')).toBe(false)
     expect(canUseSound('garden-rain', 'tier10000')).toBe(true)
+  })
+})
+
+describe('paid feature gating', () => {
+  it('tone needs the lowest paid tier or above', () => {
+    expect(featurePlan('tone')).toBe('tier2000')
+    expect(canUseFeature('tone', 'free')).toBe(false)
+    expect(canUseFeature('tone', 'tier2000')).toBe(true)
+    expect(canUseFeature('tone', 'tier10000')).toBe(true)
   })
 })

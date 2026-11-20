@@ -8,7 +8,7 @@ import { soundEngine } from './engine/instance'
 import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
 import { hapticTap, setMediaSessionPlaying } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
-import { canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
+import { canUseFeature, canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
 const UNDO_TIMEOUT_MS = 5000
@@ -73,6 +73,16 @@ function markErrored(id: string): void {
 }
 
 /**
+ * What the engine gets to see of a placement: paid per-sound controls the current plan doesn't
+ * include are dropped. Every path into the engine goes through this (store and OrbitField's frame
+ * loop), so a mix saved on a paid plan simply plays neutral after a downgrade — same idea as the
+ * per-sound gate in startPlayback().
+ */
+export function enginePlacement(placement: Placement): Placement {
+  return placement.tone && !canUseFeature('tone', getPlan()) ? { ...placement, tone: undefined } : placement
+}
+
+/**
  * Start engine playback for a placement. Safe to call before the user's first gesture —
  * Web Audio lets you queue/start a source on a suspended AudioContext, it just stays silent
  * until ctx.resume() (fired by engine.init() on the first gesture). That's what lets restored
@@ -91,7 +101,7 @@ export function startPlayback(placement: Placement): void {
       // H1: placement may have been removed while load() was pending — don't resurrect it as
       // an unstoppable ghost sound the store no longer has a reference to stop.
       if (!isStillPlaced(placement.id)) return
-      soundEngine.play(placement)
+      soundEngine.play(enginePlacement(placement))
     })
   } else {
     // file sounds fetch+decode — show a loading state on the orb until play() starts.
@@ -100,7 +110,7 @@ export function startPlayback(placement: Placement): void {
       .load(sound)
       .then(() => {
         if (!isStillPlaced(placement.id)) return // H1, same as above
-        soundEngine.play(placement)
+        soundEngine.play(enginePlacement(placement))
         clearLoading(placement.id)
       })
       .catch(() => {
@@ -248,7 +258,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
       },
     }))
     const updated = get().current.placements.find((p) => p.id === id)
-    if (updated) soundEngine.setPlacement(updated)
+    if (updated) soundEngine.setPlacement(enginePlacement(updated))
   },
 
   removePlacement(id) {

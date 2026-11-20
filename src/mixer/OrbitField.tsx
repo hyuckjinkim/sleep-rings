@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMixStore } from './store'
+import { enginePlacement, useMixStore } from './store'
 import { polarToUnit } from './geometry'
 import { soundEngine } from './engine/instance'
 import { soundCategory, soundName } from '../library/catalog'
@@ -110,7 +110,7 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
           angle += p.orbit.speed * p.orbit.direction * dt
           liveAngles.set(p.id, angle)
           // engine throttles/ramps internally (audio-engine.md §2) — safe to call every frame.
-          soundEngine.setPlacement({ ...p, angle })
+          soundEngine.setPlacement(enginePlacement({ ...p, angle }))
         } else {
           liveAngles.set(p.id, angle)
         }
