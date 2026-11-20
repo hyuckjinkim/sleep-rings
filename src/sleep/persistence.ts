@@ -9,6 +9,19 @@ const CURRENT_SCHEMA = 1
 const AUTOSAVE_DEBOUNCE_MS = 500
 const MIX_KEY = 'so.currentMix'
 const PRESETS_KEY = 'so.presets'
+const PLAYBACK_KEY = 'so.playbackSettings'
+
+/** Start fade-in choices, seconds (0 = off: only the short per-orb click guard). */
+export const FADE_IN_OPTIONS = [0, 10, 30, 60] as const
+/** Sleep-timer fade-out choices, seconds. */
+export const SLEEP_FADE_OPTIONS = [30, 60, 180, 300, 600] as const
+
+export interface PlaybackSettings {
+  fadeInSec: number
+  sleepFadeSec: number
+}
+
+export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = { fadeInSec: 0, sleepFadeSec: 60 }
 
 interface StoredMix {
   version: number
@@ -47,6 +60,31 @@ export function loadPresets(): Mix[] {
 
 export function savePresets(presets: Mix[]): void {
   localStorage.setItem(PRESETS_KEY, JSON.stringify(presets))
+}
+
+function pick<T>(options: readonly T[], value: unknown, fallback: T): T {
+  return options.includes(value as T) ? (value as T) : fallback
+}
+
+/** Each field is validated on its own, so a value outside today's option lists (or a field added
+ * later) falls back to its default instead of discarding the rest. */
+export function loadPlaybackSettings(): PlaybackSettings {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PLAYBACK_KEY) ?? 'null') as
+      | ({ version: number } & Partial<PlaybackSettings>)
+      | null
+    if (!raw || raw.version !== CURRENT_SCHEMA) return { ...DEFAULT_PLAYBACK_SETTINGS }
+    return {
+      fadeInSec: pick(FADE_IN_OPTIONS, raw.fadeInSec, DEFAULT_PLAYBACK_SETTINGS.fadeInSec),
+      sleepFadeSec: pick(SLEEP_FADE_OPTIONS, raw.sleepFadeSec, DEFAULT_PLAYBACK_SETTINGS.sleepFadeSec),
+    }
+  } catch {
+    return { ...DEFAULT_PLAYBACK_SETTINGS }
+  }
+}
+
+export function savePlaybackSettings(settings: PlaybackSettings): void {
+  localStorage.setItem(PLAYBACK_KEY, JSON.stringify({ version: CURRENT_SCHEMA, ...settings }))
 }
 
 /**

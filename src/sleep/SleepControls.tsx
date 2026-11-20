@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from '../mixer/store'
+import { usePlaybackSettings } from './settings'
 
 const PRESET_MINUTES = [15, 30, 45, 60, 90]
 
@@ -25,6 +26,10 @@ export function SleepControls() {
   const deletePreset = useMixStore((s) => s.deletePreset)
   const masterVolume = useMixStore((s) => s.current.masterVolume)
   const setMasterVolume = useMixStore((s) => s.setMasterVolume)
+  const sleepFadeSec = usePlaybackSettings((s) => s.sleepFadeSec)
+  const [customHours, setCustomHours] = useState('')
+  const [customMinutes, setCustomMinutes] = useState('')
+  const customTotal = (Number(customHours) || 0) * 60 + (Number(customMinutes) || 0)
   const [presetName, setPresetName] = useState('')
   const [now, setNow] = useState(Date.now())
 
@@ -59,7 +64,7 @@ export function SleepControls() {
 
         <div className="mixer-sleep-timer">
           {PRESET_MINUTES.map((minutes) => (
-            <button key={minutes} type="button" onClick={() => startSleepTimer(minutes)}>
+            <button key={minutes} type="button" onClick={() => startSleepTimer(minutes, sleepFadeSec)}>
               {t('mixer.sleep.minutes', { minutes })}
             </button>
           ))}
@@ -72,6 +77,36 @@ export function SleepControls() {
           {sleepEndsAt && (
             <span className="mixer-sleep-remaining">{formatRemaining(sleepEndsAt - now)}</span>
           )}
+          <span className="mixer-sleep-custom">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={23}
+              value={customHours}
+              onChange={(e) => setCustomHours(e.target.value)}
+              aria-label={t('mixer.sleep.customHours')}
+              placeholder={t('mixer.sleep.hoursShort')}
+            />
+            <span aria-hidden="true">:</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={59}
+              value={customMinutes}
+              onChange={(e) => setCustomMinutes(e.target.value)}
+              aria-label={t('mixer.sleep.customMinutes')}
+              placeholder={t('mixer.sleep.minutesShort')}
+            />
+            <button
+              type="button"
+              disabled={!(customTotal > 0)}
+              onClick={() => startSleepTimer(customTotal, sleepFadeSec)}
+            >
+              {t('mixer.sleep.customStart')}
+            </button>
+          </span>
         </div>
 
         <div className="mixer-presets">

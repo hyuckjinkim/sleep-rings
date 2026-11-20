@@ -21,6 +21,9 @@ export function createMockSoundEngine(): SoundEngine {
     setPlacement(placement) {
       log('setPlacement', placement.id, { radius: placement.radius, angle: placement.angle })
     },
+    setStartFade(sec) {
+      log('setStartFade', sec)
+    },
     setMasterVolume(v) {
       log('setMasterVolume', v)
     },

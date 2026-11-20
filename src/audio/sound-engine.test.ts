@@ -29,6 +29,9 @@ const BINAURAL_SOUND: Sound = {
   license: { spdx: 'no-license-required', sourceName: 'synth' },
 }
 
+// master, night, intro — created by the constructor before any placement gain.
+const GLOBAL_GAINS = 3
+
 function placement(overrides: Partial<Placement> = {}): Placement {
   return {
     id: 'p1',
@@ -116,7 +119,7 @@ describe('SoundEngine', () => {
     await engine.load(NOISE_SOUND)
     engine.play(placement({ volume: 1 }))
 
-    const gainNode = vi.mocked(ctx.createGain).mock.results[2].value // [0] master, [1] night
+    const gainNode = vi.mocked(ctx.createGain).mock.results[GLOBAL_GAINS].value
     let writes = 0
     const current = gainNode.gain.value
     Object.defineProperty(gainNode.gain, 'value', {
@@ -211,17 +214,19 @@ describe('SoundEngine', () => {
     expect(master.gain.value).toBe(0.5)
   })
 
-  // createGain order in the constructor: [0] master, [1] night — placement gains come after.
+  // createGain order in the constructor: [0] master, [1] night, [2] intro — placement gains come after.
   function gainNode(index: number) {
     return vi.mocked(ctx.createGain).mock.results[index].value
   }
 
-  it('wires master -> night -> limiter -> destination with conservative limiter settings', () => {
+  it('wires master -> night -> intro -> limiter -> destination with conservative limiter settings', () => {
     const master = gainNode(0)
     const night = gainNode(1)
+    const intro = gainNode(2)
     const limiter = vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
     expect(master.connect).toHaveBeenCalledWith(night)
-    expect(night.connect).toHaveBeenCalledWith(limiter)
+    expect(night.connect).toHaveBeenCalledWith(intro)
+    expect(intro.connect).toHaveBeenCalledWith(limiter)
     expect(limiter.connect).toHaveBeenCalledWith(ctx.destination)
     expect(limiter.threshold.value).toBe(-3)
     expect(limiter.ratio.value).toBe(20)
@@ -292,6 +297,36 @@ describe('SoundEngine', () => {
     expect(ctx.suspend).not.toHaveBeenCalled()
     expect(engine.inspect('p1')).not.toBeNull()
     vi.useRealTimers()
+  })
+
+  it('start fade-in ramps the intro stage when playback starts from silence, not for later orbs', async () => {
+    await engine.load(NOISE_SOUND)
+    const intro = gainNode(2).gain
+    engine.setStartFade(30)
+    ctx.currentTime = 5
+    engine.play(placement({ id: 'a' }))
+    expect(intro.setValueAtTime).toHaveBeenLastCalledWith(0, 5)
+    expect(intro.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 35)
+
+    vi.mocked(intro.linearRampToValueAtTime).mockClear()
+    engine.play(placement({ id: 'b' }))
+    expect(intro.linearRampToValueAtTime).not.toHaveBeenCalled() // already audible — no re-fade
+  })
+
+  it('start fade-in off (default) leaves the intro stage untouched', async () => {
+    await engine.load(NOISE_SOUND)
+    engine.play(placement())
+    expect(gainNode(2).gain.linearRampToValueAtTime).not.toHaveBeenCalled()
+  })
+
+  it('a sleep-timer reset never cancels the start fade-in (separate stages)', async () => {
+    await engine.load(NOISE_SOUND)
+    const intro = gainNode(2).gain
+    engine.setStartFade(60)
+    engine.play(placement())
+    engine.scheduleSleep(600, 60)
+    engine.cancelSleep()
+    expect(intro.cancelScheduledValues).toHaveBeenCalledTimes(1) // only play()'s own
   })
 
   it('onEnterForeground() resumes a suspended context; onEnterBackground() is a safe no-op', async () => {

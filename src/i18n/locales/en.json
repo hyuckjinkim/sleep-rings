@@ -17,6 +17,13 @@
         "collapse": "Collapsing header",
         "minibar": "Mini bar",
         "floating": "Floating"
+      },
+      "fadeIn": "Start fade-in",
+      "fadeOut": "Sleep timer fade-out",
+      "fadeOption": {
+        "off": "Off",
+        "seconds": "{{count}}s",
+        "minutes": "{{count}} min"
       }
     },
     "playbackNotification": {
@@ -83,7 +90,12 @@
     "sleep": {
       "title": "Sleep timer",
       "minutes": "{{minutes}}m",
-      "off": "Off"
+      "off": "Off",
+      "customHours": "Custom timer hours",
+      "customMinutes": "Custom timer minutes",
+      "hoursShort": "h",
+      "minutesShort": "m",
+      "customStart": "Start"
     },
     "presets": {
       "namePlaceholder": "Mix name",

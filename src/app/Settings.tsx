@@ -12,6 +12,8 @@ import type { ThemeMode } from './theme-mode'
 import { UpgradeSheet } from '../plan/UpgradeSheet'
 import type { Plan } from '../plan'
 import { getPurchaseAdapter, isPurchaseAvailable } from '../plan'
+import { usePlaybackSettings } from '../sleep/settings'
+import { FADE_IN_OPTIONS, SLEEP_FADE_OPTIONS } from '../sleep/persistence'
 import pkg from '../../package.json'
 import './settings.css'
 
@@ -32,6 +34,11 @@ const LANGUAGES = [
 
 const THEMES: ThemeMode[] = ['system', 'light', 'dark']
 
+function fadeLabel(t: (key: string, opts?: Record<string, unknown>) => string, sec: number): string {
+  if (sec === 0) return t('app.settings.fadeOption.off')
+  return sec < 60 ? t('app.settings.fadeOption.seconds', { count: sec }) : t('app.settings.fadeOption.minutes', { count: sec / 60 })
+}
+
 export function Settings({ onClose }: SettingsProps) {
   const { t, i18n } = useTranslation()
   const plan = usePlanStore((s) => s.plan)
@@ -51,6 +58,11 @@ export function Settings({ onClose }: SettingsProps) {
   const [theme, setTheme] = useState<ThemeMode>(getThemeMode)
   const layout = useLayoutStore((s) => s.layout)
   const setLayout = useLayoutStore((s) => s.setLayout)
+
+  const fadeInSec = usePlaybackSettings((s) => s.fadeInSec)
+  const setFadeInSec = usePlaybackSettings((s) => s.setFadeInSec)
+  const sleepFadeSec = usePlaybackSettings((s) => s.sleepFadeSec)
+  const setSleepFadeSec = usePlaybackSettings((s) => s.setSleepFadeSec)
 
   const rootRef = useRef<HTMLDivElement>(null)
   useDialogFocus(rootRef, onClose)
@@ -87,6 +99,44 @@ export function Settings({ onClose }: SettingsProps) {
       </div>
 
       <ScreenDimSettings />
+
+      <section className="settings-section">
+        <span className="settings-label" id="settings-fade-in-label">
+          {t('app.settings.fadeIn')}
+        </span>
+        <div className="settings-lang" role="group" aria-labelledby="settings-fade-in-label">
+          {FADE_IN_OPTIONS.map((sec) => (
+            <button
+              key={sec}
+              type="button"
+              className="app-lang-toggle"
+              aria-pressed={fadeInSec === sec}
+              onClick={() => setFadeInSec(sec)}
+            >
+              {fadeLabel(t, sec)}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <span className="settings-label" id="settings-fade-out-label">
+          {t('app.settings.fadeOut')}
+        </span>
+        <div className="settings-lang" role="group" aria-labelledby="settings-fade-out-label">
+          {SLEEP_FADE_OPTIONS.map((sec) => (
+            <button
+              key={sec}
+              type="button"
+              className="app-lang-toggle"
+              aria-pressed={sleepFadeSec === sec}
+              onClick={() => setSleepFadeSec(sec)}
+            >
+              {fadeLabel(t, sec)}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="settings-section">
         <span className="settings-label" id="settings-lang-label">

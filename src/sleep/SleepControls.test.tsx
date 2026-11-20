@@ -7,6 +7,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import '../i18n'
 import { SleepControls } from './SleepControls'
 import { useMixStore } from '../mixer/store'
+import { usePlaybackSettings } from './settings'
 
 beforeEach(() => {
   useMixStore.setState({
@@ -47,5 +48,26 @@ describe('SleepControls "Off" button', () => {
     expect(useMixStore.getState().sleeping).toBe(false)
     expect(useMixStore.getState().sleepEndsAt).toBeNull()
     expect(offButton).toBeDisabled() // back to the normal "no timer" state
+  })
+})
+
+describe('custom h:m sleep timer', () => {
+  it('is disabled until a non-zero duration is entered, then starts with the saved fade length', () => {
+    usePlaybackSettings.setState({ sleepFadeSec: 300 })
+    const startSpy = vi.spyOn(useMixStore.getState(), 'startSleepTimer')
+    render(<SleepControls />)
+    const start = screen.getByRole('button', { name: '시작' })
+    expect(start).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('직접 설정 시간'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('직접 설정 분'), { target: { value: '30' } })
+    fireEvent.click(start)
+    expect(startSpy).toHaveBeenCalledWith(90, 300)
+  })
+
+  it('stays disabled for 0:00', () => {
+    render(<SleepControls />)
+    fireEvent.change(screen.getByLabelText('직접 설정 분'), { target: { value: '0' } })
+    expect(screen.getByRole('button', { name: '시작' })).toBeDisabled()
   })
 })

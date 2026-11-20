@@ -672,6 +672,25 @@
   color: var(--so-text-disabled, #454b66);
 }
 
+/* Custom h:m timer: two narrow numeric fields + start, wrapping as one unit. */
+.mixer-sleep-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--so-space-1, 0.25rem);
+}
+
+.mixer-sleep-custom input {
+  width: 3.25rem;
+  min-height: 44px;
+  padding: 0 var(--so-space-2, 0.5rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: var(--so-bg-base, #0a0e1a);
+  color: var(--so-text-primary, #f0f0f5);
+  font-size: var(--so-font-size-sm, 0.875rem);
+  text-align: center;
+}
+
 .mixer-sleep-remaining {
   color: var(--so-accent, #93a5c8);
   font-size: var(--so-font-size-sm, 0.875rem);

@@ -17,6 +17,13 @@
         "collapse": "접는 헤더",
         "minibar": "미니 바",
         "floating": "플로팅"
+      },
+      "fadeIn": "시작 페이드인",
+      "fadeOut": "타이머 페이드아웃",
+      "fadeOption": {
+        "off": "끔",
+        "seconds": "{{count}}초",
+        "minutes": "{{count}}분"
       }
     },
     "playbackNotification": {
@@ -83,7 +90,12 @@
     "sleep": {
       "title": "슬립 타이머",
       "minutes": "{{minutes}}분",
-      "off": "해제"
+      "off": "해제",
+      "customHours": "직접 설정 시간",
+      "customMinutes": "직접 설정 분",
+      "hoursShort": "시",
+      "minutesShort": "분",
+      "customStart": "시작"
     },
     "presets": {
       "namePlaceholder": "믹스 이름",

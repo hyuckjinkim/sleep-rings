@@ -1,5 +1,14 @@
 import { beforeEach, describe, it, expect } from 'vitest'
-import { loadMix, saveMix, loadPresets, savePresets, restoreMix } from './persistence'
+import {
+  DEFAULT_PLAYBACK_SETTINGS,
+  loadMix,
+  loadPlaybackSettings,
+  loadPresets,
+  restoreMix,
+  saveMix,
+  savePlaybackSettings,
+  savePresets,
+} from './persistence'
 import { useMixStore, emptyMix } from '../mixer/store'
 import type { Mix } from '../mixer/types'
 
@@ -72,5 +81,28 @@ describe('restoreMix', () => {
   it('leaves an empty mix in place when nothing was ever saved', () => {
     restoreMix()
     expect(useMixStore.getState().current.placements).toEqual([])
+  })
+})
+
+describe('playback settings persistence', () => {
+  it('round-trips fade settings with the schema version', () => {
+    savePlaybackSettings({ fadeInSec: 30, sleepFadeSec: 300 })
+    expect(JSON.parse(localStorage.getItem('so.playbackSettings')!).version).toBe(1)
+    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 30, sleepFadeSec: 300 })
+  })
+
+  it('defaults to no start fade and a 60s sleep fade when nothing is stored', () => {
+    expect(loadPlaybackSettings()).toEqual(DEFAULT_PLAYBACK_SETTINGS)
+    expect(DEFAULT_PLAYBACK_SETTINGS).toEqual({ fadeInSec: 0, sleepFadeSec: 60 })
+  })
+
+  it('replaces an out-of-list value with its default without dropping the other field', () => {
+    localStorage.setItem('so.playbackSettings', JSON.stringify({ version: 1, fadeInSec: 7, sleepFadeSec: 600 }))
+    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 0, sleepFadeSec: 600 })
+  })
+
+  it('falls back to defaults on corrupt JSON', () => {
+    localStorage.setItem('so.playbackSettings', '{nope')
+    expect(loadPlaybackSettings()).toEqual(DEFAULT_PLAYBACK_SETTINGS)
   })
 })

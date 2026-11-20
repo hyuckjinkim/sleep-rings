@@ -137,7 +137,7 @@ interface MixStore {
   savePreset(name: string): void
   loadPreset(id: string): void
   deletePreset(id: string): void
-  startSleepTimer(minutes: number): void
+  startSleepTimer(minutes: number, fadeSec?: number): void
   cancelSleepTimer(): void
   /** Leave the post-timer "sleeping" state: the engine tore every source down at timer end, so
    * clearing the flag alone would leave orbs on screen (and the app counted as playing) with
@@ -360,12 +360,12 @@ export const useMixStore = create<MixStore>((set, get) => ({
     set((s) => ({ presets: s.presets.filter((p) => p.id !== id) }))
   },
 
-  startSleepTimer(minutes) {
+  startSleepTimer(minutes, fadeSec = SLEEP_FADE_SEC) {
     soundEngine.onEnterForeground() // MEDIUM-2
     get().wake()
     clearTimeout(sleepTimeout)
     const durationSec = Math.max(0, minutes) * 60
-    soundEngine.scheduleSleep(durationSec, SLEEP_FADE_SEC)
+    soundEngine.scheduleSleep(durationSec, fadeSec)
     set({ sleepEndsAt: Date.now() + durationSec * 1000, sleeping: false })
     sleepTimeout = setTimeout(() => {
       set({ sleeping: true, sleepEndsAt: null })

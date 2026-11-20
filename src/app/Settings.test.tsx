@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react'
 import '../i18n'
 import { Settings } from './Settings'
 import { usePlanStore } from '../plan'
 import { useScreenStore } from '../screen/store'
+import { usePlaybackSettings } from '../sleep/settings'
 
 const showBannerWhenReady = vi.fn().mockResolvedValue(undefined)
 const hideBanner = vi.fn().mockResolvedValue(undefined)
@@ -105,5 +106,21 @@ describe('Settings theme section', () => {
     localStorage.setItem('so.theme', 'dark')
     render(<Settings onClose={() => {}} />)
     expect(screen.getByRole('button', { name: '다크' })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+describe('Settings fade preferences', () => {
+  it('marks the current fade-in/out choice pressed and updates it on tap', () => {
+    usePlaybackSettings.setState({ fadeInSec: 0, sleepFadeSec: 60 })
+    render(<Settings onClose={() => {}} />)
+    const fadeIn = screen.getByRole('group', { name: '시작 페이드인' })
+    expect(within(fadeIn).getByRole('button', { name: '끔' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(fadeIn).getByRole('button', { name: '30초' }))
+    expect(usePlaybackSettings.getState().fadeInSec).toBe(30)
+
+    const fadeOut = screen.getByRole('group', { name: '타이머 페이드아웃' })
+    expect(within(fadeOut).getByRole('button', { name: '1분' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(fadeOut).getByRole('button', { name: '10분' }))
+    expect(usePlaybackSettings.getState().sleepFadeSec).toBe(600)
   })
 })

@@ -18,6 +18,9 @@ export interface SoundEngine {
   /** Apply placement/volume/orbit/lock changes. Orbit driver also updates position on rAF. */
   setPlacement(placement: Placement): void
 
+  /** Fade-in length (seconds) used whenever playback starts from silence. 0 = off. */
+  setStartFade(sec: number): void
+
   /** Global volume (0..1). */
   setMasterVolume(v: number): void
 

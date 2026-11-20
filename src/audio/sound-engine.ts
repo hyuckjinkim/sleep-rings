@@ -1,9 +1,10 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> night -> limiter -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> night -> intro -> limiter -> destination.
 // `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
 // `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
+// `intro` likewise belongs to the start fade-in alone (one AudioParam per scheduler).
 import type { NoiseColor, Placement, Sound } from '../data/types'
 import { renderBinauralBuffer } from './binaural'
 import { fadeTo } from './fade'
@@ -73,6 +74,8 @@ function createDefaultAudioContext(): EngineAudioContext {
 export class SoundEngine {
   private readonly master: EngineGainNode
   private readonly night: EngineGainNode
+  private readonly intro: EngineGainNode
+  private startFadeSec = 0
   private readonly loadFile: (url: string) => Promise<EngineAudioBuffer>
   private readonly sounds = new Map<string, LoadedSound>()
   private readonly noiseBuffers = new Map<NoiseColor, EngineAudioBuffer>()
@@ -84,6 +87,7 @@ export class SoundEngine {
   constructor(private readonly ctx: EngineAudioContext = createDefaultAudioContext()) {
     this.master = ctx.createGain()
     this.night = ctx.createGain()
+    this.intro = ctx.createGain()
     // Brick-wall-ish limiter: stacking several full-scale noise layers can sum past 0 dBFS and clip.
     // Threshold sits just under full scale so normal mixes pass untouched.
     const limiter = ctx.createDynamicsCompressor()
@@ -93,7 +97,8 @@ export class SoundEngine {
     limiter.attack.value = 0.003
     limiter.release.value = 0.25
     this.master.connect(this.night)
-    this.night.connect(limiter)
+    this.night.connect(this.intro)
+    this.intro.connect(limiter)
     limiter.connect(ctx.destination)
     this.loadFile = createAudioBufferLoader(ctx)
   }
@@ -155,6 +160,16 @@ export class SoundEngine {
     // MEDIUM-1 follow-up (v020-review.md): the fade-in ramp's own target must be curve-free —
     // otherwise the very placement being modulated could start its fade already offset by
     // whatever angle it happened to spawn at, instead of settling at its plain volume.
+    // Playback starting from silence (first orb, boot restore, waking after the sleep timer, a
+    // preset swap) gets the user's start fade-in on the shared intro stage. Per-placement gains
+    // can't carry a long ramp — setPlacement's raw writes would cancel it.
+    if (this.active.size === 0 && this.startFadeSec > 0) {
+      const now = this.ctx.currentTime
+      this.intro.gain.cancelScheduledValues(now)
+      this.intro.gain.setValueAtTime(0, now)
+      this.intro.gain.linearRampToValueAtTime(1, now + this.startFadeSec)
+    }
+
     const target = this.computeGain(placement, this.quality, panBypass, true)
     const nodes: PlacementNodes = {
       source,
@@ -252,6 +267,11 @@ export class SoundEngine {
       nodes.lastGain = g
     }
     if (!nodes.panBypass && !placement.locked) this.applySpatial(nodes, placement, false)
+  }
+
+  /** Fade-in length (seconds) applied when playback starts from silence. 0 = off. */
+  setStartFade(sec: number): void {
+    this.startFadeSec = Math.max(0, sec)
   }
 
   setMasterVolume(v: number): void {
