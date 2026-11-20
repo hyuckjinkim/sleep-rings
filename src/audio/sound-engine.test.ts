@@ -49,7 +49,7 @@ describe('SoundEngine', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ arrayBuffer: async () => new ArrayBuffer(8) })),
+      vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(8) })),
     )
     ctx = createMockAudioContext()
     engine = new SoundEngine(ctx)

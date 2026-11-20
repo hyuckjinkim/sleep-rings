@@ -189,8 +189,7 @@ Freesound 25건의 실제 다운로드 절차·URL·저장 경로는 `docs/sound
 
 1. **라우드니스 정규화** (트랙 간 음량 일관성, EBU R128):
    `ffmpeg -i raw.wav -af loudnorm=I=-23:TP=-2:LRA=7 -ar 44100 normalized.wav`
-2. **루프 포인트:** v1은 자동 루프점 탐지 알고리즘 대신, 시작/끝 50~100ms 크로스페이드로 클릭/팝 노이즈만 제거하는 것을 기본값으로 함(충분히 자연스러운 무한 반복에는 부족할 수 있음 — 완전 심리스 루프는 P1 오디오 엔진에서 Web Audio `loopStart/loopEnd` 튜닝으로 후속 보완).
-   `ffmpeg -i normalized.wav -af "afade=t=in:d=0.05,afade=t=out:st={dur-0.05}:d=0.05" looped.wav`
+2. **루프 포인트:** 양 끝을 무음으로 줄이는 페이드(예전 `afade` in/out 50ms)는 반복마다 볼륨 딥을 만든다. 대신 끝 X초를 앞 X초 위에 겹쳐 굽는 **루프 크로스페이드**를 쓴다(`scripts/sounds/process.mjs`의 `LOOP_FILTER`, X=3초, 등전력 `qsin`). AAC 프라이밍/패딩 오차는 실기기 디코드 길이를 확인해 catalog의 `loopStart/loopEnd`로 보정.
 3. **포맷 변환 — ⚠️ 플랫폼 호환성 주의:** Capacitor iOS는 WKWebView(Safari 엔진)를 사용하며 **Web Audio `decodeAudioData`가 Ogg Vorbis를 지원하지 않는다.** 크로스플랫폼 호환을 위해 **OGG가 아니라 AAC(.m4a) 또는 MP3**로 변환해야 함.
    `ffmpeg -i looped.wav -c:a aac -b:a 96k -movflags +faststart out.m4a`
 4. 최종 산출물: `public/sounds/{category}/{id}.m4a`

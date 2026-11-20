@@ -14,7 +14,15 @@ export function createAudioBufferLoader(host: DecodeHost): (url: string) => Prom
     if (cached) return cached
 
     const promise = fetch(url)
-      .then((res) => res.arrayBuffer())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Audio fetch failed: ${url} (HTTP ${res.status})`)
+        // An SPA host answers a missing file with index.html + 200 — reject it here instead of
+        // letting decodeAudioData report it as a misleading decode error.
+        if (res.headers.get('content-type')?.includes('text/html')) {
+          throw new Error(`Audio fetch failed: ${url} returned HTML (missing file behind an SPA fallback?)`)
+        }
+        return res.arrayBuffer()
+      })
       .then((data) => host.decodeAudioData(data))
       .catch((err: unknown) => {
         cache.delete(url) // don't poison the cache with a failed load — allow retry
