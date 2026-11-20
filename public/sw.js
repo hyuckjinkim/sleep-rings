@@ -54,21 +54,25 @@ self.addEventListener('activate', (event) => {
 })
 
 // Off the response path: a failed write (e.g. storage quota full) must never fail the response.
-// The clone is taken now, before the caller consumes the body.
-function cacheInBackground(key, res) {
+// waitUntil keeps the worker alive until a slow write lands; the clone is taken now, before the
+// caller consumes the body.
+function cacheInBackground(event, key, res) {
   const copy = res.clone()
-  caches
-    .open(CACHE)
-    .then((cache) => cache.put(key, copy))
-    .catch(() => {})
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.put(key, copy))
+      .catch(() => {}),
+  )
 }
 
 // Network first so a deploy shows up on the next online load; the cached shell only when offline.
 // Only an HTML answer is the shell: a navigation can also land on a file, a redirect target, etc.
-async function shellNetworkFirst(request) {
+async function shellNetworkFirst(event) {
+  const { request } = event
   try {
     const res = await fetch(request)
-    if (res.ok && isHtml(res)) cacheInBackground(SHELL, res)
+    if (res.ok && isHtml(res)) cacheInBackground(event, SHELL, res)
     return res
   } catch (err) {
     const cached = await caches.match(SHELL)
@@ -81,11 +85,12 @@ async function shellNetworkFirst(request) {
 // ponytail: superseded hashed assets stay until VERSION is bumped — prune on activate if that grows.
 // ignoreVary: hosts send `Vary: Origin`, and crossorigin module scripts carry an Origin header the
 // worker's own precache fetch didn't — a hashed file is the same bytes either way.
-async function cacheFirst(request) {
+async function cacheFirst(event) {
+  const { request } = event
   const cached = await caches.match(request, { ignoreVary: true })
   if (cached) return cached
   const res = await fetch(request)
-  if (isCacheable(res)) cacheInBackground(request, res)
+  if (isCacheable(res)) cacheInBackground(event, request, res)
   return res
 }
 
@@ -94,6 +99,6 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
-  if (request.mode === 'navigate') event.respondWith(shellNetworkFirst(request))
-  else if (url.pathname.startsWith('/assets/') || isSound(url.pathname)) event.respondWith(cacheFirst(request))
+  if (request.mode === 'navigate') event.respondWith(shellNetworkFirst(event))
+  else if (url.pathname.startsWith('/assets/') || isSound(url.pathname)) event.respondWith(cacheFirst(event))
 })
