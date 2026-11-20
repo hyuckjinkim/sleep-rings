@@ -33,9 +33,6 @@ export function createMockSoundEngine(): SoundEngine {
     cancelSleep() {
       log('cancelSleep')
     },
-    async fadeOutAll(durationSec) {
-      log('fadeOutAll', durationSec)
-    },
     inspect() {
       return null
     },

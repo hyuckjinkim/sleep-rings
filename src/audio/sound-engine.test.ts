@@ -116,7 +116,7 @@ describe('SoundEngine', () => {
     await engine.load(NOISE_SOUND)
     engine.play(placement({ volume: 1 }))
 
-    const gainNode = vi.mocked(ctx.createGain).mock.results[1].value // [0] is the master gain
+    const gainNode = vi.mocked(ctx.createGain).mock.results[2].value // [0] master, [1] night
     let writes = 0
     const current = gainNode.gain.value
     Object.defineProperty(gainNode.gain, 'value', {
@@ -211,67 +211,86 @@ describe('SoundEngine', () => {
     expect(master.gain.value).toBe(0.5)
   })
 
-  it('scheduleSleep() fades out then stops+suspends at duration; cancelSleep() prevents it', async () => {
+  // createGain order in the constructor: [0] master, [1] night — placement gains come after.
+  function gainNode(index: number) {
+    return vi.mocked(ctx.createGain).mock.results[index].value
+  }
+
+  it('wires master -> night -> limiter -> destination with conservative limiter settings', () => {
+    const master = gainNode(0)
+    const night = gainNode(1)
+    const limiter = vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
+    expect(master.connect).toHaveBeenCalledWith(night)
+    expect(night.connect).toHaveBeenCalledWith(limiter)
+    expect(limiter.connect).toHaveBeenCalledWith(ctx.destination)
+    expect(limiter.threshold.value).toBe(-3)
+    expect(limiter.ratio.value).toBe(20)
+    expect(limiter.attack.value).toBeLessThanOrEqual(0.005)
+  })
+
+  it('scheduleSleep() schedules the fade on the night gain at audio-clock time, not via a JS timer', () => {
+    vi.useFakeTimers()
+    ctx.currentTime = 100
+    const night = gainNode(1).gain
+    engine.scheduleSleep(600, 60)
+    expect(night.setValueAtTime).toHaveBeenLastCalledWith(1, 640) // hold full until duration-fade
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 700) // silent exactly at duration
+    vi.useRealTimers()
+  })
+
+  it('scheduleSleep() with fade longer than duration fades over the whole duration', () => {
+    ctx.currentTime = 10
+    const night = gainNode(1).gain
+    engine.scheduleSleep(30, 60)
+    expect(night.setValueAtTime).toHaveBeenLastCalledWith(1, 10.5) // after the cancel-restore ramp
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 40)
+  })
+
+  it('setMasterVolume() after scheduleSleep() never touches the night gain automation', () => {
+    const night = gainNode(1).gain
+    engine.scheduleSleep(600, 60)
+    vi.mocked(night.cancelScheduledValues).mockClear()
+    vi.mocked(night.setValueAtTime).mockClear()
+    vi.mocked(night.linearRampToValueAtTime).mockClear()
+    engine.setMasterVolume(0.3)
+    expect(night.cancelScheduledValues).not.toHaveBeenCalled()
+    expect(night.setValueAtTime).not.toHaveBeenCalled()
+    expect(night.linearRampToValueAtTime).not.toHaveBeenCalled()
+  })
+
+  it('scheduleSleep() stops+suspends at duration and resets the night gain so later sounds are audible', async () => {
     vi.useFakeTimers()
     await engine.load(NOISE_SOUND)
     engine.play(placement())
+    const night = gainNode(1).gain
 
     engine.scheduleSleep(10, 2)
-    vi.advanceTimersByTime(8000) // fade should have started
-    expect(engine.inspect('p1')).not.toBeNull() // still "active" until the stop timer fires
+    vi.advanceTimersByTime(9999)
+    expect(engine.inspect('p1')).not.toBeNull()
+    expect(ctx.suspend).not.toHaveBeenCalled()
 
-    vi.advanceTimersByTime(2000) // reach duration
+    vi.advanceTimersByTime(1)
     expect(ctx.suspend).toHaveBeenCalled()
     expect(engine.inspect('p1')).toBeNull()
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, expect.any(Number))
+    expect(night.value).toBe(1)
     vi.useRealTimers()
   })
 
-  it('scheduleSleep() invokes fadeOutAll() with the configured fade duration exactly at duration-fadeSec', async () => {
-    vi.useFakeTimers()
-    const fadeSpy = vi.spyOn(engine, 'fadeOutAll')
-    engine.scheduleSleep(10, 2)
-
-    vi.advanceTimersByTime(7999)
-    expect(fadeSpy).not.toHaveBeenCalled()
-
-    vi.advanceTimersByTime(1) // crosses the duration-fadeSec (8s) mark
-    expect(fadeSpy).toHaveBeenCalledTimes(1)
-    expect(fadeSpy).toHaveBeenCalledWith(2)
-    vi.useRealTimers()
-  })
-
-  it('cancelSleep() before the fade delay prevents fadeOutAll() from ever firing', async () => {
-    vi.useFakeTimers()
-    const fadeSpy = vi.spyOn(engine, 'fadeOutAll')
-    engine.scheduleSleep(10, 2)
-    vi.advanceTimersByTime(5000)
-    engine.cancelSleep()
-    vi.advanceTimersByTime(10000)
-    expect(fadeSpy).not.toHaveBeenCalled()
-    vi.useRealTimers()
-  })
-
-  it('cancelSleep() clears pending timers', async () => {
+  it('cancelSleep() clears the stop timer and ramps the night gain back to 1', async () => {
     vi.useFakeTimers()
     await engine.load(NOISE_SOUND)
     engine.play(placement())
+    const night = gainNode(1).gain
     engine.scheduleSleep(10, 2)
+    ctx.currentTime = 9 // mid-fade
+    vi.mocked(night.cancelScheduledValues).mockClear()
     engine.cancelSleep()
+    expect(night.cancelScheduledValues).toHaveBeenCalledWith(9)
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 9.5)
     vi.advanceTimersByTime(10000)
     expect(ctx.suspend).not.toHaveBeenCalled()
     expect(engine.inspect('p1')).not.toBeNull()
-    vi.useRealTimers()
-  })
-
-  it('fadeOutAll() resolves after the given duration', async () => {
-    vi.useFakeTimers()
-    const promise = engine.fadeOutAll(3)
-    let resolved = false
-    void promise.then(() => {
-      resolved = true
-    })
-    await vi.advanceTimersByTimeAsync(3000)
-    expect(resolved).toBe(true)
     vi.useRealTimers()
   })
 

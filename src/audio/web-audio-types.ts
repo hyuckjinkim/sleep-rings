@@ -34,6 +34,14 @@ export interface EngineStereoPannerNode extends EngineAudioNode {
   pan: EngineAudioParam
 }
 
+export interface EngineDynamicsCompressorNode extends EngineAudioNode {
+  threshold: EngineAudioParam
+  knee: EngineAudioParam
+  ratio: EngineAudioParam
+  attack: EngineAudioParam
+  release: EngineAudioParam
+}
+
 export interface EngineAudioBuffer {
   readonly duration: number
   readonly length: number
@@ -60,6 +68,7 @@ export interface EngineAudioContext {
   createGain(): EngineGainNode
   createPanner(): EnginePannerNode
   createStereoPanner(): EngineStereoPannerNode
+  createDynamicsCompressor(): EngineDynamicsCompressorNode
   createBufferSource(): EngineBufferSourceNode
   createBuffer(numberOfChannels: number, length: number, sampleRate: number): EngineAudioBuffer
   decodeAudioData(data: ArrayBuffer): Promise<EngineAudioBuffer>

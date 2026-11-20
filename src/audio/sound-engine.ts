@@ -1,7 +1,9 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> master -> night -> limiter -> destination.
+// `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
+// `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
 import type { NoiseColor, Placement, Sound } from '../data/types'
 import { renderBinauralBuffer } from './binaural'
 import { fadeTo } from './fade'
@@ -39,6 +41,8 @@ const HRTF_AUTO_DOWNGRADE_THRESHOLD = 8
 // still hits the cache — re-rendering womb costs ~400ms of main-thread work.
 const IDLE_BUFFER_BUDGET_BYTES = 24 * 1024 * 1024
 const BYTES_PER_SAMPLE = 4 // float32
+// cancelSleep() mid-fade: bring the night gain back without a jump.
+const NIGHT_RESTORE_SEC = 0.5
 
 interface LoadedSound {
   buffer: EngineAudioBuffer
@@ -68,18 +72,29 @@ function createDefaultAudioContext(): EngineAudioContext {
 
 export class SoundEngine {
   private readonly master: EngineGainNode
+  private readonly night: EngineGainNode
   private readonly loadFile: (url: string) => Promise<EngineAudioBuffer>
   private readonly sounds = new Map<string, LoadedSound>()
   private readonly noiseBuffers = new Map<NoiseColor, EngineAudioBuffer>()
   private readonly binauralBuffers = new Map<string, EngineAudioBuffer>() // keyed "carrierHz:beatHz" — presets share buffers, same as noise colors
   private readonly active = new Map<string, PlacementNodes>()
   private quality: PanQuality = 'hrtf'
-  private sleepFadeTimer?: ReturnType<typeof setTimeout>
   private sleepStopTimer?: ReturnType<typeof setTimeout>
 
   constructor(private readonly ctx: EngineAudioContext = createDefaultAudioContext()) {
     this.master = ctx.createGain()
-    this.master.connect(ctx.destination)
+    this.night = ctx.createGain()
+    // Brick-wall-ish limiter: stacking several full-scale noise layers can sum past 0 dBFS and clip.
+    // Threshold sits just under full scale so normal mixes pass untouched.
+    const limiter = ctx.createDynamicsCompressor()
+    limiter.threshold.value = -3
+    limiter.knee.value = 0
+    limiter.ratio.value = 20
+    limiter.attack.value = 0.003
+    limiter.release.value = 0.25
+    this.master.connect(this.night)
+    this.night.connect(limiter)
+    limiter.connect(ctx.destination)
     this.loadFile = createAudioBufferLoader(ctx)
   }
 
@@ -266,29 +281,36 @@ export class SoundEngine {
     }
   }
 
-  /** duration 초 뒤 정지, 마지막 fadeSec 동안 페이드아웃. */
+  /**
+   * duration 초 뒤 정지, 마지막 fadeSec 동안 페이드아웃. The fade is AudioParam automation on the
+   * night gain, so it runs on the audio clock even if a backgrounded WebView throttles JS timers.
+   * Only the final stop+suspend (a teardown, not audible) still rides a JS timer.
+   */
   scheduleSleep(durationSec: number, fadeSec: number): void {
     this.cancelSleep()
-    const fadeDelayMs = Math.max(0, durationSec - fadeSec) * 1000
-    this.sleepFadeTimer = setTimeout(() => {
-      void this.fadeOutAll(fadeSec)
-    }, fadeDelayMs)
+    const now = this.ctx.currentTime
+    const end = now + Math.max(0, durationSec)
+    const fadeStart = Math.max(end - Math.min(fadeSec, durationSec), now + NIGHT_RESTORE_SEC)
+    this.night.gain.setValueAtTime(1, fadeStart)
+    this.night.gain.linearRampToValueAtTime(0, Math.max(end, fadeStart))
     this.sleepStopTimer = setTimeout(() => {
+      this.sleepStopTimer = undefined
       for (const id of [...this.active.keys()]) this.stop(id)
+      // Nothing is playing any more, so the jump back to 1 is silent — and the next sound after
+      // the timer (store.addPlacement → onEnterForeground resume) isn't stuck at zero.
+      this.resetNight(0)
       void this.ctx.suspend()
     }, durationSec * 1000)
   }
 
   cancelSleep(): void {
-    clearTimeout(this.sleepFadeTimer)
     clearTimeout(this.sleepStopTimer)
-    this.sleepFadeTimer = undefined
     this.sleepStopTimer = undefined
+    this.resetNight(NIGHT_RESTORE_SEC)
   }
 
-  fadeOutAll(durationSec: number): Promise<void> {
-    fadeTo(this.master.gain, this.ctx.currentTime, 0, durationSec)
-    return new Promise((resolve) => setTimeout(resolve, durationSec * 1000))
+  private resetNight(durationSec: number): void {
+    fadeTo(this.night.gain, this.ctx.currentTime, 1, durationSec)
   }
 
   /** Test-only introspection — current gain/pan for a placement's node chain. */

@@ -24,12 +24,10 @@ export interface SoundEngine {
   /** Runtime panning quality switch (hrtf<->stereo), re-wires graph even mid-playback. */
   setPanQuality(q: 'hrtf' | 'stereo'): void
 
-  /** Sleep timer: stop after durationSec, fading out over the last fadeSec. */
+  /** Sleep timer: stop after durationSec, fading out over the last fadeSec (audio-clock automation
+   * on a dedicated gain after master, so setMasterVolume never cancels it). */
   scheduleSleep(durationSec: number, fadeSec: number): void
   cancelSleep(): void
-
-  /** Full fade-out (manual stop or timer). */
-  fadeOutAll(durationSec: number): Promise<void>
 
   /** Test-only introspection — current gain/pan per placement (for Playwright assertions). */
   inspect(placementId: string): { gain: number; pan: { x: number; z: number } } | null

@@ -6,6 +6,7 @@ import type {
   EngineAudioContext,
   EngineAudioParam,
   EngineBufferSourceNode,
+  EngineDynamicsCompressorNode,
   EngineGainNode,
   EnginePannerNode,
   EngineStereoPannerNode,
@@ -85,6 +86,16 @@ export function createMockAudioContext(sampleRate = 48000): EngineAudioContext {
       (): EngineStereoPannerNode => ({
         ...createAudioNode(),
         pan: createParam(0),
+      }),
+    ),
+    createDynamicsCompressor: vi.fn(
+      (): EngineDynamicsCompressorNode => ({
+        ...createAudioNode(),
+        threshold: createParam(-24),
+        knee: createParam(30),
+        ratio: createParam(12),
+        attack: createParam(0.003),
+        release: createParam(0.25),
       }),
     ),
     createBufferSource: vi.fn(
