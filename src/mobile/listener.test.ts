@@ -22,6 +22,19 @@ describe('addListenerSafely', () => {
     expect(handle.remove).toHaveBeenCalledTimes(1)
   })
 
+  it('a failing removal warns instead of leaving an unhandled rejection', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const handle = { remove: vi.fn().mockRejectedValue(new Error('gone')) }
+    const cleanup = addListenerSafely(() => Promise.resolve(handle), 'test')
+    await Promise.resolve()
+    await Promise.resolve()
+    cleanup()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(warn).toHaveBeenCalledWith('[test] listener removal failed', expect.any(Error))
+    warn.mockRestore()
+  })
+
   it('warns instead of throwing when registration fails', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const cleanup = addListenerSafely(() => Promise.reject(new Error('no plugin')), 'test')

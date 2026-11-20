@@ -5,6 +5,7 @@ import './app/theme.css'
 import i18n from './i18n'
 import { initBackgroundAudio, initMediaSession, setNowPlaying } from './mobile'
 import { setWidgetMixName } from './mobile/widget'
+import { isMixPlaying } from './mobile/playback-state'
 import { useMixStore } from './mixer/store'
 import { UNTITLED_MIX_NAME } from './mixer/types'
 import { soundEngine } from './mixer/engine/instance'
@@ -12,19 +13,9 @@ import { registerServiceWorker } from './app/pwa'
 import { restoreAlarm } from './sleep/persistence'
 
 // Once for the app's lifetime — safe on plain web too (@capacitor/app ships a Page Visibility
-// web fallback), see docs/android-build.md §4. The Android keep-alive service follows playback
-// (orbs placed, sleep timer not yet finished, or an alarm armed), not app foreground/background.
-// An armed alarm counts too: the WebView (and its running AudioContext) has to survive the night
-// in the background for the alarm to fire, even after the timer silenced the mix. A pending bedtime
-// start likewise, when there are orbs for it to start — arming it is the visible moment the service
-// is allowed to start.
-const isMixPlaying = () => {
-  const s = useMixStore.getState()
-  const hasMix = s.current.placements.length > 0
-  return (hasMix && !s.sleeping) || s.alarmAt !== null || (hasMix && s.bedtimeAt !== null)
-}
+// web fallback), see docs/android-build.md §4. What counts as playing: src/mobile/playback-state.ts.
 initBackgroundAudio(soundEngine, {
-  isPlaying: isMixPlaying,
+  isPlaying: () => isMixPlaying(useMixStore.getState()),
   subscribe: (onChange) => useMixStore.subscribe(onChange),
   notificationText: () => ({
     title: i18n.t('app.title'),

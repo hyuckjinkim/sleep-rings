@@ -158,6 +158,19 @@ describe('public/sw.js', () => {
     expect(await (await dispatch('fetch', { request: request('/sounds/seaside.m4a') }))!.text()).toBe('data')
   })
 
+  it('the background cache write runs under event.waitUntil, so the worker outlives it', async () => {
+    for (const req of [request('/', 'navigate'), request('/assets/later-x.js')]) {
+      stores.get('sleeprings-v1')!.delete(keyOf(req)) // the shell is precached on install
+      let responded: Promise<Response> | undefined
+      const waitUntil = vi.fn()
+      listeners.fetch({ request: req, respondWith: (p: Promise<Response>) => (responded = p), waitUntil })
+      await responded
+      expect(waitUntil).toHaveBeenCalledTimes(1)
+      await waitUntil.mock.calls[0][0]
+      expect(stores.get('sleeprings-v1')!.has(keyOf(req))).toBe(true)
+    }
+  })
+
   it('assets and sounds are cache-first after the first successful fetch', async () => {
     await dispatch('fetch', { request: request('/assets/later-x.js') })
     await dispatch('fetch', { request: request('/sounds/seaside.m4a') })

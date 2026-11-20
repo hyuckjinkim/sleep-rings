@@ -4,14 +4,14 @@
 
 /**
  * Register through `add` and return a sync cleanup that removes the listener — also when it runs
- * before registration finished. `tag` labels the warning if registration fails.
+ * before registration finished. `tag` labels the warning if registration or removal fails.
  */
 export function addListenerSafely(add: () => Promise<{ remove: () => Promise<void> }>, tag: string): () => void {
   let removed = false
   let remove: (() => Promise<void>) | undefined
   void add()
     .then((handle) => {
-      remove = () => handle.remove()
+      remove = () => handle.remove().catch((err: unknown) => console.warn(`[${tag}] listener removal failed`, err))
       if (removed) void remove()
     })
     .catch((err: unknown) => console.warn(`[${tag}] listener failed`, err))

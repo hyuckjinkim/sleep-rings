@@ -127,6 +127,7 @@ describe('App share links', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers() // a failing fake-timer test must not leak its clock into the next one
     history.replaceState(null, '', '/')
     usePlanStore.setState({ plan: 'free' })
   })
@@ -170,7 +171,6 @@ describe('App share links', () => {
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
     expect(useMixStore.getState().current.placements.map((p) => p.soundId)).toEqual(['noise-white'])
-    vi.useRealTimers()
   })
 
   it('ignores a malformed link without breaking the app', () => {
