@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SleepRings</string>
+    <string name="title_activity_main">SleepRings</string>
+    <string name="play_last_mix">마지막 믹스 재생</string>
+    <string name="widget_description">SleepRings를 열고 마지막 믹스를 재생해요</string>
+</resources>

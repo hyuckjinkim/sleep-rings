@@ -1,4 +1,17 @@
+// Kotlin for the widget, QS tile and wake-alarm sources. Same KGP version the admob and RevenueCat
+// subprojects already pull in, so this adds no new artifact.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
+    }
+}
+
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 // Release signing (docs/android-build.md). Values come from keystore.properties, which is
 // gitignored — the build falls back to unsigned release if the file isn't present.
@@ -41,6 +54,10 @@ android {
             signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : null
         }
     }
+}
+
+kotlin {
+    jvmToolchain(21) // = capacitor.build.gradle's Java 21
 }
 
 repositories {

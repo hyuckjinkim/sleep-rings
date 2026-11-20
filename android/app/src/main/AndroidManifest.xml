@@ -43,6 +43,29 @@
             android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService"
             android:foregroundServiceType="mediaPlayback"
         />
+
+        <!-- "Play last mix" home-screen widget and Quick Settings tile (PlayLastMix.kt) -->
+        <receiver
+            android:name=".PlayLastMixWidget"
+            android:exported="false"
+            android:label="@string/play_last_mix">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_play_last_mix_info" />
+        </receiver>
+        <service
+            android:name=".PlayLastMixTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_sleeprings"
+            android:label="@string/play_last_mix"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 
     <!-- Permissions -->
