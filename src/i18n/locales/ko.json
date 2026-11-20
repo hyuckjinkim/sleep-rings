@@ -40,6 +40,9 @@
     },
     "version": {
       "label": "버전"
+    },
+    "shortcut": {
+      "playLastMix": "마지막 믹스 재생"
     }
   },
   "mixer": {

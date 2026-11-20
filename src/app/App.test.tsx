@@ -17,6 +17,14 @@ vi.mock('../mobile/notifications', async (importOriginal) => ({
     return () => {}
   },
 }))
+const shortcutTap = vi.hoisted(() => ({ fire: () => {} }))
+vi.mock('../mobile/app-shortcuts', () => ({
+  setPlayLastMixShortcut: vi.fn(),
+  onPlayLastMixShortcut: (cb: () => void) => {
+    shortcutTap.fire = cb
+    return () => {}
+  },
+}))
 vi.mock('../sleep/persistence', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../sleep/persistence')>()),
   playLastMix: vi.fn().mockResolvedValue(true),
@@ -123,5 +131,27 @@ describe('App bedtime reminder tapped after the app was closed', () => {
     act(() => useMixStore.getState().clearAll())
     act(() => reminderTap.fire(BEDTIME_NOTIFICATION_ID))
     expect(screen.queryByText('마지막 믹스를 재생할까요?')).not.toBeInTheDocument()
+  })
+})
+
+describe('App "play last mix" launcher shortcut', () => {
+  it('plays the last mix, back on the mixer screen', async () => {
+    vi.mocked(playLastMix).mockClear().mockResolvedValueOnce(true)
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '설정 열기' }))
+    await act(async () => shortcutTap.fire())
+    expect(playLastMix).toHaveBeenCalled()
+    expect(document.querySelector('.mixer-field')).toBeInTheDocument()
+    expect(screen.queryByText('마지막 믹스를 재생할까요?')).not.toBeInTheDocument()
+  })
+
+  it('asks for a tap when the WebView would not start audio on its own', async () => {
+    vi.mocked(playLastMix).mockClear().mockResolvedValueOnce(false)
+    render(<App />)
+    act(() => {
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    await act(async () => shortcutTap.fire())
+    expect(screen.getByText('마지막 믹스를 재생할까요?')).toBeInTheDocument()
   })
 })

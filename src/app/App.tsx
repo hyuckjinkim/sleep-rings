@@ -8,6 +8,7 @@ import { useMixStore } from '../mixer/store'
 import { decodeShareUrl, shareParam } from '../mixer/share'
 import { playLastMix, saveMix } from '../sleep/persistence'
 import { BEDTIME_NOTIFICATION_ID, onClosedAppReminderTap } from '../mobile/notifications'
+import { onPlayLastMixShortcut, setPlayLastMixShortcut } from '../mobile/app-shortcuts'
 import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 import { Settings } from './Settings'
 import { getPurchaseAdapter, isPurchaseAvailable, usePlanStore } from '../plan'
@@ -22,7 +23,7 @@ type Screen = 'mixer' | 'settings'
 let lastShareUrl: string | null = null
 
 export function App() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   // §2.2: the background layer breathes only while something is actually audible.
   const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping && s.bedtimeAt === null)
   const [screen, setScreen] = useState<Screen>('mixer')
@@ -81,6 +82,21 @@ export function App() {
       void handle?.remove()
     }
   }, [])
+
+  // "Play last mix" from outside the app (launcher shortcut). If the WebView still wouldn't start
+  // audio without a tap, the mix is on screen and the offer below asks for that tap.
+  function startLastMix() {
+    setScreen('mixer')
+    void playLastMix().then((playing) => {
+      if (!playing && useMixStore.getState().current.placements.length > 0) setLastMixOffer(true)
+    })
+  }
+
+  useEffect(() => onPlayLastMixShortcut(startLastMix), [])
+
+  useEffect(() => {
+    void setPlayLastMixShortcut(t('app.shortcut.playLastMix'))
+  }, [t, i18n.language])
 
   // Bedtime reminder tapped after the app was closed: the armed start died with it, so offer the
   // (already restored) last mix instead of starting it unasked.

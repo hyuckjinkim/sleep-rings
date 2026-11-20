@@ -705,7 +705,8 @@
 .mixer-presets-save button,
 .mixer-alarm button,
 .mixer-presets-list button,
-.mixer-controls-row button {
+.mixer-controls-row button,
+.mixer-last-mix button {
   min-height: 44px; /* B4 */
   min-width: 44px;
   padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
@@ -847,10 +848,6 @@
   padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
   box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
   font-size: var(--so-font-size-sm, 0.875rem);
-}
-
-.mixer-last-mix button {
-  min-height: 44px;
 }
 
 /* B2: minimal upgrade sheet — tap a locked chip to see which tier unlocks it. No purchase
