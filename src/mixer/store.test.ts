@@ -478,6 +478,48 @@ describe('wake alarm', () => {
     expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
   })
 
+  it('an on-time timer keeps both backups while the in-app alarm is not audible (two alarms, never none)', () => {
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.spyOn(soundEngine, 'isAlarmSounding').mockReturnValue(false) // e.g. context still suspended
+    vi.mocked(cancelReminder).mockClear()
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+    vi.advanceTimersByTime(1000)
+    expect(useMixStore.getState().alarmRinging).toBe(true)
+    expect(cancelReminder).not.toHaveBeenCalledWith(ALARM_NOTIFICATION_ID)
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+  })
+
+  it('a restored alarm (boot) keeps the native alarm set before the relaunch', () => {
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+    useMixStore.getState().armAlarm(T0 + 60_000, 'nature-brook', true)
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: T0 + 60_000, alarmSound: 'nature-brook' })
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+  })
+
+  it('loading a mix while the alarm rings dismisses it first, so the new mix is not torn down', () => {
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.advanceTimersByTime(1000)
+    const cancelSpy = vi.spyOn(soundEngine, 'cancelAlarm')
+    useMixStore.getState().openMix({ ...useMixStore.getState().current, placements: [] })
+    expect(cancelSpy).toHaveBeenCalled()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false, sleeping: false })
+  })
+
+  it('undoing a removal (single or clear-all) while the alarm rings dismisses it too', () => {
+    const id = useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    useMixStore.getState().removePlacement(id)
+    useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
+    vi.advanceTimersByTime(1000)
+    useMixStore.getState().restoreLastRemoved()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false, sleeping: false })
+
+    useMixStore.getState().clearAll()
+    useMixStore.getState().armAlarm(T0 + 2000, 'nature-brook')
+    vi.advanceTimersByTime(1000)
+    useMixStore.getState().restoreLastRemovedAll()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false, sleeping: false })
+  })
+
   it('touching the mix while it rings (wake) stops the alarm too', () => {
     useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
     vi.advanceTimersByTime(1000)
@@ -549,6 +591,18 @@ describe('bedtime start', () => {
     useMixStore.getState().armBedtime(T0 + 3600_000)
     expect(cancelSleepSpy).toHaveBeenCalled()
     expect(useMixStore.getState().sleepEndsAt).toBeNull()
+  })
+
+  it('cancelling the start takes the remaining wait back off a timer set while armed', () => {
+    const sleepSpy = vi.spyOn(soundEngine, 'scheduleSleep')
+    useMixStore.getState().armBedtime(T0 + 3600_000)
+    useMixStore.getState().startSleepTimer(30, 60)
+    vi.advanceTimersByTime(600_000) // 10 of the 60 minutes' wait have passed
+    useMixStore.getState().cancelBedtime()
+    expect(sleepSpy).toHaveBeenLastCalledWith(1800, 60) // 30 minutes from now, same fade
+    expect(useMixStore.getState().sleepEndsAt).toBe(T0 + 600_000 + 1800_000)
+    vi.advanceTimersByTime(1800_000)
+    expect(useMixStore.getState().sleeping).toBe(true)
   })
 
   it('a sleep timer set while armed counts from the start time', () => {

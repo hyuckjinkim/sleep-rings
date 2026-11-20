@@ -12,6 +12,9 @@ export function createMockSoundEngine(): SoundEngine {
     isRunning() {
       return true
     },
+    isAlarmSounding() {
+      return true
+    },
     async load(sound) {
       log('load', sound.id)
     },

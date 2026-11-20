@@ -6,6 +6,7 @@ import {
   loadPlaybackSettings,
   loadPresets,
   playLastMix,
+  restoreAlarm,
   restoreMix,
   saveMix,
   savePlaybackSettings,
@@ -14,6 +15,17 @@ import {
 import { useMixStore, emptyMix, defaultOrbit } from '../mixer/store'
 import { soundEngine } from '../mixer/engine/instance'
 import type { Mix } from '../mixer/types'
+import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
+import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+
+vi.mock('../mobile/notifications', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/notifications')>()),
+  cancelReminder: vi.fn(),
+}))
+vi.mock('../mobile/wake-alarm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/wake-alarm')>()),
+  cancelNativeWakeAlarm: vi.fn(),
+}))
 
 beforeEach(() => {
   localStorage.clear()
@@ -159,5 +171,57 @@ describe('playLastMix (bedtime reminder, app shortcut, Siri)', () => {
 
   it('reports false with nothing saved', async () => {
     await expect(playLastMix()).resolves.toBe(false)
+  })
+})
+
+describe('wake alarm persistence (the native alarm and notification 1001 outlive the app)', () => {
+  const T0 = new Date('2026-01-01T23:00:00').getTime()
+  const store = (value: unknown) => localStorage.setItem('so.alarm', JSON.stringify(value))
+  let unsubscribe: (() => void) | undefined
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0)
+    useMixStore.setState({ alarmAt: null, alarmSound: null, alarmRinging: false })
+    vi.mocked(cancelReminder).mockClear()
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+  })
+  afterEach(() => {
+    unsubscribe?.()
+    useMixStore.getState().dismissAlarm()
+    vi.useRealTimers()
+  })
+
+  it('brings a future alarm back into the UI after a relaunch, keeping its native backups', () => {
+    store({ version: 1, alarmAt: T0 + 3600_000, wakeSound: 'nature-brook' })
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: T0 + 3600_000, alarmSound: 'nature-brook' })
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+    expect(cancelReminder).not.toHaveBeenCalled()
+  })
+
+  it('a past, missing or corrupt record cancels the native alarm and notification 1001', () => {
+    for (const setup of [
+      () => store({ version: 1, alarmAt: T0 - 1000, wakeSound: 'nature-brook' }),
+      () => localStorage.removeItem('so.alarm'),
+      () => localStorage.setItem('so.alarm', '{nope'),
+    ]) {
+      setup()
+      vi.mocked(cancelNativeWakeAlarm).mockClear()
+      vi.mocked(cancelReminder).mockClear()
+      restoreAlarm()()
+      expect(useMixStore.getState().alarmAt).toBeNull()
+      expect(cancelNativeWakeAlarm).toHaveBeenCalled()
+      expect(cancelReminder).toHaveBeenCalledWith(ALARM_NOTIFICATION_ID)
+      expect(localStorage.getItem('so.alarm')).toBeNull()
+    }
+  })
+
+  it('saves on arm and clears on dismiss', () => {
+    unsubscribe = restoreAlarm()
+    useMixStore.getState().armAlarm(T0 + 60_000, 'nature-brook')
+    expect(JSON.parse(localStorage.getItem('so.alarm')!)).toEqual({ version: 1, alarmAt: T0 + 60_000, wakeSound: 'nature-brook' })
+    useMixStore.getState().dismissAlarm()
+    expect(localStorage.getItem('so.alarm')).toBeNull()
   })
 })

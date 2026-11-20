@@ -8,16 +8,19 @@ import { setWidgetMixName } from './mobile/widget'
 import { UNTITLED_MIX_NAME, useMixStore } from './mixer/store'
 import { soundEngine } from './mixer/engine/instance'
 import { registerServiceWorker } from './app/pwa'
+import { restoreAlarm } from './sleep/persistence'
 
 // Once for the app's lifetime — safe on plain web too (@capacitor/app ships a Page Visibility
 // web fallback), see docs/android-build.md §4. The Android keep-alive service follows playback
 // (orbs placed, sleep timer not yet finished, or an alarm armed), not app foreground/background.
 // An armed alarm counts too: the WebView (and its running AudioContext) has to survive the night
 // in the background for the alarm to fire, even after the timer silenced the mix. A pending bedtime
-// start likewise — arming it is the visible moment the service is allowed to start.
+// start likewise, when there are orbs for it to start — arming it is the visible moment the service
+// is allowed to start.
 const isMixPlaying = () => {
   const s = useMixStore.getState()
-  return (s.current.placements.length > 0 && !s.sleeping) || s.alarmAt !== null || s.bedtimeAt !== null
+  const hasMix = s.current.placements.length > 0
+  return (hasMix && !s.sleeping) || s.alarmAt !== null || (hasMix && s.bedtimeAt !== null)
 }
 initBackgroundAudio(soundEngine, {
   isPlaying: isMixPlaying,
@@ -29,6 +32,8 @@ initBackgroundAudio(soundEngine, {
     channelDescription: i18n.t('app.playbackNotification.channelDescription'),
   }),
 })
+// After the service above subscribes, so a restored alarm claims the keep-alive like an armed one.
+restoreAlarm()
 // Lock-screen / notification transport controls. Standard navigator.mediaSession, no plugin;
 // no-ops where unsupported (docs/android-build.md §8).
 // Lock-screen "play" after a finished sleep timer must restart the orbs, not just un-suspend.

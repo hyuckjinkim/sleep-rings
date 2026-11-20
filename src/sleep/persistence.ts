@@ -5,6 +5,8 @@ import { Capacitor } from '@capacitor/core'
 import { emptyMix, startPlayback, useMixStore } from '../mixer/store'
 import { soundEngine } from '../mixer/engine/instance'
 import { startKeepAliveAudio } from '../mobile'
+import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
+import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
 import type { Mix } from '../mixer/types'
 
 const CURRENT_SCHEMA = 1
@@ -12,6 +14,7 @@ const AUTOSAVE_DEBOUNCE_MS = 500
 const MIX_KEY = 'so.currentMix'
 const PRESETS_KEY = 'so.presets'
 const PLAYBACK_KEY = 'so.playbackSettings'
+const ALARM_KEY = 'so.alarm'
 
 /** Start fade-in choices, seconds (0 = off: only the short per-orb click guard). */
 export const FADE_IN_OPTIONS = [0, 10, 30, 60] as const
@@ -107,6 +110,52 @@ export function restoreMix(): void {
   useMixStore.setState({ current: mix, presets })
   soundEngine.setMasterVolume(mix.masterVolume) // restore the saved master volume, not just display it
   for (const placement of mix.placements) startPlayback(placement)
+}
+
+function loadAlarm(): { alarmAt: number; wakeSound: string } | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ALARM_KEY) ?? 'null') as
+      | { version?: unknown; alarmAt?: unknown; wakeSound?: unknown }
+      | null
+    if (!raw || raw.version !== CURRENT_SCHEMA || typeof raw.alarmAt !== 'number' || typeof raw.wakeSound !== 'string') {
+      return null
+    }
+    return { alarmAt: raw.alarmAt, wakeSound: raw.wakeSound }
+  } catch {
+    return null // fail-safe, as loadMix
+  }
+}
+
+function saveAlarm(alarmAt: number | null, wakeSound: string | null): void {
+  try {
+    if (alarmAt === null) localStorage.removeItem(ALARM_KEY)
+    else localStorage.setItem(ALARM_KEY, JSON.stringify({ version: CURRENT_SCHEMA, alarmAt, wakeSound }))
+  } catch {
+    // ponytail: storage full/blocked — the alarm still works for this session, just not across a relaunch
+  }
+}
+
+/**
+ * Boot: the armed wake alarm outlives the app (the native alarm and backup notification 1001 do),
+ * so the UI must too, or a relaunch shows no alarm and no Cancel while those still ring. One still
+ * ahead is re-armed in-app, its native backups kept (the engine re-derives the schedule once the
+ * context is unlocked); a past or missing one takes the native pieces down with it. Then keeps the
+ * stored copy in step with the store for the app's lifetime. Call once.
+ */
+export function restoreAlarm(): () => void {
+  const saved = loadAlarm()
+  if (saved && saved.alarmAt > Date.now()) useMixStore.getState().armAlarm(saved.alarmAt, saved.wakeSound, true)
+  if (useMixStore.getState().alarmAt === null) {
+    cancelNativeWakeAlarm()
+    cancelReminder(ALARM_NOTIFICATION_ID)
+    saveAlarm(null, null)
+  }
+  let last = useMixStore.getState().alarmAt
+  return useMixStore.subscribe((state) => {
+    if (state.alarmAt === last) return
+    last = state.alarmAt
+    saveAlarm(state.alarmAt, state.alarmSound)
+  })
 }
 
 // How long a gesture-less resume() may take before we call autoplay blocked.

@@ -9,6 +9,9 @@ export interface SoundEngine {
   /** Whether the AudioContext is actually rendering — false while autoplay is still blocked. */
   isRunning(): boolean
 
+  /** Whether the wake alarm is audible now: scheduled, its start reached, on a running context. */
+  isAlarmSounding(): boolean
+
   /** Load a catalog sound (fetch+decode for files, ensure cached buffer for noise). Idempotent. */
   load(sound: Sound): Promise<void>
 
@@ -46,7 +49,7 @@ export interface SoundEngine {
   /** Wake alarm at wall-clock atMs (epoch ms): the loaded sound fades in over fadeSec while the mix
    * crossfades out. Needs the app (AudioContext) running — a finished sleep timer won't suspend
    * while one is armed. cancelAlarm() disarms, or dismisses one that's already ringing (and then
-   * returns true: the mix was torn down with it). */
+   * returns true: the mix was torn down with it); with nothing left playing it then suspends. */
   scheduleAlarm(soundId: string, atMs: number, fadeSec: number): void
   cancelAlarm(): boolean
 

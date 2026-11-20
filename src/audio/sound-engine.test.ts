@@ -592,6 +592,53 @@ describe('SoundEngine', () => {
       expect(alarmSource().stop).toHaveBeenCalled()
     })
 
+    it('isAlarmSounding() is true only once the alarm has started on a running context', () => {
+      expect(engine.isAlarmSounding()).toBe(false) // nothing armed
+      engine.scheduleAlarm('birds', T0 + 60_000, 300) // starts at 160
+      ctx.state = 'running'
+      expect(engine.isAlarmSounding()).toBe(false)
+      ctx.currentTime = 160
+      expect(engine.isAlarmSounding()).toBe(true)
+      ctx.state = 'suspended' // a frozen clock rings nothing
+      expect(engine.isAlarmSounding()).toBe(false)
+    })
+
+    it('init() re-derives an alarm scheduled before the context was unlocked (boot restore)', async () => {
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300) // clock frozen at 100 until the first gesture
+      vi.setSystemTime(T0 + 600_000)
+      await engine.init()
+      const rearmed = vi.mocked(ctx.createBufferSource).mock.results[2].value
+      expect(rearmed.start).toHaveBeenCalledWith(100 + 3000)
+    })
+
+    it('dismissing a ringing alarm with nothing left to play suspends after the stop fade', () => {
+      ctx.state = 'running'
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200
+      engine.cancelAlarm()
+      expect(ctx.suspend).not.toHaveBeenCalled() // not mid-fade
+      vi.advanceTimersByTime(500)
+      expect(ctx.suspend).toHaveBeenCalled()
+    })
+
+    it('...but not when a sound is loaded or started right after (openMix, wake)', async () => {
+      ctx.state = 'running'
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200
+      engine.cancelAlarm()
+      void engine.load(NOISE_SOUND) // a file sound may still be loading when the fade ends
+      vi.advanceTimersByTime(1000)
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it('cancelling a pending alarm while the mix plays does not suspend', () => {
+      ctx.state = 'running'
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      engine.cancelAlarm()
+      vi.advanceTimersByTime(1000)
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
     it('throws if the wake sound was never loaded', () => {
       expect(() => engine.scheduleAlarm('nope', T0, 10)).toThrow(/not loaded/)
     })

@@ -157,7 +157,8 @@ interface MixStore {
   presets: Mix[]
   sleepEndsAt: number | null // epoch ms, for the countdown UI
   sleeping: boolean // true once a sleep timer's fade+stop has completed
-  alarmAt: number | null // epoch ms of an armed (or ringing) wake alarm — in-memory only, like the engine schedule
+  alarmAt: number | null // epoch ms of an armed (or ringing) wake alarm — persisted by src/sleep/persistence.ts
+  alarmSound: string | null // its wake sound, persisted with it
   alarmRinging: boolean
   bedtimeAt: number | null // epoch ms of a pending bedtime start — in-memory only, like the alarm
   lastRemoved: Placement | null // B7: single-slot undo buffer, cleared after UNDO_TIMEOUT_MS
@@ -183,8 +184,10 @@ interface MixStore {
    * clearing the flag alone would leave orbs on screen (and the app counted as playing) with
    * nothing audible. Restarts every placement. No-op unless sleeping. */
   wake(): void
-  /** Arm the wake alarm. Free for everyone; the wake sound itself still follows its catalog tier. */
-  armAlarm(atMs: number, soundId: string): void
+  /** Arm the wake alarm. Free for everyone; the wake sound itself still follows its catalog tier.
+   * `restored`: re-armed at boot from storage — the native alarm and backup notification set before
+   * the relaunch are still pending, so they are kept rather than replaced. */
+  armAlarm(atMs: number, soundId: string, restored?: boolean): void
   /** Disarm a pending alarm, or stop a ringing one. */
   dismissAlarm(): void
   /** Hold the current mix silent until atMs, then fade it in. Free. The arming tap is the user
@@ -200,6 +203,19 @@ let undoAllTimeout: ReturnType<typeof setTimeout> | undefined
 let layerLimitTimeout: ReturnType<typeof setTimeout> | undefined
 let alarmTimeout: ReturnType<typeof setTimeout> | undefined
 let bedtimeTimeout: ReturnType<typeof setTimeout> | undefined
+let sleepFadeSec = SLEEP_FADE_SEC // the running timer's, for a re-schedule (cancelBedtime)
+
+/** (Re)schedule the sleep timer to end durationSec from now. */
+function scheduleSleepEnd(durationSec: number, fadeSec: number): void {
+  clearTimeout(sleepTimeout)
+  sleepFadeSec = fadeSec
+  soundEngine.scheduleSleep(durationSec, fadeSec)
+  useMixStore.setState({ sleepEndsAt: Date.now() + durationSec * 1000, sleeping: false })
+  sleepTimeout = setTimeout(() => {
+    useMixStore.setState({ sleeping: true, sleepEndsAt: null })
+    setMediaSessionPlaying(false)
+  }, durationSec * 1000)
+}
 
 export const useMixStore = create<MixStore>((set, get) => ({
   current: emptyMix(),
@@ -209,6 +225,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
   sleepEndsAt: null,
   sleeping: false,
   alarmAt: null,
+  alarmSound: null,
   alarmRinging: false,
   bedtimeAt: null,
   lastRemoved: null,
@@ -315,6 +332,8 @@ export const useMixStore = create<MixStore>((set, get) => ({
   restoreLastRemoved() {
     const removed = get().lastRemoved
     if (!removed) return
+    soundEngine.onEnterForeground() // as addPlacement: MEDIUM-2
+    get().wake() // a ringing alarm stops, and orbs a finished timer stopped come back with this one
     clearTimeout(undoTimeout)
     set((s) => ({
       current: { ...s.current, placements: [...s.current.placements, removed], updatedAt: Date.now() },
@@ -348,6 +367,8 @@ export const useMixStore = create<MixStore>((set, get) => ({
   restoreLastRemovedAll() {
     const removed = get().lastRemovedAll
     if (!removed) return
+    soundEngine.onEnterForeground() // as restoreLastRemoved
+    get().wake()
     clearTimeout(undoAllTimeout)
     set((s) => ({
       current: { ...s.current, placements: [...s.current.placements, ...removed], updatedAt: Date.now() },
@@ -394,6 +415,9 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   openMix(mix) {
+    // As wake(): up and choosing a mix — the alarm did its job. Otherwise the new mix would play
+    // through the ramping-down wake stage and be torn down when the alarm's crossfade ends.
+    if (get().alarmRinging) get().dismissAlarm()
     soundEngine.onEnterForeground() // MEDIUM-2
     for (const p of get().current.placements) soundEngine.stop(p.id, PLACEMENT_FADE_SEC) // L-1: fade, not a hard cut
     const current: Mix = { ...mix, id: makeId('mix'), updatedAt: Date.now() }
@@ -421,17 +445,10 @@ export const useMixStore = create<MixStore>((set, get) => ({
   startSleepTimer(minutes, fadeSec = SLEEP_FADE_SEC) {
     soundEngine.onEnterForeground() // MEDIUM-2
     get().wake()
-    clearTimeout(sleepTimeout)
     // With a bedtime start pending, the timer counts from that start, not from now.
     const bedtimeAt = get().bedtimeAt
     const waitSec = bedtimeAt ? Math.max(0, (bedtimeAt - Date.now()) / 1000) : 0
-    const durationSec = Math.max(0, minutes) * 60 + waitSec
-    soundEngine.scheduleSleep(durationSec, fadeSec)
-    set({ sleepEndsAt: Date.now() + durationSec * 1000, sleeping: false })
-    sleepTimeout = setTimeout(() => {
-      set({ sleeping: true, sleepEndsAt: null })
-      setMediaSessionPlaying(false)
-    }, durationSec * 1000)
+    scheduleSleepEnd(Math.max(0, minutes) * 60 + waitSec, fadeSec)
   },
 
   cancelSleepTimer() {
@@ -451,24 +468,28 @@ export const useMixStore = create<MixStore>((set, get) => ({
     for (const p of placements) startPlayback(p) // engine.play() is a no-op for anything still active
   },
 
-  armAlarm(atMs, soundId) {
+  armAlarm(atMs, soundId, restored = false) {
     const sound = catalog.find((s) => s.id === soundId)
     if (!sound || !canUseSound(sound.id, getPlan())) return
     soundEngine.onEnterForeground() // a frozen (suspended) audio clock would never reach the alarm
     clearTimeout(alarmTimeout)
     soundEngine.cancelAlarm()
-    cancelNativeWakeAlarm() // re-arm: the caller schedules the new one (SleepControls)
-    set({ alarmAt: atMs, alarmRinging: false })
+    if (!restored) cancelNativeWakeAlarm() // re-arm: the caller schedules the new one (SleepControls)
+    set({ alarmAt: atMs, alarmSound: soundId, alarmRinging: false })
     // Not via startPlayback(): the alarm isn't a placement, and it must not ride the layer cap.
     void soundEngine.load(sound).then(() => {
       if (get().alarmAt === atMs) soundEngine.scheduleAlarm(sound.id, atMs, ALARM_FADE_SEC)
     })
     // UI only — the sound itself is scheduled on the audio clock above, immune to timer throttling.
     alarmTimeout = setTimeout(() => {
-      cancelReminder(ALARM_NOTIFICATION_ID) // the app is alive and ringing — no backup needed
-      // Same for the native alarm, but only if this timer is on time: a late one means the app was
-      // frozen, and then the audio clock is late too — let the native alarm ring (wake-alarm.ts).
-      if (Date.now() - atMs < NATIVE_ALARM_DELAY_MS / 2) cancelNativeWakeAlarm()
+      // Drop the backups only if the in-app alarm is really audible: a suspended context (no gesture
+      // yet after a relaunch, an interrupted session) rings nothing. Two alarms, never none.
+      if (soundEngine.isAlarmSounding()) {
+        cancelReminder(ALARM_NOTIFICATION_ID) // the app is alive and ringing — no backup needed
+        // Same for the native alarm, but only if this timer is on time: a late one means the app was
+        // frozen, and then the audio clock is late too — let the native alarm ring (wake-alarm.ts).
+        if (Date.now() - atMs < NATIVE_ALARM_DELAY_MS / 2) cancelNativeWakeAlarm()
+      }
       clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
       set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })
     }, Math.max(0, atMs - Date.now()))
@@ -507,9 +528,15 @@ export const useMixStore = create<MixStore>((set, get) => ({
   },
 
   cancelBedtime() {
+    const { bedtimeAt, sleepEndsAt } = get()
     clearTimeout(bedtimeTimeout)
     cancelReminder(BEDTIME_NOTIFICATION_ID)
     soundEngine.cancelStart()
     set({ bedtimeAt: null })
+    // A timer set while armed counted from the start time; the mix plays now, so drop the wait.
+    if (bedtimeAt && sleepEndsAt) {
+      const waitMs = Math.max(0, bedtimeAt - Date.now())
+      scheduleSleepEnd(Math.max(0, sleepEndsAt - waitMs - Date.now()) / 1000, sleepFadeSec)
+    }
   },
 }))

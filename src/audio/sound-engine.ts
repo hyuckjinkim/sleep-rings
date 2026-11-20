@@ -124,6 +124,7 @@ export class SoundEngine {
   private readonly active = new Map<string, PlacementNodes>()
   private quality: PanQuality = 'hrtf'
   private sleepStopTimer?: ReturnType<typeof setTimeout>
+  private idleSuspendTimer?: ReturnType<typeof setTimeout> // after an alarm cancel; any new sound drops it
 
   constructor(private readonly ctx: EngineAudioContext = createDefaultAudioContext()) {
     this.master = ctx.createGain()
@@ -159,14 +160,23 @@ export class SoundEngine {
    */
   async init(): Promise<void> {
     await this.ctx.resume()
+    this.rescheduleAfterSuspend() // e.g. an alarm restored at boot, before the first gesture
   }
 
   isRunning(): boolean {
     return this.ctx.state === 'running'
   }
 
+  /** Whether the wake alarm is (about to be) audible: armed, its start reached on a running clock.
+   * The 1 s slack covers a UI timer that fires a little ahead of the audio clock. */
+  isAlarmSounding(): boolean {
+    const alarm = this.alarm
+    return !!alarm && this.ctx.state === 'running' && this.ctx.currentTime >= alarm.startAt - 1
+  }
+
   /** Load a catalog sound (fetch+decode for files, cached buffer for synth/binaural). Idempotent. */
   async load(sound: Sound): Promise<void> {
+    clearTimeout(this.idleSuspendTimer) // something is about to play — a file sound may take a while
     const cached = this.sounds.get(sound.id)
     if (cached) {
       // Re-insert so Map iteration order stays least-recently-used-first for releaseIdleBuffers().
@@ -192,6 +202,7 @@ export class SoundEngine {
 
   /** Start playback for a placement. No-op if already playing. Requires load() to have run first. */
   play(placement: Placement): void {
+    clearTimeout(this.idleSuspendTimer)
     if (this.active.has(placement.id)) return
     const loaded = this.sounds.get(placement.soundId)
     if (!loaded) {
@@ -525,6 +536,12 @@ export class SoundEngine {
     this.disarmAlarm(ALARM_STOP_SEC)
     if (ringing) this.endMixForAlarm()
     else fadeTo(this.wake.gain, this.ctx.currentTime, 1, NIGHT_RESTORE_SEC)
+    // Nothing left to play (a finished sleep timer, or the alarm just ended the mix): suspend like a
+    // finished timer does, once the stop fade is done, unless something was loaded or started since.
+    clearTimeout(this.idleSuspendTimer)
+    this.idleSuspendTimer = setTimeout(() => {
+      if (this.active.size === 0 && !this.alarm && !this.isStartPending()) void this.ctx.suspend()
+    }, ALARM_STOP_SEC * 1000)
     return ringing
   }
 
@@ -586,17 +603,20 @@ export class SoundEngine {
 
   onEnterForeground(): void {
     if (this.ctx.state !== 'suspended') return
-    void this.ctx.resume().then(() => {
-      // The audio clock stood still while suspended, so a not-yet-started alarm's schedule is now
-      // late by however long that was — re-derive it from the wall-clock target.
-      const alarm = this.alarm
-      if (alarm && this.ctx.currentTime < alarm.startAt) this.scheduleAlarm(alarm.soundId, alarm.atMs, alarm.fadeSec)
-      const start = this.bedtimeStart // same for a pending bedtime start
-      if (start && this.ctx.currentTime < start.startAt) this.scheduleStart(start.atMs)
-    })
+    void this.ctx.resume().then(() => this.rescheduleAfterSuspend())
+  }
+
+  // The audio clock stood still while suspended, so a not-yet-started alarm's schedule is now late by
+  // however long that was — re-derive it from the wall-clock target.
+  private rescheduleAfterSuspend(): void {
+    const alarm = this.alarm
+    if (alarm && this.ctx.currentTime < alarm.startAt) this.scheduleAlarm(alarm.soundId, alarm.atMs, alarm.fadeSec)
+    const start = this.bedtimeStart // same for a pending bedtime start
+    if (start && this.ctx.currentTime < start.startAt) this.scheduleStart(start.atMs)
   }
 
   dispose(): void {
+    clearTimeout(this.idleSuspendTimer)
     this.cancelSleep()
     this.disarmAlarm()
     this.bedtimeStart = undefined
