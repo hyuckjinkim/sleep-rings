@@ -470,14 +470,16 @@ export class SoundEngine {
     this.alarmEndTimer = setTimeout(() => this.endMixForAlarm(), (endAt - now) * 1000)
   }
 
-  /** Disarm a pending alarm (the mix plays on), or dismiss a ringing one (everything goes quiet). */
-  cancelAlarm(): void {
+  /** Disarm a pending alarm (the mix plays on), or dismiss a ringing one (everything goes quiet).
+   * Returns whether it had already started — the audio clock, not a JS timer, is the truth here. */
+  cancelAlarm(): boolean {
     const alarm = this.alarm
-    if (!alarm) return
+    if (!alarm) return false
     const ringing = this.ctx.currentTime >= alarm.startAt
     this.disarmAlarm(ALARM_STOP_SEC)
     if (ringing) this.endMixForAlarm()
     else fadeTo(this.wake.gain, this.ctx.currentTime, 1, NIGHT_RESTORE_SEC)
+    return ringing
   }
 
   private disarmAlarm(fadeSec = 0): void {

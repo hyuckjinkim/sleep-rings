@@ -44,6 +44,7 @@ export function createMockSoundEngine(): SoundEngine {
     },
     cancelAlarm() {
       log('cancelAlarm')
+      return false
     },
     inspect() {
       return null

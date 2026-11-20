@@ -536,7 +536,7 @@ describe('SoundEngine', () => {
 
     it('cancelAlarm() before it rings disarms it and leaves the mix playing', () => {
       engine.scheduleAlarm('birds', T0 + 3600_000, 300)
-      engine.cancelAlarm()
+      expect(engine.cancelAlarm()).toBe(false)
       vi.advanceTimersByTime(4000_000)
       expect(alarmSource().stop).toHaveBeenCalled()
       expect(engine.inspect('p1')).not.toBeNull()
@@ -546,7 +546,7 @@ describe('SoundEngine', () => {
     it('cancelAlarm() while ringing fades the alarm out and leaves everything quiet', () => {
       engine.scheduleAlarm('birds', T0 + 60_000, 300)
       ctx.currentTime = 200 // past the 160s start, mid-crossfade
-      engine.cancelAlarm()
+      expect(engine.cancelAlarm()).toBe(true)
       expect(alarmGain().linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 200.5)
       expect(engine.inspect('p1')).toBeNull()
       vi.advanceTimersByTime(1000)

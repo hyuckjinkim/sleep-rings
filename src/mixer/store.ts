@@ -452,7 +452,12 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   dismissAlarm() {
     clearTimeout(alarmTimeout)
-    soundEngine.cancelAlarm()
+    // The audio clock can reach the alarm before the UI timer above flips alarmRinging; if it had
+    // started, the engine just tore the mix down, so the state must say "sleeping" (not playing).
+    if (soundEngine.cancelAlarm()) {
+      clearTimeout(sleepTimeout)
+      set({ sleeping: true, sleepEndsAt: null })
+    }
     set({ alarmAt: null, alarmRinging: false })
   },
 }))

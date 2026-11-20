@@ -415,6 +415,14 @@ describe('wake alarm', () => {
     expect(useMixStore.getState()).toMatchObject({ alarmAt: null, alarmRinging: false })
   })
 
+  it('cancelling an alarm the audio clock already started (UI timer not yet fired) marks the mix stopped', () => {
+    useMixStore.getState().addPlacement('noise-white', 0.3, 0)
+    useMixStore.getState().armAlarm(T0 + 60_000, 'nature-brook')
+    vi.spyOn(soundEngine, 'cancelAlarm').mockReturnValue(true)
+    useMixStore.getState().dismissAlarm()
+    expect(useMixStore.getState()).toMatchObject({ sleeping: true, alarmAt: null, alarmRinging: false })
+  })
+
   it('touching the mix while it rings (wake) stops the alarm too', () => {
     useMixStore.getState().armAlarm(T0 + 1000, 'nature-brook')
     vi.advanceTimersByTime(1000)
