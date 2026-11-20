@@ -6,8 +6,20 @@
 
 1. 아래 표의 "소스 URL"을 열고 페이지의 다운로드 버튼(로그인 불필요, 프리뷰 mp3/ogg 또는 원본)으로 파일을 받는다.
 2. `scripts/sounds/raw/{카테고리}/{파일명}.{확장자}` 경로에 저장한다(카테고리 폴더는 미리 없으면 만들 것).
-3. 전부 받은 뒤 `node scripts/sounds/process.mjs` 실행 → ffmpeg 후처리(정규화+루프+AAC 변환) → `public/sounds/{카테고리}/{id}.m4a` 생성.
+3. 전부 받은 뒤 `node scripts/sounds/process.mjs` 실행 → ffmpeg 후처리(정규화+루프 크로스페이드+AAC 변환) → 아래 "카탈로그 매핑" 항목만 `public/sounds/{카탈로그 id}.m4a` 로 생성. 그 다음 `src/library/catalog.ts`의 `UNAVAILABLE_IDS`에서 해당 id를 빼면 잠금이 풀린다(`catalog-assets.test.ts`가 파일 존재를 검사).
 4. 받은 항목을 `docs/sound-licenses.md` 대장에 한 줄씩 기록(파일명·원제·소스 URL·라이선스·저작자·취득일).
+
+## 카탈로그 매핑
+
+앱 카탈로그(`src/library/catalog.ts`)가 실제로 참조하는 파일은 3개뿐이다. `manifest.json`의 `catalogId`가 이 대응을 정의하며, `process.mjs`는 이 3개만 출력한다. 원본 선택은 **청취 전 임시 선택** — 들어 보고 바꾸려면 `catalogId`를 다른 행으로 옮기면 된다.
+
+| 카탈로그 id | 출력 파일 | 원본 id | 원본 저장 경로 |
+|---|---|---|---|
+| garden-rain | public/sounds/garden-rain.m4a | rain-heavy-01 | scripts/sounds/raw/rain/rain-heavy-01.* |
+| seaside | public/sounds/seaside.m4a | ocean-coast-01 | scripts/sounds/raw/ocean/ocean-coast-01.* |
+| night-stream | public/sounds/night-stream.m4a | water-forest-stream-00 | scripts/sounds/raw/water/water-forest-stream-00.* |
+
+나머지 22개는 후보 목록(카탈로그 미사용)이다.
 
 ## 목록
 

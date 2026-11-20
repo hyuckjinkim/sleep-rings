@@ -1,15 +1,17 @@
 #!/usr/bin/env node
-// raw/{category}/{id}.* 를 후처리(라우드니스 정규화+루프 크로스페이드+AAC 변환)해 public/sounds/{category}/{id}.m4a 로 만든다.
+// manifest.json에서 catalogId가 있는 항목만 raw/{category}/{id}.* → public/sounds/{catalogId}.m4a 로
+// 후처리(라우드니스 정규화+루프 크로스페이드+AAC 변환)한다. 출력 경로는 src/library/catalog.ts의
+// file 소스(`sounds/{catalogId}.m4a`)와 1:1 — catalog-assets.test.ts가 이 대응을 검사한다.
 // ffmpeg가 없으면 설치를 시도하지 않고 블로커로 보고만 하고 종료한다.
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const RAW_DIR = path.join(SCRIPT_DIR, "raw");
 const OUT_DIR = path.join(SCRIPT_DIR, "..", "..", "public", "sounds");
+const { sounds } = JSON.parse(readFileSync(path.join(SCRIPT_DIR, "manifest.json"), "utf8"));
 
 function hasFfmpeg() {
   try {
@@ -50,32 +52,34 @@ const LOOP_FILTER = [
 
 let processed = 0;
 let failed = 0;
+let missing = 0;
+mkdirSync(OUT_DIR, { recursive: true });
 
-for (const category of readdirSync(RAW_DIR, { withFileTypes: true }).filter((d) => d.isDirectory())) {
-  const catDir = path.join(RAW_DIR, category.name);
-  const outCatDir = path.join(OUT_DIR, category.name);
-  mkdirSync(outCatDir, { recursive: true });
-
-  for (const file of readdirSync(catDir)) {
-    const id = path.parse(file).name;
-    const inPath = path.join(catDir, file);
-    const outPath = path.join(outCatDir, `${id}.m4a`);
-    try {
-      execFileSync("ffmpeg", [
-        "-y", "-i", inPath,
-        "-filter_complex", LOOP_FILTER,
-        "-map", "[out]",
-        "-ar", "44100",
-        "-c:a", "aac", "-b:a", "96k",
-        "-movflags", "+faststart",
-        outPath,
-      ], { stdio: "inherit" });
-      processed++;
-    } catch (err) {
-      console.error(`[실패] ${category.name}/${file}: ${err.message}`);
-      failed++;
-    }
+for (const { id, category, catalogId } of sounds.filter((x) => x.catalogId)) {
+  const catDir = path.join(RAW_DIR, category);
+  const file = existsSync(catDir) ? readdirSync(catDir).find((f) => path.parse(f).name === id) : undefined;
+  if (!file) {
+    console.error(`[원본 없음] ${catalogId} ← raw/${category}/${id}.* (docs/sound-manual-downloads.md 참고)`);
+    missing++;
+    continue;
+  }
+  const inPath = path.join(catDir, file);
+  const outPath = path.join(OUT_DIR, `${catalogId}.m4a`);
+  try {
+    execFileSync("ffmpeg", [
+      "-y", "-i", inPath,
+      "-filter_complex", LOOP_FILTER,
+      "-map", "[out]",
+      "-ar", "44100",
+      "-c:a", "aac", "-b:a", "96k",
+      "-movflags", "+faststart",
+      outPath,
+    ], { stdio: "inherit" });
+    processed++;
+  } catch (err) {
+    console.error(`[실패] ${category}/${file}: ${err.message}`);
+    failed++;
   }
 }
 
-console.log(`\n처리 완료: ${processed}, 실패: ${failed}`);
+console.log(`\n처리 완료: ${processed}, 실패: ${failed}, 원본 없음: ${missing}`);
