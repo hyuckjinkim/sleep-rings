@@ -9,11 +9,13 @@ import { SleepControls } from './SleepControls'
 import { useMixStore } from '../mixer/store'
 import { usePlaybackSettings } from './settings'
 import { usePlanStore } from '../plan'
-import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, scheduleReminder } from '../mobile/notifications'
+import { Capacitor } from '@capacitor/core'
+import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
   scheduleReminder: vi.fn().mockResolvedValue(true),
+  areRemindersDenied: vi.fn().mockResolvedValue(false),
 }))
 
 beforeEach(() => {
@@ -100,8 +102,11 @@ describe('wake alarm controls', () => {
 
   it('schedules the backup notification for the armed time and says when notifications are off', async () => {
     usePlanStore.setState({ plan: 'free' })
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
     vi.mocked(scheduleReminder).mockClear().mockResolvedValueOnce(false)
     render(<SleepControls />)
+    await act(async () => {})
+    expect(screen.getByText('앱이 종료돼 있으면 소리 대신 알림이 와요.')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('기상 시각'), { target: { value: '06:30' } })
     fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
     const [id, atMs, text, isArmed] = vi.mocked(scheduleReminder).mock.calls[0]
@@ -110,9 +115,26 @@ describe('wake alarm controls', () => {
     expect(text).toEqual({ title: '기상 알람', body: '일어날 시간이에요.' })
     expect(isArmed()).toBe(true)
     await act(async () => {}) // let the denied result land (fake timers: no findBy polling)
-    expect(screen.getByText(/알림이 꺼져 있어/)).toBeInTheDocument()
+    // The denied note replaces the "you'll get a notification" promise in both sections.
+    expect(screen.getAllByText(/알림이 꺼져 있어/)).toHaveLength(2)
+    expect(screen.queryByText('앱이 종료돼 있으면 소리 대신 알림이 와요.')).not.toBeInTheDocument()
     act(() => useMixStore.getState().dismissAlarm())
     expect(isArmed()).toBe(false)
+    vi.mocked(Capacitor.isNativePlatform).mockRestore()
+  })
+
+  it('shows an earlier refusal on open, without prompting', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    vi.mocked(areRemindersDenied).mockResolvedValueOnce(true)
+    render(<SleepControls />)
+    await act(async () => {})
+    expect(screen.getAllByText(/알림이 꺼져 있어/)).toHaveLength(2)
+    vi.mocked(Capacitor.isNativePlatform).mockRestore()
+  })
+
+  it('shows no native notes on web', () => {
+    render(<SleepControls />)
+    expect(screen.queryByText(/소리 대신 알림이 와요/)).not.toBeInTheDocument()
   })
 
   it('offers a stop button while ringing', () => {

@@ -61,6 +61,16 @@ export async function scheduleReminder(
   }
 }
 
+/** Whether the user already refused notifications — checked without prompting. False on web. */
+export async function areRemindersDenied(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false
+  try {
+    return (await LocalNotifications.checkPermissions()).display === 'denied'
+  } catch {
+    return false
+  }
+}
+
 /** Drop a pending (or already shown) backup notification. No-op on web. */
 export function cancelReminder(id: number): void {
   if (!Capacitor.isNativePlatform()) return

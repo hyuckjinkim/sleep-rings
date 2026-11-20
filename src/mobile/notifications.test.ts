@@ -114,6 +114,23 @@ describe('scheduleReminder', () => {
   })
 })
 
+describe('areRemindersDenied', () => {
+  it('checks without prompting', async () => {
+    LocalNotifications.checkPermissions.mockResolvedValue({ display: 'denied' })
+    const { areRemindersDenied } = await import('./notifications')
+    await expect(areRemindersDenied()).resolves.toBe(true)
+    expect(LocalNotifications.requestPermissions).not.toHaveBeenCalled()
+  })
+
+  it('is false while undecided, and on web', async () => {
+    LocalNotifications.checkPermissions.mockResolvedValue({ display: 'prompt' })
+    const { areRemindersDenied } = await import('./notifications')
+    await expect(areRemindersDenied()).resolves.toBe(false)
+    platform.name = 'web'
+    await expect(areRemindersDenied()).resolves.toBe(false)
+  })
+})
+
 describe('cancelReminder', () => {
   it('cancels by id on native, nothing on web', async () => {
     const { BEDTIME_NOTIFICATION_ID, cancelReminder } = await import('./notifications')

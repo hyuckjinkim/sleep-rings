@@ -6,7 +6,7 @@ import { PUBLIC_WEB_URL, shareUrl } from '../mixer/share'
 import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
-import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, scheduleReminder } from '../mobile/notifications'
+import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
 // Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
 // their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
 const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
@@ -56,7 +56,7 @@ export function SleepControls() {
   const hasPlacements = useMixStore((s) => s.current.placements.length > 0)
   const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
   const [now, setNow] = useState(Date.now())
-  const [deniedFor, setDeniedFor] = useState<'alarm' | 'bedtime' | null>(null) // backup notification refused
+  const [notificationsDenied, setNotificationsDenied] = useState(false) // app-wide, so both sections
   const isNative = Capacitor.isNativePlatform()
 
   useEffect(() => {
@@ -64,6 +64,10 @@ export function SleepControls() {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [sleepEndsAt])
+
+  useEffect(() => {
+    void areRemindersDenied().then(setNotificationsDenied) // a check, never a prompt
+  }, [])
 
   useEffect(() => {
     if (!shareStatus) return
@@ -100,7 +104,7 @@ export function SleepControls() {
     }
     if (!isArmed()) return
     const text = { title: t(`mixer.${kind}.notificationTitle`), body: t(`mixer.${kind}.notificationBody`) }
-    void scheduleReminder(id, atMs, text, isArmed).then((ok) => setDeniedFor(ok ? null : kind))
+    void scheduleReminder(id, atMs, text, isArmed).then((ok) => setNotificationsDenied(!ok))
   }
 
   function handleArmAlarm() {
@@ -214,10 +218,9 @@ export function SleepControls() {
             </div>
           )}
           <p className="mixer-alarm-note">{t('mixer.bedtime.note')}</p>
-          {isNative && <p className="mixer-alarm-note">{t('mixer.bedtime.nativeNote')}</p>}
-          {deniedFor === 'bedtime' && (
+          {isNative && (
             <p className="mixer-alarm-note" role="status">
-              {t('mixer.notificationsDenied')}
+              {t(notificationsDenied ? 'mixer.notificationsDenied' : 'mixer.bedtime.nativeNote')}
             </p>
           )}
         </div>
@@ -275,10 +278,9 @@ export function SleepControls() {
             </>
           )}
           <p className="mixer-alarm-note">{t('mixer.alarm.note')}</p>
-          {isNative && <p className="mixer-alarm-note">{t('mixer.alarm.nativeNote')}</p>}
-          {deniedFor === 'alarm' && (
+          {isNative && (
             <p className="mixer-alarm-note" role="status">
-              {t('mixer.notificationsDenied')}
+              {t(notificationsDenied ? 'mixer.notificationsDenied' : 'mixer.alarm.nativeNote')}
             </p>
           )}
         </div>
