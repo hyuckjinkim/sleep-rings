@@ -1,7 +1,7 @@
 // SoundEngine — the Web Audio mixer engine. Framework-independent (no React/store imports).
 // Public API contract: docs/design/audio-engine.md §7.
 //
-// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> master -> night -> intro -> wake -> limiter -> destination.
+// Per-placement node chain: source -> spatial (Panner[HRTF] | StereoPanner) -> gain -> [tone] -> [vary] -> master -> night -> intro -> wake -> limiter -> destination.
 // `master` is the user's volume; `night` belongs to the sleep timer alone, so a volume tweak (a raw
 // `.value` write, or fadeTo's cancelScheduledValues) can never cancel the scheduled sleep fade.
 // `intro` likewise belongs to the start fade-in alone, and `wake` to the alarm's crossfade (one
@@ -52,6 +52,13 @@ const NIGHT_RESTORE_SEC = 0.5
 const TONE_MAX_CUT_DB = 12
 const TONE_DARK_SHELF_HZ = 1000
 const TONE_BRIGHT_SHELF_HZ = 400
+// Per-sound variation: the placement's own gain gets raw per-frame writes, so the drift lives on one
+// extra GainNode, pre-scheduled as a single value curve on the audio clock — no JS timer to stall
+// with the screen off. Random targets every DRIFT_STEP_SEC, linearly interpolated, only ever <= 1.
+const DRIFT_STEP_SEC = 30
+const DRIFT_DEPTH = 0.35
+// ponytail: 12h horizon, then it holds its last value — add a refill if anyone plays longer.
+const DRIFT_HORIZON_SEC = 12 * 3600
 // Dismissing a ringing alarm: short fade so the stop doesn't click.
 const ALARM_STOP_SEC = 0.5
 
@@ -81,6 +88,7 @@ interface PlacementNodes {
   gain: EngineGainNode
   toneable: boolean
   tone: EngineBiquadFilterNode | null // created only while placement.tone != 0
+  vary: EngineGainNode | null // created only while placement.variation is on
   quality: PanQuality
   placement: Placement
   lastRampAt: number
@@ -209,6 +217,7 @@ export class SoundEngine {
       gain,
       toneable: loaded.toneable === true,
       tone: null,
+      vary: null,
       quality: this.quality,
       placement,
       lastRampAt: -Infinity,
@@ -331,9 +340,19 @@ export class SoundEngine {
       }
       if (nodes.tone.gain.value !== cutDb) nodes.tone.gain.value = cutDb
     }
+    if (placement.variation && !nodes.vary) {
+      nodes.vary = this.ctx.createGain()
+      this.scheduleDrift(nodes.vary)
+      rewire = true
+    } else if (!placement.variation && nodes.vary) {
+      nodes.vary.disconnect()
+      nodes.vary = null
+      rewire = true
+    }
     if (!rewire) return
     nodes.gain.disconnect()
-    const chain = [nodes.gain, nodes.tone].filter((n) => n !== null)
+    nodes.tone?.disconnect()
+    const chain = [nodes.gain, nodes.tone, nodes.vary].filter((n) => n !== null)
     chain.forEach((node, i) => node.connect(chain[i + 1] ?? this.master))
   }
 
@@ -538,6 +557,13 @@ export class SoundEngine {
     void this.ctx.close()
   }
 
+  private scheduleDrift(vary: EngineGainNode): void {
+    const points = new Float32Array(Math.floor(DRIFT_HORIZON_SEC / DRIFT_STEP_SEC) + 1)
+    points[0] = 1 // start where an un-drifted chain is, so switching it on doesn't jump
+    for (let i = 1; i < points.length; i++) points[i] = 1 - Math.random() * DRIFT_DEPTH
+    vary.gain.setValueCurveAtTime(points, this.ctx.currentTime, DRIFT_HORIZON_SEC)
+  }
+
   private renderAndCacheNoise(color: NoiseColor): EngineAudioBuffer {
     const cached = this.noiseBuffers.get(color)
     if (cached) return cached
@@ -611,5 +637,6 @@ export class SoundEngine {
     nodes.spatial?.disconnect()
     nodes.gain.disconnect()
     nodes.tone?.disconnect()
+    nodes.vary?.disconnect()
   }
 }

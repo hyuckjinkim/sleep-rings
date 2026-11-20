@@ -91,10 +91,13 @@
       "toneNeutral": "Neutral",
       "toneDarker": "Darker",
       "toneBrighter": "Brighter",
-      "paidLocked": "{{feature}} · {{tier}}"
+      "paidLocked": "{{feature}} · {{tier}}",
+      "variationOn": "Turn on gentle variation",
+      "variationOff": "Turn off gentle variation"
     },
     "paidFeature": {
-      "tone": "Noise tone"
+      "tone": "Noise tone",
+      "variation": "Gentle variation"
     },
     "master": {
       "volume": "Master volume"

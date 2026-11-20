@@ -440,6 +440,11 @@ describe('paid per-sound controls reach the engine only on a plan that includes 
     expect(enginePlacement(base)).toEqual({ ...base, tone: undefined })
   })
 
+  it('free: variation is dropped as well', () => {
+    usePlanStore.setState({ plan: 'free' })
+    expect(enginePlacement({ ...base, tone: undefined, variation: true }).variation).toBeUndefined()
+  })
+
   it('lowest paid tier and above: passed through as-is', () => {
     usePlanStore.setState({ plan: 'tier2000' })
     expect(enginePlacement(base)).toBe(base)

@@ -25,6 +25,7 @@ function createParam(initial = 0): EngineAudioParam {
       param.value = v
     }),
     cancelScheduledValues: vi.fn(),
+    setValueCurveAtTime: vi.fn(),
   }
   return param
 }

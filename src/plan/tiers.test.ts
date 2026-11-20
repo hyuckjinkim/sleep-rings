@@ -78,4 +78,10 @@ describe('paid feature gating', () => {
     expect(canUseFeature('tone', 'tier2000')).toBe(true)
     expect(canUseFeature('tone', 'tier10000')).toBe(true)
   })
+
+  it('variation needs the lowest paid tier or above', () => {
+    expect(featurePlan('variation')).toBe('tier2000')
+    expect(canUseFeature('variation', 'free')).toBe(false)
+    expect(canUseFeature('variation', 'tier5000')).toBe(true)
+  })
 })

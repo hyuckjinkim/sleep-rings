@@ -8,6 +8,7 @@ export interface EngineAudioParam {
   setValueAtTime(value: number, time: number): void
   linearRampToValueAtTime(value: number, time: number): void
   cancelScheduledValues(time: number): void
+  setValueCurveAtTime(values: Float32Array, startTime: number, duration: number): void
 }
 
 export interface EngineAudioNode {

@@ -208,6 +208,17 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
             />
           </div>,
         )}
+      {paidControl(
+        'variation',
+        <div className="mixer-controls-row">
+          <button
+            type="button"
+            onClick={() => updatePlacement(placementId, { variation: placement.variation ? undefined : true })}
+          >
+            {placement.variation ? t('mixer.controls.variationOff') : t('mixer.controls.variationOn')}
+          </button>
+        </div>,
+      )}
       {upsell && (
         <UpgradeSheet
           plan={featurePlan(upsell)}

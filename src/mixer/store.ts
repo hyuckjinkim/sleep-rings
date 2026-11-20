@@ -79,7 +79,15 @@ function markErrored(id: string): void {
  * per-sound gate in startPlayback().
  */
 export function enginePlacement(placement: Placement): Placement {
-  return placement.tone && !canUseFeature('tone', getPlan()) ? { ...placement, tone: undefined } : placement
+  const plan = getPlan()
+  const dropTone = !!placement.tone && !canUseFeature('tone', plan)
+  const dropVariation = !!placement.variation && !canUseFeature('variation', plan)
+  if (!dropTone && !dropVariation) return placement
+  return {
+    ...placement,
+    tone: dropTone ? undefined : placement.tone,
+    variation: dropVariation ? undefined : placement.variation,
+  }
 }
 
 /**

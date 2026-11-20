@@ -78,10 +78,11 @@ export function canUseSound(soundId: string, plan: Plan): boolean {
 
 /** Paid "depth" controls on top of a sound (docs/research/feature-candidates.md: safety and basics
  * stay free, depth is paid). Same rank check as sounds; the lowest paid tier unlocks them. */
-export type PaidFeature = 'tone'
+export type PaidFeature = 'tone' | 'variation'
 
 const FEATURE_TIER: Record<PaidFeature, Exclude<Plan, 'free'>> = {
   tone: 'tier2000',
+  variation: 'tier2000',
 }
 
 export function featurePlan(feature: PaidFeature): Exclude<Plan, 'free'> {

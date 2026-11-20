@@ -391,6 +391,54 @@ describe('SoundEngine', () => {
     })
   })
 
+  describe('per-sound variation (drift on one extra gain node)', () => {
+    const master = () => gainNode(0)
+    const pGain = () => gainNode(GLOBAL_GAINS)
+    const vary = () => gainNode(GLOBAL_GAINS + 1)
+
+    it('adds exactly one gain node, pre-scheduled as a single audio-clock curve that only attenuates', async () => {
+      await engine.load(NOISE_SOUND)
+      ctx.currentTime = 7
+      engine.play(placement({ variation: true }))
+      expect(ctx.createGain).toHaveBeenCalledTimes(GLOBAL_GAINS + 2)
+      expect(pGain().connect).toHaveBeenLastCalledWith(vary())
+      expect(vary().connect).toHaveBeenLastCalledWith(master())
+      const [values, start, duration] = vi.mocked(vary().gain.setValueCurveAtTime).mock.calls[0]
+      expect(start).toBe(7)
+      expect(duration).toBeGreaterThanOrEqual(8 * 3600) // outlasts a night without any JS timer
+      expect(values[0]).toBe(1)
+      expect(Math.max(...values)).toBeLessThanOrEqual(1)
+      expect(Math.min(...values)).toBeGreaterThanOrEqual(0.6)
+    })
+
+    it('chains after the tone filter when both are on', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ variation: true, tone: -0.5 }))
+      const filter = vi.mocked(ctx.createBiquadFilter).mock.results[0].value
+      expect(pGain().connect).toHaveBeenLastCalledWith(filter)
+      expect(filter.connect).toHaveBeenLastCalledWith(vary())
+      expect(vary().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('per-frame setPlacement creates nothing new; switching off removes it and rewires to master', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ variation: true }))
+      for (let i = 0; i < 5; i++) engine.setPlacement(placement({ variation: true, angle: i }))
+      expect(ctx.createGain).toHaveBeenCalledTimes(GLOBAL_GAINS + 2)
+      expect(vary().gain.setValueCurveAtTime).toHaveBeenCalledTimes(1)
+      engine.setPlacement(placement({ variation: false }))
+      expect(vary().disconnect).toHaveBeenCalled()
+      expect(pGain().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('stop() tears the drift node down too', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ variation: true }))
+      engine.stop('p1')
+      expect(vary().disconnect).toHaveBeenCalled()
+    })
+  })
+
   describe('volume cap', () => {
     // Product of every gain a placement's signal passes through, master onwards.
     function summedGain(placementGain: number): number {

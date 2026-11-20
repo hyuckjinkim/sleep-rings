@@ -40,3 +40,23 @@ describe('OrbControls noise tone (paid)', () => {
     expect(screen.queryByRole('button', { name: /노이즈 음색/ })).toBeNull()
   })
 })
+
+describe('OrbControls gentle variation (paid)', () => {
+  it('free plan: locked entry instead of the toggle', () => {
+    usePlanStore.setState({ plan: 'free' })
+    const id = placeOrb('nature-rain')
+    render(<OrbControls placementId={id} label="Rain" onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: '자연스러운 변화 켜기' })).toBeNull()
+    expect(screen.getByRole('button', { name: '자연스러운 변화 · 2,000원 플랜' })).toBeInTheDocument()
+  })
+
+  it('paid plan: toggles variation on the placement, for any sound', () => {
+    usePlanStore.setState({ plan: 'tier2000' })
+    const id = placeOrb('nature-rain')
+    render(<OrbControls placementId={id} label="Rain" onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: '자연스러운 변화 켜기' }))
+    expect(useMixStore.getState().current.placements.find((p) => p.id === id)?.variation).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: '자연스러운 변화 끄기' }))
+    expect(useMixStore.getState().current.placements.find((p) => p.id === id)?.variation).toBeUndefined()
+  })
+})

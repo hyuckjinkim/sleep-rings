@@ -91,10 +91,13 @@
       "toneNeutral": "기본",
       "toneDarker": "어둡게",
       "toneBrighter": "밝게",
-      "paidLocked": "{{feature}} · {{tier}}"
+      "paidLocked": "{{feature}} · {{tier}}",
+      "variationOn": "자연스러운 변화 켜기",
+      "variationOff": "자연스러운 변화 끄기"
     },
     "paidFeature": {
-      "tone": "노이즈 음색"
+      "tone": "노이즈 음색",
+      "variation": "자연스러운 변화"
     },
     "master": {
       "volume": "마스터 볼륨"
