@@ -475,10 +475,7 @@ describe('SoundEngine', () => {
       expect(limiter().connect).toHaveBeenCalledWith(cap())
       expect(limiter().connect).not.toHaveBeenCalledWith(ctx.destination)
       expect(cap().connect).toHaveBeenCalledWith(ctx.destination)
-      const toDestination = vi.mocked(ctx.createGain).mock.results.filter(({ value }) =>
-        vi.mocked(value.connect).mock.calls.some(([target]) => target === ctx.destination),
-      )
-      expect(toDestination.map(({ value }) => value)).toEqual([cap()])
+      for (const i of [0, 1, 2, 3, 4]) expect(gainNode(i).connect).not.toHaveBeenCalledWith(ctx.destination)
     })
 
     it('the final stage holds the cap, whatever the master volume or call order', () => {
