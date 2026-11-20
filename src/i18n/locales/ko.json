@@ -19,6 +19,11 @@
         "floating": "플로팅"
       }
     },
+    "playbackNotification": {
+      "body": "수면 믹스 재생 중",
+      "channelName": "수면 사운드 재생",
+      "channelDescription": "수면 믹스가 재생되는 동안 표시됩니다"
+    },
     "version": {
       "label": "버전"
     }

@@ -19,6 +19,11 @@
         "floating": "Floating"
       }
     },
+    "playbackNotification": {
+      "body": "Playing your sleep mix",
+      "channelName": "Sleep sound playback",
+      "channelDescription": "Shown while a sleep mix is playing"
+    },
     "version": {
       "label": "Version"
     }

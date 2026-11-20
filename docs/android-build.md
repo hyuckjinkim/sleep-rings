@@ -78,15 +78,17 @@ evenOdd로 두면 겹치지 않는 바깥쪽 조각까지 남아 모양이 깨�
 - **`src/mobile/background-audio.ts`**
   - `BackgroundAudioTarget` 인터페이스 — `SoundEngine`의 `onEnterBackground()`/`onEnterForeground()`와
     구조적으로만 일치(직접 import 안 함).
-  - `initBackgroundAudio(target)` — `@capacitor/app`의 `appStateChange` 이벤트를 구독해
-    `target.onEnterBackground/Foreground()`를 호출하고, Android에서는 동시에
-    `startAndroidKeepAliveService()`/`stopAndroidKeepAliveService()`를 호출. cleanup 함수 반환.
+  - `initBackgroundAudio(target, playback)` — `@capacitor/app`의 `appStateChange` 이벤트를 구독해
+    `target.onEnterBackground/Foreground()`를 호출. Android FGS는 앱 전환이 아니라 **재생 상태**를
+    따른다(`keepAliveAction()`): 첫 제스처 이후 앱이 보이는 상태에서 재생이 시작되면 시작, 재생이
+    끝나면(슬립 타이머 종료·오브 전부 제거) 중지. Android 17(API 37)은 백그라운드에서 시작된 FGS의
+    오디오를 무음 처리할 수 있기 때문. 알림 문구는 `main.tsx`가 i18n으로 번역해 넘긴다. cleanup 함수 반환.
   - `startKeepAliveAudio()` — `/mobile/silence.wav`(0.5초 무음, `public/mobile/silence.wav`,
     stdlib `wave` 모듈로 생성한 8kHz/16bit PCM)를 loop 재생하는 `<audio>` 엘리먼트 생성. **반드시
     사용자 첫 제스처 핸들러에서 호출**해야 한다(오토플레이 정책) — 모듈 로드 시점에 호출하면
     브라우저가 조용히 막는다.
 - **`src/mobile/foreground-service.ts`** — `@capawesome-team/capacitor-android-foreground-service`
-  래퍼. `startAndroidKeepAliveService()`/`stopAndroidKeepAliveService()` (Android 외 플랫폼은 no-op).
+  래퍼. `startAndroidKeepAliveService(text)`/`stopAndroidKeepAliveService()` (Android 외 플랫폼은 no-op).
 - **`src/mobile/index.ts`** — 배럴.
 
 ### 배선 지점
