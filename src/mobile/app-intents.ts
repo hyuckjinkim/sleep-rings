@@ -4,6 +4,7 @@
 // which the plugin queues for JavaScript. Android has no App Intents — the plugin rejects there.
 import { Capacitor } from '@capacitor/core'
 import { useAppIntentsListener } from '@capgo/capacitor-app-intents'
+import { addListenerSafely } from './listener'
 
 export const PLAY_LAST_MIX_INTENT = 'playLastMix'
 
@@ -14,18 +15,11 @@ export const PLAY_LAST_MIX_INTENT = 'playLastMix'
  */
 export function onPlayLastMixIntent(onPlayLastMix: () => void): () => void {
   if (Capacitor.getPlatform() !== 'ios') return () => {}
-  let removed = false
-  let remove: (() => Promise<void>) | undefined
-  void useAppIntentsListener((invocation) => {
-    if (invocation.name === PLAY_LAST_MIX_INTENT) onPlayLastMix()
-  })
-    .then((handle) => {
-      remove = handle.remove
-      if (removed) void remove()
-    })
-    .catch((err: unknown) => console.warn('[app-intents] listener failed', err))
-  return () => {
-    removed = true
-    void remove?.()
-  }
+  return addListenerSafely(
+    () =>
+      useAppIntentsListener((invocation) => {
+        if (invocation.name === PLAY_LAST_MIX_INTENT) onPlayLastMix()
+      }),
+    'app-intents',
+  )
 }

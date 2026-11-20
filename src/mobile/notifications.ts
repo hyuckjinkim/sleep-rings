@@ -2,8 +2,8 @@
 // alarm/start runs on the Web Audio clock and needs the app alive; if the app was closed, this
 // notification is all that's left — it only notifies, it can't play the mix.
 import { Capacitor } from '@capacitor/core'
-import type { PluginListenerHandle } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
+import { addListenerSafely } from './listener'
 
 // Stable ids. Not 1 — that's the Android keep-alive foreground-service notification.
 export const ALARM_NOTIFICATION_ID = 1001
@@ -91,13 +91,11 @@ export function cancelReminder(id: number): void {
  */
 export function onClosedAppReminderTap(onTap: (id: number) => void): () => void {
   if (!Capacitor.isNativePlatform()) return () => {}
-  let handle: PluginListenerHandle | undefined
-  void LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
-    if (!scheduledThisSession.has(notification.id)) onTap(notification.id)
-  }).then((h) => {
-    handle = h
-  })
-  return () => {
-    void handle?.remove()
-  }
+  return addListenerSafely(
+    () =>
+      LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
+        if (!scheduledThisSession.has(notification.id)) onTap(notification.id)
+      }),
+    'notifications',
+  )
 }

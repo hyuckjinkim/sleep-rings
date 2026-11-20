@@ -1,8 +1,8 @@
 // Home-screen / launcher "Play last mix" shortcut (long-press the app icon). Native only.
 import { Capacitor } from '@capacitor/core'
-import type { PluginListenerHandle } from '@capacitor/core'
 import { App } from '@capacitor/app'
 import { AppShortcuts } from '@capawesome/capacitor-app-shortcuts'
+import { addListenerSafely } from './listener'
 
 export const PLAY_LAST_MIX_SHORTCUT_ID = 'play-last-mix'
 
@@ -28,13 +28,11 @@ export async function setPlayLastMixShortcut(title: string): Promise<void> {
  * cold-started the app still arrives. No-op on web. */
 export function onPlayLastMixShortcut(onTap: () => void): () => void {
   if (!Capacitor.isNativePlatform()) return () => {}
-  let handle: PluginListenerHandle | undefined
-  void AppShortcuts.addListener('click', ({ shortcutId }) => {
-    if (shortcutId === PLAY_LAST_MIX_SHORTCUT_ID) onTap()
-  }).then((h) => {
-    handle = h
-  })
-  return () => {
-    void handle?.remove()
-  }
+  return addListenerSafely(
+    () =>
+      AppShortcuts.addListener('click', ({ shortcutId }) => {
+        if (shortcutId === PLAY_LAST_MIX_SHORTCUT_ID) onTap()
+      }),
+    'app-shortcuts',
+  )
 }

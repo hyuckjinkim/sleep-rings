@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
-import type { PluginListenerHandle } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Mixer } from '../mixer/Mixer'
 import { useMixStore } from '../mixer/store'
@@ -10,6 +9,7 @@ import { playLastMix, saveMix } from '../sleep/persistence'
 import { BEDTIME_NOTIFICATION_ID, onClosedAppReminderTap } from '../mobile/notifications'
 import { onPlayLastMixShortcut, setPlayLastMixShortcut } from '../mobile/app-shortcuts'
 import { onPlayLastMixIntent } from '../mobile/app-intents'
+import { addListenerSafely } from '../mobile/listener'
 import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 import { Settings } from './Settings'
 import { getPurchaseAdapter, isPurchaseAvailable, usePlanStore } from '../plan'
@@ -72,16 +72,10 @@ export function App() {
       history.replaceState(history.state, '', location.pathname + location.search)
     }
     if (!Capacitor.isNativePlatform()) return
-    let handle: PluginListenerHandle | undefined
     void CapacitorApp.getLaunchUrl().then((launch) => {
       if (launch?.url) openShareLink(launch.url)
     })
-    void CapacitorApp.addListener('appUrlOpen', ({ url }) => openShareLink(url)).then((h) => {
-      handle = h
-    })
-    return () => {
-      void handle?.remove()
-    }
+    return addListenerSafely(() => CapacitorApp.addListener('appUrlOpen', ({ url }) => openShareLink(url)), 'app-url')
   }, [])
 
   // "Play last mix" from outside the app (launcher shortcut, Siri). If the WebView still wouldn't start
@@ -114,19 +108,17 @@ export function App() {
   // normally from the mixer screen. No-op on web/iOS — @capacitor/app only fires this on Android.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
-    let handle: PluginListenerHandle | undefined
-    CapacitorApp.addListener('backButton', () => {
-      setScreen((prev) => {
-        if (prev === 'settings') return 'mixer'
-        void CapacitorApp.exitApp()
-        return prev
-      })
-    }).then((h) => {
-      handle = h
-    })
-    return () => {
-      void handle?.remove()
-    }
+    return addListenerSafely(
+      () =>
+        CapacitorApp.addListener('backButton', () => {
+          setScreen((prev) => {
+            if (prev === 'settings') return 'mixer'
+            void CapacitorApp.exitApp()
+            return prev
+          })
+        }),
+      'back-button',
+    )
   }, [])
 
   return (
