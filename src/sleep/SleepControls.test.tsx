@@ -3,7 +3,7 @@
 // callback clears sleepEndsAt too. Both looked the same to the button, so it stayed disabled
 // exactly when the user most wanted to hit it. See functional-qa.md 5b.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { act, render, screen, cleanup, fireEvent } from '@testing-library/react'
 import '../i18n'
 import { SleepControls } from './SleepControls'
 import { useMixStore } from '../mixer/store'
@@ -97,5 +97,33 @@ describe('wake alarm controls', () => {
     render(<SleepControls />)
     fireEvent.click(screen.getByRole('button', { name: '알람 멈추기' }))
     expect(useMixStore.getState().alarmRinging).toBe(false)
+  })
+})
+
+describe('share button', () => {
+  it('is disabled for an empty mix, and copies the link when there is no share sheet', async () => {
+    vi.useRealTimers()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    render(<SleepControls />)
+    expect(screen.getByRole('button', { name: '공유' })).toBeDisabled()
+
+    act(() => {
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    fireEvent.click(screen.getByRole('button', { name: '공유' }))
+    expect(await screen.findByText('링크를 복사했어요')).toBeInTheDocument()
+    expect(writeText.mock.calls[0][0]).toMatch(/#mix=[\w-]+$/)
+  })
+
+  it('says so when copying fails', async () => {
+    vi.useRealTimers()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) }, configurable: true })
+    act(() => {
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    render(<SleepControls />)
+    fireEvent.click(screen.getByRole('button', { name: '공유' }))
+    expect(await screen.findByText('링크를 복사하지 못했어요')).toBeInTheDocument()
   })
 })

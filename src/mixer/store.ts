@@ -171,6 +171,8 @@ interface MixStore {
   setMasterVolume(volume: number): void
   savePreset(name: string): void
   loadPreset(id: string): void
+  /** Replace the current mix with `mix` (a preset, or a decoded share link) and start it. */
+  openMix(mix: Mix): void
   deletePreset(id: string): void
   startSleepTimer(minutes: number, fadeSec?: number): void
   cancelSleepTimer(): void
@@ -378,10 +380,13 @@ export const useMixStore = create<MixStore>((set, get) => ({
 
   loadPreset(id) {
     const preset = get().presets.find((p) => p.id === id)
-    if (!preset) return
+    if (preset) get().openMix(preset)
+  },
+
+  openMix(mix) {
     soundEngine.onEnterForeground() // MEDIUM-2
     for (const p of get().current.placements) soundEngine.stop(p.id, PLACEMENT_FADE_SEC) // L-1: fade, not a hard cut
-    const current: Mix = { ...preset, id: makeId('mix'), updatedAt: Date.now() }
+    const current: Mix = { ...mix, id: makeId('mix'), updatedAt: Date.now() }
     set({
       current,
       loadingIds: new Set(),
@@ -395,6 +400,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
     clearTimeout(undoTimeout) // a preset swap invalidates any pending undo from the previous mix
     clearTimeout(undoAllTimeout)
     soundEngine.cancelSleep()
+    soundEngine.setMasterVolume(current.masterVolume) // the slider shows the mix's volume — the engine must play it
     for (const p of current.placements) startPlayback(p)
   },
 

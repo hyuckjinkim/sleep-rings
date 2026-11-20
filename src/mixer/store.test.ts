@@ -256,6 +256,18 @@ describe('presets', () => {
     expect(useMixStore.getState().presets).toHaveLength(0)
   })
 
+  it('openMix replaces the mix and applies its master volume to the engine', () => {
+    const volumeSpy = vi.spyOn(soundEngine, 'setMasterVolume')
+    useMixStore.getState().addPlacement('noise-white', 0.2, 0)
+    const placement = { ...useMixStore.getState().current.placements[0], id: 'shared-1', soundId: 'fan' }
+    useMixStore.getState().openMix({ id: 'x', name: 'Shared', placements: [placement], masterVolume: 0.4, updatedAt: 0 })
+    const { current } = useMixStore.getState()
+    expect(current.name).toBe('Shared')
+    expect(current.placements.map((p) => p.soundId)).toEqual(['fan'])
+    expect(volumeSpy).toHaveBeenCalledWith(0.4)
+    volumeSpy.mockRestore()
+  })
+
   it('loadPreset is a no-op for an unknown id', () => {
     const before = useMixStore.getState().current
     useMixStore.getState().loadPreset('does-not-exist')

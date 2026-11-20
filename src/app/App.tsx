@@ -5,19 +5,27 @@ import type { PluginListenerHandle } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Mixer } from '../mixer/Mixer'
 import { useMixStore } from '../mixer/store'
+import { decodeShareUrl, shareParam } from '../mixer/share'
+import { saveMix } from '../sleep/persistence'
 import { ScreenDimOverlay } from '../screen/ScreenDimOverlay'
 import { Settings } from './Settings'
 import { getPurchaseAdapter, isPurchaseAvailable, usePlanStore } from '../plan'
+import type { Plan } from '../plan'
+import { UpgradeSheet } from '../plan/UpgradeSheet'
 import './backdrop.css'
 // theme.css is imported once in main.tsx
 
 type Screen = 'mixer' | 'settings'
+
+// iOS can hand the same cold-start link to both getLaunchUrl() and appUrlOpen.
+let lastShareUrl: string | null = null
 
 export function App() {
   const { t } = useTranslation()
   // §2.2: the background layer breathes only while something is actually audible.
   const isPlaying = useMixStore((s) => s.current.placements.length > 0 && !s.sleeping)
   const [screen, setScreen] = useState<Screen>('mixer')
+  const [shareUpsell, setShareUpsell] = useState<Exclude<Plan, 'free'> | null>(null)
 
   // Entitlements are the store's truth, not ours: the locally persisted plan says nothing about a
   // subscription that expired, was refunded, or was bought on another device. Re-read it once at
@@ -31,6 +39,45 @@ export function App() {
       .catch(() => {
         /* offline or store unreachable: keep the last known plan rather than downgrading a payer */
       })
+  }, [])
+
+  // Share links (src/mixer/share.ts): the page URL on web, appUrlOpen/launch URL on native — one
+  // decode path. This effect runs after Mixer's restoreMix() (child effects run first), so the
+  // saved mix doesn't overwrite the shared one.
+  useEffect(() => {
+    function openShareLink(url: string) {
+      if (url === lastShareUrl) return
+      lastShareUrl = url
+      const shared = decodeShareUrl(url, usePlanStore.getState().plan)
+      if (!shared) return
+      if (shared.mix.placements.length > 0) {
+        useMixStore.getState().openMix(shared.mix)
+        // Save now, not after the autosave debounce: a Mixer remount (or StrictMode's effect
+        // re-run) restores from storage and would bring the previous mix back.
+        try {
+          saveMix(useMixStore.getState().current)
+        } catch {
+          // ponytail: storage full/blocked — the shared mix still plays for this session
+        }
+      }
+      if (shared.lockedPlan) setShareUpsell(shared.lockedPlan)
+    }
+
+    if (shareParam(location.href) !== null) {
+      openShareLink(location.href)
+      history.replaceState(history.state, '', location.pathname + location.search)
+    }
+    if (!Capacitor.isNativePlatform()) return
+    let handle: PluginListenerHandle | undefined
+    void CapacitorApp.getLaunchUrl().then((launch) => {
+      if (launch?.url) openShareLink(launch.url)
+    })
+    void CapacitorApp.addListener('appUrlOpen', ({ url }) => openShareLink(url)).then((h) => {
+      handle = h
+    })
+    return () => {
+      void handle?.remove()
+    }
   }, [])
 
   // Android hardware back: close the settings screen instead of exiting the app from it; exit
@@ -92,6 +139,13 @@ export function App() {
         )}
         {screen === 'mixer' ? <Mixer /> : <Settings onClose={() => setScreen('mixer')} />}
       </main>
+      {shareUpsell && (
+        <UpgradeSheet
+          plan={shareUpsell}
+          message={t('mixer.share.lockedBody', { tier: t(`plan.tier.${shareUpsell}`) })}
+          onClose={() => setShareUpsell(null)}
+        />
+      )}
     </>
   )
 }

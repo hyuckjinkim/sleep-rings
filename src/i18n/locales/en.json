@@ -131,6 +131,12 @@
       "load": "Load",
       "delete": "Delete"
     },
+    "share": {
+      "button": "Share",
+      "copied": "Link copied",
+      "failed": "Couldn't copy the link",
+      "lockedBody": "Some sounds in this shared mix are available from {{tier}}, so they were left out."
+    },
     "presetLimit": "Preset slots were full — “{{name}}” was replaced.",
     "sheet": {
       "label": "Sounds and controls",

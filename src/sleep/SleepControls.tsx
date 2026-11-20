@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Capacitor } from '@capacitor/core'
 import { nextAlarmAt, useMixStore } from '../mixer/store'
+import { PUBLIC_WEB_URL, shareUrl } from '../mixer/share'
 import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
@@ -9,6 +11,8 @@ import { canUseSound, requiredPlan, usePlanStore } from '../plan'
 const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
 
 const PRESET_MINUTES = [15, 30, 45, 60, 90]
+
+const SHARE_STATUS_MS = 3000
 
 function formatRemaining(ms: number): string {
   const totalSec = Math.max(0, Math.round(ms / 1000))
@@ -44,6 +48,8 @@ export function SleepControls() {
   const [customMinutes, setCustomMinutes] = useState('')
   const customTotal = (Number(customHours) || 0) * 60 + (Number(customMinutes) || 0)
   const [presetName, setPresetName] = useState('')
+  const hasPlacements = useMixStore((s) => s.current.placements.length > 0)
+  const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -51,6 +57,32 @@ export function SleepControls() {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [sleepEndsAt])
+
+  useEffect(() => {
+    if (!shareStatus) return
+    const id = setTimeout(() => setShareStatus(null), SHARE_STATUS_MS)
+    return () => clearTimeout(id)
+  }, [shareStatus])
+
+  // Native share sheet where there is one, else copy to the clipboard. Native builds link to the
+  // public web app — their own origin (capacitor://localhost) means nothing to the receiver.
+  async function handleShare() {
+    const url = shareUrl(useMixStore.getState().current, Capacitor.isNativePlatform() ? PUBLIC_WEB_URL : location.href)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: t('app.title'), url })
+        return
+      } catch (err) {
+        if ((err as Error | null)?.name === 'AbortError') return // the user closed the share sheet
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareStatus('copied')
+    } catch {
+      setShareStatus('failed')
+    }
+  }
 
   function handleSave() {
     const name = presetName.trim()
@@ -189,7 +221,15 @@ export function SleepControls() {
             <button type="button" onClick={handleSave} disabled={!presetName.trim()}>
               {t('mixer.presets.save')}
             </button>
+            <button type="button" onClick={() => void handleShare()} disabled={!hasPlacements}>
+              {t('mixer.share.button')}
+            </button>
           </div>
+          {shareStatus && (
+            <p className="mixer-preset-notice" role="status">
+              {t(`mixer.share.${shareStatus}`)}
+            </p>
+          )}
           {presetLimitNotice && (
             <p className="mixer-preset-notice" role="status">
               {t('mixer.presetLimit', { name: presetLimitNotice.droppedName })}
