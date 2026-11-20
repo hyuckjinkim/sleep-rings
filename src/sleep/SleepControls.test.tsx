@@ -188,7 +188,7 @@ describe('wake alarm controls', () => {
     expect(screen.queryByText(/‘알람 및 리마인더’ 권한/)).not.toBeInTheDocument()
 
     vi.mocked(openExactAlarmSettings).mockResolvedValueOnce(true)
-    fireEvent.click(screen.getByRole('button', { name: '설정 열기' }))
+    fireEvent.click(screen.getByRole('button', { name: '설정 앱 열기' }))
     await act(async () => {})
     expect(screen.getByText(/대신 시스템 알람음이 울려요/)).toBeInTheDocument()
     expect(screen.queryByText(/알람 볼륨으로 천천히 커져요/)).not.toBeInTheDocument() // Android's fade promise

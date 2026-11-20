@@ -146,7 +146,7 @@
       "exactOpen": "권한 설정 열기",
       "closedAppSoundIos": "SleepRings가 켜져 있으면 기상 시각에 소리가 천천히 커져요. 앱이 종료돼 있으면 대신 시스템 알람음이 울려요. 알람의 ‘중단’을 누르면 멈춰요.",
       "exactNeededIos": "앱이 종료돼 있을 때도 소리로 깨우려면 설정에서 SleepRings의 알람을 허용해 주세요.",
-      "exactOpenIos": "설정 열기"
+      "exactOpenIos": "설정 앱 열기"
     },
     "presets": {
       "namePlaceholder": "믹스 이름",
