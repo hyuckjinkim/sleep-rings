@@ -43,6 +43,8 @@ public class WakeAlarmPlugin: CAPPlugin, CAPBridgedPlugin {
         #if canImport(AlarmKit)
         guard #available(iOS 26.0, *) else { return call.unavailable(Self.unavailable) }
         guard let at = call.getDouble("at") else { return call.reject("at is required") }
+        // fadeSec needs no clamp here: AlarmKit has no fade, so it is ignored (see the header).
+        guard at.isFinite, at > Date().timeIntervalSince1970 * 1000 else { return call.reject("at must be in the future") }
         let title = call.getString("title") ?? "Wake alarm"
         Task {
             do {

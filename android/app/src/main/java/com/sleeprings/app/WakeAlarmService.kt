@@ -62,6 +62,14 @@ class WakeAlarmService : Service() {
         }
         val fadeMs = (intent?.getIntExtra(EXTRA_FADE_SEC, 0) ?: 0).coerceAtLeast(0) * 1000L
         player = startPlayer()
+        if (player == null) { // every tone unset or unplayable: don't ring silently
+            // Drop the ringing notification first: the fallback reuses its id, and onDestroy's
+            // stopForeground(REMOVE) would otherwise take the fallback down with it.
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            notifyFallback(this)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         rampVolume(fadeMs)
         handler.postDelayed(::stopSelf, fadeMs + RING_AFTER_FADE_MS)
         return START_NOT_STICKY
