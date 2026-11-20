@@ -631,6 +631,20 @@ describe('SoundEngine', () => {
       expect(ctx.suspend).not.toHaveBeenCalled()
     })
 
+    it('...nor while a file sound that was already loading is still on its way', async () => {
+      ctx.state = 'running'
+      let finish!: () => void
+      vi.mocked(fetch).mockImplementationOnce(() => new Promise((r) => (finish = () => r(new Response(new ArrayBuffer(8))))))
+      const loading = engine.load(FILE_SOUND) // e.g. openMix started it just before
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200
+      engine.cancelAlarm()
+      vi.advanceTimersByTime(1000)
+      expect(ctx.suspend).not.toHaveBeenCalled()
+      finish()
+      await loading
+    })
+
     it('cancelling a pending alarm while the mix plays does not suspend', () => {
       ctx.state = 'running'
       engine.scheduleAlarm('birds', T0 + 3600_000, 300)

@@ -125,6 +125,7 @@ export class SoundEngine {
   private quality: PanQuality = 'hrtf'
   private sleepStopTimer?: ReturnType<typeof setTimeout>
   private idleSuspendTimer?: ReturnType<typeof setTimeout> // after an alarm cancel; any new sound drops it
+  private fileLoads = 0 // file sounds still fetching: about to play, so the context must stay up
 
   constructor(private readonly ctx: EngineAudioContext = createDefaultAudioContext()) {
     this.master = ctx.createGain()
@@ -196,7 +197,13 @@ export class SoundEngine {
       this.sounds.set(sound.id, { buffer, panBypass: true })
       return
     }
-    const buffer = await this.loadFile(sound.source.src)
+    this.fileLoads += 1
+    let buffer: EngineAudioBuffer
+    try {
+      buffer = await this.loadFile(sound.source.src)
+    } finally {
+      this.fileLoads -= 1
+    }
     this.sounds.set(sound.id, { buffer, loopStart: sound.source.loopStart, loopEnd: sound.source.loopEnd })
   }
 
@@ -540,7 +547,7 @@ export class SoundEngine {
     // finished timer does, once the stop fade is done, unless something was loaded or started since.
     clearTimeout(this.idleSuspendTimer)
     this.idleSuspendTimer = setTimeout(() => {
-      if (this.active.size === 0 && !this.alarm && !this.isStartPending()) void this.ctx.suspend()
+      if (this.active.size === 0 && this.fileLoads === 0 && !this.alarm && !this.isStartPending()) void this.ctx.suspend()
     }, ALARM_STOP_SEC * 1000)
     return ringing
   }
