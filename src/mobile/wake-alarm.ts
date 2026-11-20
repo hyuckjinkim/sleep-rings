@@ -85,7 +85,10 @@ export async function scheduleAlarmBackup(
       exactAlarm = (await canScheduleNativeWakeAlarm()) === false ? false : null
     }
   }
-  return { notificationsDenied: !(await scheduleReminder(ALARM_NOTIFICATION_ID, atMs, text, isArmed)), exactAlarm }
+  // Same offset as the native alarm: at atMs itself it would land on the in-app alarm's own start,
+  // before the in-app timer could drop it.
+  const shown = await scheduleReminder(ALARM_NOTIFICATION_ID, atMs + NATIVE_ALARM_DELAY_MS, text, isArmed)
+  return { notificationsDenied: !shown, exactAlarm }
 }
 
 /** Drop a pending native alarm and silence one that is ringing. No-op on web. */

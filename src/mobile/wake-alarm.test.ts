@@ -86,7 +86,7 @@ describe('scheduleAlarmBackup', () => {
       exactAlarm: false,
     })
     expect(WakeAlarm.schedule).not.toHaveBeenCalled()
-    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT, TEXT, armed)
+    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT + NATIVE_ALARM_DELAY_MS, TEXT, armed)
   })
 
   it('falls back to the backup notification when the native schedule fails', async () => {
@@ -96,7 +96,7 @@ describe('scheduleAlarmBackup', () => {
       notificationsDenied: false,
       exactAlarm: null, // promise the notification, not a closed-app sound
     })
-    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT, TEXT, armed)
+    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT + NATIVE_ALARM_DELAY_MS, TEXT, armed)
   })
 
   it('does not arm an alarm cancelled while the permission check was pending', async () => {
@@ -150,7 +150,7 @@ describe('on iOS (AlarmKit)', () => {
       exactAlarm: null,
     })
     expect(WakeAlarm.schedule).not.toHaveBeenCalled()
-    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT, TEXT, armed)
+    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT + NATIVE_ALARM_DELAY_MS, TEXT, armed)
     expect(warn).not.toHaveBeenCalled()
   })
 
@@ -162,7 +162,7 @@ describe('on iOS (AlarmKit)', () => {
       notificationsDenied: false,
       exactAlarm: false,
     })
-    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT, TEXT, armed)
+    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT + NATIVE_ALARM_DELAY_MS, TEXT, armed)
   })
 
   it('keeps the notification without AlarmKit access', async () => {
@@ -201,6 +201,6 @@ describe('on web', () => {
     expect(WakeAlarm.cancel).not.toHaveBeenCalled()
     expect(WakeAlarm.openSettings).not.toHaveBeenCalled()
     expect(LocalNotifications.changeExactNotificationSetting).not.toHaveBeenCalled()
-    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT, TEXT, armed)
+    expect(notifications.scheduleReminder).toHaveBeenCalledWith(1001, AT + NATIVE_ALARM_DELAY_MS, TEXT, armed)
   })
 })

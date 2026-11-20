@@ -7,7 +7,7 @@ import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
-import { canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
+import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
 // Gentle existing synth sounds; the first is free so the alarm itself always is. The others keep
 // their catalog tier (alarm-sound variety is a paid depth, docs/research/feature-candidates.md).
 const WAKE_SOUNDS = ['nature-brook', 'birds', 'singing-bowl']
@@ -115,7 +115,8 @@ export function SleepControls() {
       })
       return
     }
-    void scheduleReminder(id, atMs, text, isArmed).then((ok) => setNotificationsDenied(!ok))
+    // Offset like the alarm's, so the in-app start at atMs drops it before it shows.
+    void scheduleReminder(id, atMs + NATIVE_ALARM_DELAY_MS, text, isArmed).then((ok) => setNotificationsDenied(!ok))
   }
 
   // Back from the system "Alarms & reminders" screen (iOS: the app's Settings page): move an armed

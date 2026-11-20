@@ -11,7 +11,7 @@ import { usePlaybackSettings } from './settings'
 import { usePlanStore } from '../plan'
 import { Capacitor } from '@capacitor/core'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
-import { canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
+import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
 import { ALARM_FADE_SEC } from '../mixer/store'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
@@ -123,7 +123,7 @@ describe('wake alarm controls', () => {
     await act(async () => {}) // the alarm's backup first checks for the native alarm (wake-alarm.ts)
     const [id, atMs, text, isArmed] = vi.mocked(scheduleReminder).mock.calls[0]
     expect(id).toBe(ALARM_NOTIFICATION_ID)
-    expect(atMs).toBe(useMixStore.getState().alarmAt)
+    expect(atMs).toBe(useMixStore.getState().alarmAt! + NATIVE_ALARM_DELAY_MS) // after the in-app start, not on it
     expect(text).toEqual({ title: '기상 알람', body: '일어날 시간이에요.' })
     expect(isArmed()).toBe(true)
     await act(async () => {}) // let the denied result land (fake timers: no findBy polling)
@@ -254,7 +254,7 @@ describe('bedtime start', () => {
     expect(useMixStore.getState().bedtimeAt).toBe(new Date('2026-01-01T22:30:00').getTime())
     expect(vi.mocked(scheduleReminder).mock.calls[0].slice(0, 2)).toEqual([
       BEDTIME_NOTIFICATION_ID,
-      new Date('2026-01-01T22:30:00').getTime(),
+      new Date('2026-01-01T22:30:00').getTime() + NATIVE_ALARM_DELAY_MS,
     ])
     expect(screen.getByText(/에 시작$/)).toBeInTheDocument()
 
