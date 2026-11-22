@@ -59,7 +59,6 @@ export function CollapsingHeader({ children, onSelect }: { children: ReactNode; 
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply reads refs only
   }, [])
 
   useEffect(() => {
@@ -81,7 +80,6 @@ export function CollapsingHeader({ children, onSelect }: { children: ReactNode; 
       clearTimeout(snapTimer)
       window.removeEventListener('scroll', onScroll)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply reads refs only
   }, [])
 
   function expand() {

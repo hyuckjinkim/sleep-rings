@@ -55,7 +55,6 @@ export function SheetLayout({ field, children }: { field: ReactNode; children: R
       ro?.disconnect()
       window.removeEventListener('resize', fitField)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fitField reads refs only
   }, [])
 
   // The page under a sheet must not scroll (and must not be scrolled to the middle on entry).
