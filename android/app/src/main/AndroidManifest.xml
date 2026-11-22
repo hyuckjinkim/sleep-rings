@@ -43,6 +43,43 @@
             android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService"
             android:foregroundServiceType="mediaPlayback"
         />
+
+        <!-- "Play last mix" home-screen widget and Quick Settings tile (PlayLastMix.kt) -->
+        <receiver
+            android:name=".PlayLastMixWidget"
+            android:exported="false"
+            android:label="@string/play_last_mix">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_play_last_mix_info" />
+        </receiver>
+        <service
+            android:name=".PlayLastMixTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_sleeprings"
+            android:label="@string/play_last_mix"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Closed-app wake alarm (WakeAlarm.kt): setAlarmClock → receiver → ringing service.
+             The receiver also re-arms a pending alarm after a reboot. -->
+        <receiver
+            android:name=".WakeAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        <service
+            android:name=".WakeAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
     <!-- Permissions -->
@@ -54,4 +91,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Closed-app wake alarm. Both also arrive merged from @capacitor/local-notifications; declared
+         here because WakeAlarm.kt relies on them directly. SCHEDULE_EXACT_ALARM is user-granted
+         ("Alarms & reminders"), denied by default on Android 14+ — never USE_EXACT_ALARM. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>

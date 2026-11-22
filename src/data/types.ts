@@ -90,6 +90,10 @@ export interface Placement {
   locked: boolean
   volume: number
   muted?: boolean
+  /** Noise tone tilt, -1 (darker) .. 1 (brighter); 0/undefined = untouched. Paid; noise sounds only. */
+  tone?: number
+  /** Slow random volume drift ("breathing") on top of the set volume. Paid. */
+  variation?: boolean
 }
 
 export interface Mix {

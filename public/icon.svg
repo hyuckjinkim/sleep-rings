@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="so-icon-title">
+  <!--
+    SleepRings 앱 아이콘 초안 (독자 디자인).
+    원본 "Sleep Orbit" 앱의 아이콘/에셋을 참조·복제하지 않음 — 컨셉(궤도+수면)만 벤치마크.
+    컨셉: 중심의 초승달(수면) 주위를 도는 궤도 링 + 링 위의 사운드 오브 1개.
+    색상은 src/app/theme.css 토큰과 동일 hex(정적 SVG라 var() 대신 하드코딩, 주석에 토큰명 병기).
+  -->
+  <title id="so-icon-title">SleepRings</title>
+
+  <defs>
+    <radialGradient id="so-bg-grad" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#12182b" /> <!-- so-bg-elevated -->
+      <stop offset="100%" stop-color="#05070d" /> <!-- so-bg-void -->
+    </radialGradient>
+    <filter id="so-orb-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="22" />
+    </filter>
+    <filter id="so-moon-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="30" />
+    </filter>
+  </defs>
+
+  <!-- 배경: 딥 스페이스 다크 그라데이션 -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" fill="url(#so-bg-grad)" />
+
+  <!-- 배경 별 (최소한, 아이콘 소형 렌더에서도 방해되지 않는 개수) -->
+  <circle cx="180" cy="200" r="4" fill="#a8adc4" opacity="0.55" />
+  <circle cx="860" cy="170" r="3" fill="#a8adc4" opacity="0.45" />
+  <circle cx="210" cy="820" r="3.5" fill="#a8adc4" opacity="0.5" />
+  <circle cx="130" cy="560" r="2.5" fill="#a8adc4" opacity="0.4" />
+
+  <!-- 궤도 링 (동심원 2겹) -->
+  <circle cx="512" cy="512" r="330" fill="none" stroke="#3a4568" stroke-width="16" opacity="0.5" />
+  <circle cx="512" cy="512" r="230" fill="none" stroke="#3a4568" stroke-width="14" opacity="0.35" />
+
+  <!-- 중심 헤드: 초승달 (수면 모티프) -->
+  <circle cx="512" cy="470" r="160" fill="#f0f0f5" opacity="0.5" filter="url(#so-moon-glow)" /> <!-- 은은한 글로우 -->
+  <circle cx="512" cy="470" r="150" fill="#f0f0f5" /> <!-- so-text-primary -->
+  <circle cx="574" cy="436" r="140" fill="#05070d" /> <!-- 초승달 모양을 만드는 감산 원, so-bg-void -->
+
+  <!-- 궤도 위 사운드 오브 1개 (water 카테고리 색 예시) -->
+  <circle cx="742" cy="319" r="70" fill="#62b5d0" opacity="0.4" filter="url(#so-orb-glow)" />
+  <circle cx="742" cy="319" r="42" fill="#62b5d0" /> <!-- so-orb-water -->
+</svg>

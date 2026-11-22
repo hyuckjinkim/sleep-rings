@@ -5,7 +5,9 @@ import type {
   EngineAudioBuffer,
   EngineAudioContext,
   EngineAudioParam,
+  EngineBiquadFilterNode,
   EngineBufferSourceNode,
+  EngineDynamicsCompressorNode,
   EngineGainNode,
   EnginePannerNode,
   EngineStereoPannerNode,
@@ -23,6 +25,7 @@ function createParam(initial = 0): EngineAudioParam {
       param.value = v
     }),
     cancelScheduledValues: vi.fn(),
+    setValueCurveAtTime: vi.fn(),
   }
   return param
 }
@@ -85,6 +88,24 @@ export function createMockAudioContext(sampleRate = 48000): EngineAudioContext {
       (): EngineStereoPannerNode => ({
         ...createAudioNode(),
         pan: createParam(0),
+      }),
+    ),
+    createDynamicsCompressor: vi.fn(
+      (): EngineDynamicsCompressorNode => ({
+        ...createAudioNode(),
+        threshold: createParam(-24),
+        knee: createParam(30),
+        ratio: createParam(12),
+        attack: createParam(0.003),
+        release: createParam(0.25),
+      }),
+    ),
+    createBiquadFilter: vi.fn(
+      (): EngineBiquadFilterNode => ({
+        ...createAudioNode(),
+        type: 'lowpass',
+        frequency: createParam(350),
+        gain: createParam(0),
       }),
     ),
     createBufferSource: vi.fn(

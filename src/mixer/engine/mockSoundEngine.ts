@@ -9,6 +9,12 @@ export function createMockSoundEngine(): SoundEngine {
     async init() {
       log('init')
     },
+    isRunning() {
+      return true
+    },
+    isAlarmSounding() {
+      return true
+    },
     async load(sound) {
       log('load', sound.id)
     },
@@ -21,8 +27,14 @@ export function createMockSoundEngine(): SoundEngine {
     setPlacement(placement) {
       log('setPlacement', placement.id, { radius: placement.radius, angle: placement.angle })
     },
+    setStartFade(sec) {
+      log('setStartFade', sec)
+    },
     setMasterVolume(v) {
       log('setMasterVolume', v)
+    },
+    setVolumeCap(cap) {
+      log('setVolumeCap', cap)
     },
     setPanQuality(q) {
       log('setPanQuality', q)
@@ -33,8 +45,18 @@ export function createMockSoundEngine(): SoundEngine {
     cancelSleep() {
       log('cancelSleep')
     },
-    async fadeOutAll(durationSec) {
-      log('fadeOutAll', durationSec)
+    scheduleStart(atMs) {
+      log('scheduleStart', atMs)
+    },
+    cancelStart() {
+      log('cancelStart')
+    },
+    scheduleAlarm(soundId, atMs, fadeSec) {
+      log('scheduleAlarm', soundId, atMs, fadeSec)
+    },
+    cancelAlarm() {
+      log('cancelAlarm')
+      return false
     },
     inspect() {
       return null

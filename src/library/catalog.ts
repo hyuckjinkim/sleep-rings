@@ -207,23 +207,26 @@ export const catalog: Sound[] = [
     source: { kind: 'synth', generator: 'city-rain' },
     license: { spdx: 'no-license-required', sourceName: '합성' },
   },
+  // Binaural names state only the L/R frequency difference. Brainwave-band names ("Delta (Deep
+  // Sleep)") implied an entrainment/sleep effect the evidence doesn't support (systematic review,
+  // PubMed 37205669) — keep sleep/brainwave efficacy claims out of names and store copy.
   {
     id: 'binaural-delta',
-    name: { ko: '바이노럴 델타 (깊은 수면)', en: 'Binaural Delta (Deep Sleep)' },
+    name: { ko: '바이노럴 비트 · 2 Hz 차이', en: 'Binaural Beat · 2 Hz difference' },
     category: 'binaural',
     source: { kind: 'binaural', carrierHz: 200, beatHz: 2 },
     license: { spdx: 'no-license-required', sourceName: '합성' },
   },
   {
     id: 'binaural-theta',
-    name: { ko: '바이노럴 세타 (이완)', en: 'Binaural Theta (Relax)' },
+    name: { ko: '바이노럴 비트 · 6 Hz 차이', en: 'Binaural Beat · 6 Hz difference' },
     category: 'binaural',
     source: { kind: 'binaural', carrierHz: 200, beatHz: 6 },
     license: { spdx: 'no-license-required', sourceName: '합성' },
   },
   {
     id: 'binaural-alpha',
-    name: { ko: '바이노럴 알파 (안정)', en: 'Binaural Alpha (Calm)' },
+    name: { ko: '바이노럴 비트 · 10 Hz 차이', en: 'Binaural Beat · 10 Hz difference' },
     category: 'binaural',
     source: { kind: 'binaural', carrierHz: 200, beatHz: 10 },
     license: { spdx: 'no-license-required', sourceName: '합성' },

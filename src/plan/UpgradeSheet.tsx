@@ -8,6 +8,8 @@ interface UpgradeSheetProps {
   /** Sound that triggered the sheet, when it came from tapping a locked chip. Omitted when the
       user opened it from settings to browse plans — there is no single sound to name then. */
   label?: string
+  /** Full body text override — for a paid control (not a sound) that triggered the sheet. */
+  message?: string
   plan: Exclude<Plan, 'free'>
   onClose: () => void
 }
@@ -18,7 +20,7 @@ type PurchaseStatus = 'idle' | 'purchasing' | 'restoring' | 'error'
     API key configured (today's build) or off-native (web), purchases/restore aren't reachable at
     all, so the sheet shows a "준비 중" notice instead of buttons that would silently no-op. Once a
     key is configured this same sheet gains a real buy + restore flow with no other code changes. */
-export function UpgradeSheet({ label, plan, onClose }: UpgradeSheetProps) {
+export function UpgradeSheet({ label, message, plan, onClose }: UpgradeSheetProps) {
   const { t } = useTranslation()
   const available = isPurchaseAvailable()
   const [offerings, setOfferings] = useState<PurchaseOffering[] | null>(null)
@@ -65,9 +67,10 @@ export function UpgradeSheet({ label, plan, onClose }: UpgradeSheetProps) {
     <div className="mixer-upgrade-backdrop" onClick={onClose}>
       <div className="mixer-upgrade-sheet" role="dialog" aria-modal="true" aria-label={t('plan.upgrade.title')} onClick={(e) => e.stopPropagation()}>
         <p>
-          {label
+          {message ??
+            (label
             ? t('plan.upgrade.body', { sound: label, tier: t(`plan.tier.${plan}`) })
-            : t('plan.upgrade.bodyGeneric', { tier: t(`plan.tier.${plan}`) })}
+            : t('plan.upgrade.bodyGeneric', { tier: t(`plan.tier.${plan}`) }))}
         </p>
         {available ? (
           <>

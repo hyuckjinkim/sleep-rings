@@ -8,27 +8,35 @@ import { ForegroundService, Importance } from '@capawesome-team/capacitor-androi
 const NOTIFICATION_CHANNEL_ID = 'sleeprings_playback'
 const NOTIFICATION_ID = 1
 
+/** Translated by the caller (main.tsx) — this module stays i18n-free. */
+export interface KeepAliveNotificationText {
+  title: string
+  body: string
+  channelName: string
+  channelDescription: string
+}
+
 let channelReady = false
 
-async function ensureChannel(): Promise<void> {
+async function ensureChannel(text: KeepAliveNotificationText): Promise<void> {
   if (channelReady) return
   await ForegroundService.createNotificationChannel({
     id: NOTIFICATION_CHANNEL_ID,
-    name: 'Sleep sound playback',
-    description: 'Shown while a sleep mix is playing in the background',
+    name: text.channelName,
+    description: text.channelDescription,
     importance: Importance.Low,
   })
   channelReady = true
 }
 
 /** Start the keep-alive foreground service + notification. No-op off Android. */
-export async function startAndroidKeepAliveService(): Promise<void> {
+export async function startAndroidKeepAliveService(text: KeepAliveNotificationText): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return
-  await ensureChannel()
+  await ensureChannel(text)
   await ForegroundService.startForegroundService({
     id: NOTIFICATION_ID,
-    title: 'SleepRings',
-    body: 'Playing your sleep mix',
+    title: text.title,
+    body: text.body,
     smallIcon: 'ic_stat_sleeprings',
     silent: true,
     notificationChannelId: NOTIFICATION_CHANNEL_ID,

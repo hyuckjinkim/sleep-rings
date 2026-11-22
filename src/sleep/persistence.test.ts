@@ -1,7 +1,33 @@
-import { beforeEach, describe, it, expect } from 'vitest'
-import { loadMix, saveMix, loadPresets, savePresets, restoreMix } from './persistence'
-import { useMixStore, emptyMix } from '../mixer/store'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import {
+  DEFAULT_PLAYBACK_SETTINGS,
+  NURSERY_VOLUME_CAP,
+  loadMix,
+  loadPlaybackSettings,
+  loadPresets,
+  playLastMix,
+  restoreAlarm,
+  restoreMix,
+  saveMix,
+  savePlaybackSettings,
+  savePresets,
+} from './persistence'
+import { useMixStore, emptyMix, defaultOrbit } from '../mixer/store'
+import { soundEngine } from '../mixer/engine/instance'
 import type { Mix } from '../mixer/types'
+import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
+import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { Capacitor } from '@capacitor/core'
+import { usePlanStore } from '../plan'
+
+vi.mock('../mobile/notifications', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/notifications')>()),
+  cancelReminder: vi.fn(),
+}))
+vi.mock('../mobile/wake-alarm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/wake-alarm')>()),
+  cancelNativeWakeAlarm: vi.fn(),
+}))
 
 beforeEach(() => {
   localStorage.clear()
@@ -72,5 +98,159 @@ describe('restoreMix', () => {
   it('leaves an empty mix in place when nothing was ever saved', () => {
     restoreMix()
     expect(useMixStore.getState().current.placements).toEqual([])
+  })
+})
+
+describe('playback settings persistence', () => {
+  it('round-trips fade settings with the schema version', () => {
+    savePlaybackSettings({ fadeInSec: 30, sleepFadeSec: 300, volumeCap: NURSERY_VOLUME_CAP })
+    expect(JSON.parse(localStorage.getItem('so.playbackSettings')!).version).toBe(1)
+    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 30, sleepFadeSec: 300, volumeCap: NURSERY_VOLUME_CAP })
+  })
+
+  it('defaults to no start fade, a 60s sleep fade and no volume cap when nothing is stored', () => {
+    expect(loadPlaybackSettings()).toEqual(DEFAULT_PLAYBACK_SETTINGS)
+    expect(DEFAULT_PLAYBACK_SETTINGS).toEqual({ fadeInSec: 0, sleepFadeSec: 60, volumeCap: 1 })
+  })
+
+  it('replaces an out-of-list value with its default without dropping the other field', () => {
+    localStorage.setItem('so.playbackSettings', JSON.stringify({ version: 1, fadeInSec: 7, sleepFadeSec: 600, volumeCap: 3 }))
+    expect(loadPlaybackSettings()).toEqual({ fadeInSec: 0, sleepFadeSec: 600, volumeCap: 1 })
+  })
+
+  it('falls back to defaults on corrupt JSON', () => {
+    localStorage.setItem('so.playbackSettings', '{nope')
+    expect(loadPlaybackSettings()).toEqual(DEFAULT_PLAYBACK_SETTINGS)
+  })
+})
+
+describe('playLastMix (bedtime reminder, app shortcut, Siri)', () => {
+  const placement = { id: 'p1', soundId: 'noise-white', radius: 0.3, angle: 0, orbit: defaultOrbit(), locked: false, volume: 1 }
+  const saved: Mix = { ...emptyMix(), name: 'Last night', placements: [placement] }
+  afterEach(() => {
+    vi.restoreAllMocks()
+    useMixStore.setState({ sleeping: false, bedtimeAt: null })
+  })
+
+  it('resumes the already-restored mix and reports it audible', async () => {
+    saveMix(saved)
+    restoreMix()
+    const initSpy = vi.spyOn(soundEngine, 'init')
+    await expect(playLastMix()).resolves.toBe(true)
+    expect(initSpy).toHaveBeenCalled()
+    expect(useMixStore.getState().current.name).toBe('Last night')
+  })
+
+  it('reloads the autosaved mix when the field is empty', async () => {
+    saveMix(saved)
+    await expect(playLastMix()).resolves.toBe(true)
+    expect(useMixStore.getState().current.placements.map((p) => p.id)).toEqual(['p1'])
+  })
+
+  it('restarts a mix a finished sleep timer stopped', async () => {
+    saveMix(saved)
+    restoreMix()
+    useMixStore.setState({ sleeping: true })
+    await playLastMix()
+    expect(useMixStore.getState().sleeping).toBe(false)
+  })
+
+  it('plays now instead of waiting for a pending bedtime start', async () => {
+    saveMix(saved)
+    restoreMix()
+    useMixStore.setState({ bedtimeAt: Date.now() + 3600_000 })
+    await playLastMix()
+    expect(useMixStore.getState().bedtimeAt).toBeNull()
+  })
+
+  it('reports false when autoplay stays blocked, leaving the mix loaded for a tap', async () => {
+    saveMix(saved)
+    restoreMix()
+    vi.spyOn(soundEngine, 'isRunning').mockReturnValue(false)
+    await expect(playLastMix()).resolves.toBe(false)
+    expect(useMixStore.getState().current.placements).toHaveLength(1)
+  })
+
+  it('reports false with nothing saved', async () => {
+    await expect(playLastMix()).resolves.toBe(false)
+  })
+})
+
+describe('wake alarm persistence (the native alarm and notification 1001 outlive the app)', () => {
+  const T0 = new Date('2026-01-01T23:00:00').getTime()
+  const store = (value: unknown) => localStorage.setItem('so.alarm', JSON.stringify(value))
+  let unsubscribe: (() => void) | undefined
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(T0)
+    useMixStore.setState({ alarmAt: null, alarmSound: null, alarmRinging: false })
+    vi.mocked(cancelReminder).mockClear()
+    vi.mocked(cancelNativeWakeAlarm).mockClear()
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+  })
+  afterEach(() => {
+    unsubscribe?.()
+    useMixStore.getState().dismissAlarm()
+    usePlanStore.setState({ plan: 'free' })
+    vi.mocked(Capacitor.isNativePlatform).mockRestore()
+    vi.useRealTimers()
+  })
+
+  it('brings a future alarm back into the UI after a relaunch, keeping its native backups', () => {
+    store({ version: 1, alarmAt: T0 + 3600_000, wakeSound: 'nature-brook' })
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: T0 + 3600_000, alarmSound: 'nature-brook' })
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+    expect(cancelReminder).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the free wake sound when the plan no longer includes the saved one (downgrade)', () => {
+    usePlanStore.setState({ plan: 'free' })
+    store({ version: 1, alarmAt: T0 + 3600_000, wakeSound: 'birds' }) // armed on a paid plan
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState()).toMatchObject({ alarmAt: T0 + 3600_000, alarmSound: 'nature-brook' })
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+    expect(cancelReminder).not.toHaveBeenCalled()
+  })
+
+  it('a missing record leaves the native alarm and notification 1001 alone (failed write, older build)', () => {
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState().alarmAt).toBeNull()
+    expect(cancelNativeWakeAlarm).not.toHaveBeenCalled()
+    expect(cancelReminder).not.toHaveBeenCalled()
+  })
+
+  it('on web a future alarm is not restored (no gesture, no native backup) and the stale record goes', () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false)
+    store({ version: 1, alarmAt: T0 + 3600_000, wakeSound: 'nature-brook' })
+    unsubscribe = restoreAlarm()
+    expect(useMixStore.getState().alarmAt).toBeNull()
+    expect(localStorage.getItem('so.alarm')).toBeNull()
+  })
+
+  it('a past or corrupt record cancels the native alarm and notification 1001', () => {
+    for (const setup of [
+      () => store({ version: 1, alarmAt: T0 - 1000, wakeSound: 'nature-brook' }),
+      () => localStorage.setItem('so.alarm', '{nope'),
+      () => store({ version: 1, alarmAt: 'soon' }),
+    ]) {
+      setup()
+      vi.mocked(cancelNativeWakeAlarm).mockClear()
+      vi.mocked(cancelReminder).mockClear()
+      restoreAlarm()()
+      expect(useMixStore.getState().alarmAt).toBeNull()
+      expect(cancelNativeWakeAlarm).toHaveBeenCalled()
+      expect(cancelReminder).toHaveBeenCalledWith(ALARM_NOTIFICATION_ID)
+      expect(localStorage.getItem('so.alarm')).toBeNull()
+    }
+  })
+
+  it('saves on arm and clears on dismiss', () => {
+    unsubscribe = restoreAlarm()
+    useMixStore.getState().armAlarm(T0 + 60_000, 'nature-brook')
+    expect(JSON.parse(localStorage.getItem('so.alarm')!)).toEqual({ version: 1, alarmAt: T0 + 60_000, wakeSound: 'nature-brook' })
+    useMixStore.getState().dismissAlarm()
+    expect(localStorage.getItem('so.alarm')).toBeNull()
   })
 })

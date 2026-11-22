@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Placement, Sound } from '../data/types'
 import { FADE_IN_SEC, SoundEngine } from './sound-engine'
 import { THROTTLE_SEC } from './spatial'
 import { createMockAudioContext } from './test-support/mock-audio-context'
 import type { EngineAudioContext } from './web-audio-types'
+import { ALARM_ON_TIME_MS } from '../mobile/wake-alarm'
 
 const NOISE_SOUND: Sound = {
   id: 'pink-noise',
@@ -29,6 +30,9 @@ const BINAURAL_SOUND: Sound = {
   license: { spdx: 'no-license-required', sourceName: 'synth' },
 }
 
+// master, night, intro, wake, bedtime, cap — created by the constructor before any placement gain.
+const GLOBAL_GAINS = 6
+
 function placement(overrides: Partial<Placement> = {}): Placement {
   return {
     id: 'p1',
@@ -49,7 +53,7 @@ describe('SoundEngine', () => {
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ arrayBuffer: async () => new ArrayBuffer(8) })),
+      vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(8) })),
     )
     ctx = createMockAudioContext()
     engine = new SoundEngine(ctx)
@@ -116,7 +120,7 @@ describe('SoundEngine', () => {
     await engine.load(NOISE_SOUND)
     engine.play(placement({ volume: 1 }))
 
-    const gainNode = vi.mocked(ctx.createGain).mock.results[1].value // [0] is the master gain
+    const gainNode = vi.mocked(ctx.createGain).mock.results[GLOBAL_GAINS].value
     let writes = 0
     const current = gainNode.gain.value
     Object.defineProperty(gainNode.gain, 'value', {
@@ -211,68 +215,519 @@ describe('SoundEngine', () => {
     expect(master.gain.value).toBe(0.5)
   })
 
-  it('scheduleSleep() fades out then stops+suspends at duration; cancelSleep() prevents it', async () => {
+  // createGain order in the constructor: [0] master, [1] night, [2] intro, [3] wake, [4] bedtime, [5] cap — placement gains come after.
+  function gainNode(index: number) {
+    return vi.mocked(ctx.createGain).mock.results[index].value
+  }
+
+  it('wires master -> night -> intro -> wake -> bedtime -> limiter -> cap -> destination with conservative limiter settings', () => {
+    const master = gainNode(0)
+    const night = gainNode(1)
+    const intro = gainNode(2)
+    const wake = gainNode(3)
+    const bedtime = gainNode(4)
+    const cap = gainNode(5)
+    const limiter = vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
+    expect(master.connect).toHaveBeenCalledWith(night)
+    expect(night.connect).toHaveBeenCalledWith(intro)
+    expect(intro.connect).toHaveBeenCalledWith(wake)
+    expect(wake.connect).toHaveBeenCalledWith(bedtime)
+    expect(bedtime.connect).toHaveBeenCalledWith(limiter)
+    expect(limiter.connect).toHaveBeenCalledWith(cap)
+    expect(cap.connect).toHaveBeenCalledWith(ctx.destination)
+    expect(limiter.threshold.value).toBe(-3)
+    expect(limiter.ratio.value).toBe(20)
+    expect(limiter.attack.value).toBeLessThanOrEqual(0.005)
+  })
+
+  it('scheduleSleep() schedules the fade on the night gain at audio-clock time, not via a JS timer', () => {
+    vi.useFakeTimers()
+    ctx.currentTime = 100
+    const night = gainNode(1).gain
+    engine.scheduleSleep(600, 60)
+    expect(night.setValueAtTime).toHaveBeenLastCalledWith(1, 640) // hold full until duration-fade
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 700) // silent exactly at duration
+    vi.useRealTimers()
+  })
+
+  it('scheduleSleep() with fade longer than duration fades over the whole duration', () => {
+    ctx.currentTime = 10
+    const night = gainNode(1).gain
+    engine.scheduleSleep(30, 60)
+    expect(night.setValueAtTime).toHaveBeenLastCalledWith(1, 10.5) // after the cancel-restore ramp
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 40)
+  })
+
+  it('setMasterVolume() after scheduleSleep() never touches the night gain automation', () => {
+    const night = gainNode(1).gain
+    engine.scheduleSleep(600, 60)
+    vi.mocked(night.cancelScheduledValues).mockClear()
+    vi.mocked(night.setValueAtTime).mockClear()
+    vi.mocked(night.linearRampToValueAtTime).mockClear()
+    engine.setMasterVolume(0.3)
+    expect(night.cancelScheduledValues).not.toHaveBeenCalled()
+    expect(night.setValueAtTime).not.toHaveBeenCalled()
+    expect(night.linearRampToValueAtTime).not.toHaveBeenCalled()
+  })
+
+  it('scheduleSleep() stops+suspends at duration and resets the night gain so later sounds are audible', async () => {
     vi.useFakeTimers()
     await engine.load(NOISE_SOUND)
     engine.play(placement())
+    const night = gainNode(1).gain
 
     engine.scheduleSleep(10, 2)
-    vi.advanceTimersByTime(8000) // fade should have started
-    expect(engine.inspect('p1')).not.toBeNull() // still "active" until the stop timer fires
+    vi.advanceTimersByTime(9999)
+    expect(engine.inspect('p1')).not.toBeNull()
+    expect(ctx.suspend).not.toHaveBeenCalled()
 
-    vi.advanceTimersByTime(2000) // reach duration
+    vi.advanceTimersByTime(1)
     expect(ctx.suspend).toHaveBeenCalled()
     expect(engine.inspect('p1')).toBeNull()
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, expect.any(Number))
+    expect(night.value).toBe(1)
     vi.useRealTimers()
   })
 
-  it('scheduleSleep() invokes fadeOutAll() with the configured fade duration exactly at duration-fadeSec', async () => {
-    vi.useFakeTimers()
-    const fadeSpy = vi.spyOn(engine, 'fadeOutAll')
-    engine.scheduleSleep(10, 2)
-
-    vi.advanceTimersByTime(7999)
-    expect(fadeSpy).not.toHaveBeenCalled()
-
-    vi.advanceTimersByTime(1) // crosses the duration-fadeSec (8s) mark
-    expect(fadeSpy).toHaveBeenCalledTimes(1)
-    expect(fadeSpy).toHaveBeenCalledWith(2)
-    vi.useRealTimers()
-  })
-
-  it('cancelSleep() before the fade delay prevents fadeOutAll() from ever firing', async () => {
-    vi.useFakeTimers()
-    const fadeSpy = vi.spyOn(engine, 'fadeOutAll')
-    engine.scheduleSleep(10, 2)
-    vi.advanceTimersByTime(5000)
-    engine.cancelSleep()
-    vi.advanceTimersByTime(10000)
-    expect(fadeSpy).not.toHaveBeenCalled()
-    vi.useRealTimers()
-  })
-
-  it('cancelSleep() clears pending timers', async () => {
+  it('cancelSleep() clears the stop timer and ramps the night gain back to 1', async () => {
     vi.useFakeTimers()
     await engine.load(NOISE_SOUND)
     engine.play(placement())
+    const night = gainNode(1).gain
     engine.scheduleSleep(10, 2)
+    ctx.currentTime = 9 // mid-fade
+    vi.mocked(night.cancelScheduledValues).mockClear()
     engine.cancelSleep()
+    expect(night.cancelScheduledValues).toHaveBeenCalledWith(9)
+    expect(night.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 9.5)
     vi.advanceTimersByTime(10000)
     expect(ctx.suspend).not.toHaveBeenCalled()
     expect(engine.inspect('p1')).not.toBeNull()
     vi.useRealTimers()
   })
 
-  it('fadeOutAll() resolves after the given duration', async () => {
-    vi.useFakeTimers()
-    const promise = engine.fadeOutAll(3)
-    let resolved = false
-    void promise.then(() => {
-      resolved = true
+  it('start fade-in ramps the intro stage when playback starts from silence, not for later orbs', async () => {
+    await engine.load(NOISE_SOUND)
+    const intro = gainNode(2).gain
+    engine.setStartFade(30)
+    ctx.currentTime = 5
+    engine.play(placement({ id: 'a' }))
+    expect(intro.setValueAtTime).toHaveBeenLastCalledWith(0, 5)
+    expect(intro.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 35)
+
+    vi.mocked(intro.linearRampToValueAtTime).mockClear()
+    engine.play(placement({ id: 'b' }))
+    expect(intro.linearRampToValueAtTime).not.toHaveBeenCalled() // already audible — no re-fade
+  })
+
+  it('start fade-in off (default) leaves the intro stage untouched', async () => {
+    await engine.load(NOISE_SOUND)
+    engine.play(placement())
+    expect(gainNode(2).gain.linearRampToValueAtTime).not.toHaveBeenCalled()
+  })
+
+  it('start fade-in takes the intro stage down with orbs still fading out instead of cutting them', async () => {
+    await engine.load(NOISE_SOUND)
+    const intro = gainNode(2).gain
+    engine.setStartFade(30)
+    engine.play(placement({ id: 'old' }))
+    ctx.currentTime = 50
+    engine.stop('old', 0.2) // e.g. openMix, or clear-all then a new orb
+    vi.mocked(intro.setValueAtTime).mockClear()
+    engine.play(placement({ id: 'new' }))
+    expect(intro.setValueAtTime).not.toHaveBeenCalledWith(0, 50) // no hard cut at 0
+    expect(intro.linearRampToValueAtTime).toHaveBeenCalledWith(0, 50 + FADE_IN_SEC)
+    expect(intro.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 50 + FADE_IN_SEC + 30)
+  })
+
+  it('a sleep-timer reset never cancels the start fade-in (separate stages)', async () => {
+    await engine.load(NOISE_SOUND)
+    const intro = gainNode(2).gain
+    engine.setStartFade(60)
+    engine.play(placement())
+    engine.scheduleSleep(600, 60)
+    engine.cancelSleep()
+    expect(intro.cancelScheduledValues).toHaveBeenCalledTimes(1) // only play()'s own
+  })
+
+  describe('noise tone (cut-only shelf after the placement gain)', () => {
+    const filter = (i = 0) => vi.mocked(ctx.createBiquadFilter).mock.results[i].value
+    const master = () => gainNode(0)
+    const pGain = () => gainNode(GLOBAL_GAINS)
+
+    it('no tone: no filter node at all, gain goes straight to master', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement())
+      expect(ctx.createBiquadFilter).not.toHaveBeenCalled()
+      expect(pGain().connect).toHaveBeenLastCalledWith(master())
     })
-    await vi.advanceTimersByTimeAsync(3000)
-    expect(resolved).toBe(true)
-    vi.useRealTimers()
+
+    it('darker cuts the highs, brighter cuts the lows — never a boost', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: -0.5 }))
+      expect(pGain().connect).toHaveBeenLastCalledWith(filter())
+      expect(filter().connect).toHaveBeenLastCalledWith(master())
+      expect(filter().type).toBe('highshelf')
+      expect(filter().gain.value).toBe(-6)
+
+      engine.setPlacement(placement({ tone: 1 }))
+      expect(filter().type).toBe('lowshelf')
+      expect(filter().gain.value).toBe(-12)
+      engine.setPlacement(placement({ tone: 5 })) // clamped
+      expect(filter().gain.value).toBeLessThanOrEqual(0)
+    })
+
+    it('back to 0 removes the filter and rewires gain -> master', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: 0.3 }))
+      engine.setPlacement(placement({ tone: 0 }))
+      expect(filter().disconnect).toHaveBeenCalled()
+      expect(pGain().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('a per-frame setPlacement with an unchanged tone never touches the filter', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: -0.5 }))
+      const f = filter()
+      const gainDescriptor = vi.fn()
+      Object.defineProperty(f.gain, 'value', { get: () => -6, set: gainDescriptor })
+      for (let i = 0; i < 5; i++) engine.setPlacement(placement({ tone: -0.5, angle: i }))
+      expect(gainDescriptor).not.toHaveBeenCalled()
+      expect(ctx.createBiquadFilter).toHaveBeenCalledTimes(1)
+    })
+
+    it('an unchanged tone is recognised even though the filter reads back float32', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: 0.33 })) // -3.96 dB: not exactly representable as float32
+      const f = filter()
+      const gainDescriptor = vi.fn()
+      Object.defineProperty(f.gain, 'value', { get: () => Math.fround(-0.33 * 12), set: gainDescriptor })
+      engine.setPlacement(placement({ tone: 0.33, angle: 1 }))
+      expect(gainDescriptor).not.toHaveBeenCalled()
+    })
+
+    it('ignores tone on non-noise sounds', async () => {
+      await engine.load({ ...NOISE_SOUND, id: 'rainy', category: 'rain' })
+      engine.play(placement({ soundId: 'rainy', tone: -1 }))
+      expect(ctx.createBiquadFilter).not.toHaveBeenCalled()
+    })
+
+    it('stop() tears the filter down with the rest of the chain', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ tone: -1 }))
+      engine.stop('p1')
+      expect(filter().disconnect).toHaveBeenCalled()
+    })
+  })
+
+  describe('per-sound variation (drift on one extra gain node)', () => {
+    const master = () => gainNode(0)
+    const pGain = () => gainNode(GLOBAL_GAINS)
+    const vary = () => gainNode(GLOBAL_GAINS + 1)
+
+    it('adds exactly one gain node, pre-scheduled as a single audio-clock curve that only attenuates', async () => {
+      await engine.load(NOISE_SOUND)
+      ctx.currentTime = 7
+      engine.play(placement({ variation: true }))
+      expect(ctx.createGain).toHaveBeenCalledTimes(GLOBAL_GAINS + 2)
+      expect(pGain().connect).toHaveBeenLastCalledWith(vary())
+      expect(vary().connect).toHaveBeenLastCalledWith(master())
+      const [values, start, duration] = vi.mocked(vary().gain.setValueCurveAtTime).mock.calls[0]
+      expect(start).toBe(7)
+      expect(duration).toBeGreaterThanOrEqual(8 * 3600) // outlasts a night without any JS timer
+      expect(values[0]).toBe(1)
+      expect(Math.max(...values)).toBeLessThanOrEqual(1)
+      expect(Math.min(...values)).toBeGreaterThanOrEqual(0.6)
+    })
+
+    it('chains after the tone filter when both are on', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ variation: true, tone: -0.5 }))
+      const filter = vi.mocked(ctx.createBiquadFilter).mock.results[0].value
+      expect(pGain().connect).toHaveBeenLastCalledWith(filter)
+      expect(filter.connect).toHaveBeenLastCalledWith(vary())
+      expect(vary().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('per-frame setPlacement creates nothing new; switching off removes it and rewires to master', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ variation: true }))
+      for (let i = 0; i < 5; i++) engine.setPlacement(placement({ variation: true, angle: i }))
+      expect(ctx.createGain).toHaveBeenCalledTimes(GLOBAL_GAINS + 2)
+      expect(vary().gain.setValueCurveAtTime).toHaveBeenCalledTimes(1)
+      engine.setPlacement(placement({ variation: false }))
+      expect(vary().disconnect).toHaveBeenCalled()
+      expect(pGain().connect).toHaveBeenLastCalledWith(master())
+    })
+
+    it('stop() tears the drift node down too', async () => {
+      await engine.load(NOISE_SOUND)
+      engine.play(placement({ variation: true }))
+      engine.stop('p1')
+      expect(vary().disconnect).toHaveBeenCalled()
+    })
+  })
+
+  describe('volume cap', () => {
+    const limiter = () => vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value
+    const cap = () => gainNode(5)
+
+    it('sits after the limiter, as the last stage before the speakers, so it bounds the summed output', () => {
+      expect(limiter().connect).toHaveBeenCalledWith(cap())
+      expect(limiter().connect).not.toHaveBeenCalledWith(ctx.destination)
+      expect(cap().connect).toHaveBeenCalledWith(ctx.destination)
+      for (const i of [0, 1, 2, 3, 4]) expect(gainNode(i).connect).not.toHaveBeenCalledWith(ctx.destination)
+    })
+
+    it('the final stage holds the cap, whatever the master volume or call order', () => {
+      for (const c of [1, 0.75, 0.5, 0.3, 0]) {
+        for (const vol of [0, 0.3, 0.9, 1, 5]) {
+          engine.setVolumeCap(c)
+          engine.setMasterVolume(vol)
+          expect(cap().gain.value).toBe(c)
+          engine.setMasterVolume(vol)
+          engine.setVolumeCap(c) // boot order: restoreMix sets master after the cap
+          expect(cap().gain.value).toBe(c)
+        }
+      }
+      engine.setVolumeCap(5)
+      expect(cap().gain.value).toBe(1)
+    })
+
+    it('leaves master to the user volume alone', () => {
+      engine.setMasterVolume(0.8)
+      engine.setVolumeCap(0.5)
+      expect(gainNode(0).gain.value).toBeCloseTo(0.8)
+    })
+
+    it('the wake alarm ramps to full into the limiter, and is capped downstream with everything else', async () => {
+      vi.useFakeTimers()
+      await engine.load(NOISE_SOUND)
+      engine.setVolumeCap(0.3)
+      engine.scheduleAlarm('pink-noise', Date.now() + 60_000, 120)
+      const alarmGain = gainNode(GLOBAL_GAINS)
+      expect(alarmGain.gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, expect.any(Number))
+      expect(alarmGain.connect).toHaveBeenCalledWith(limiter())
+      vi.useRealTimers()
+    })
+  })
+
+  describe('wake alarm (audio-clock scheduled, crossfades the mix out)', () => {
+    const T0 = new Date('2026-01-01T23:00:00').getTime()
+    const BIRDS: Sound = { ...NOISE_SOUND, id: 'birds' } // shares the pink buffer — cheap to render
+
+    beforeEach(async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(T0)
+      ctx.currentTime = 100
+      await engine.load(NOISE_SOUND)
+      await engine.load(BIRDS)
+      engine.play(placement())
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    // The alarm gain is the next gain created after the placement's own.
+    const alarmGain = () => gainNode(GLOBAL_GAINS + 1).gain
+    const alarmSource = () => vi.mocked(ctx.createBufferSource).mock.results[1].value
+
+    it('starts the wake sound at the audio-clock alarm time and fades it in from there, not from arm time', () => {
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      expect(alarmSource().start).toHaveBeenCalledWith(3700)
+      expect(alarmGain().setValueAtTime).toHaveBeenCalledWith(0, 3700)
+      expect(alarmGain().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 4000)
+      expect(alarmSource().connect).toHaveBeenCalledWith(gainNode(GLOBAL_GAINS + 1))
+      expect(gainNode(GLOBAL_GAINS + 1).connect).toHaveBeenCalledWith(
+        vi.mocked(ctx.createDynamicsCompressor).mock.results[0].value,
+      )
+    })
+
+    it('crossfades the mix out on the wake stage over the same window instead of cutting it', () => {
+      const wake = gainNode(3).gain
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      expect(wake.setValueAtTime).toHaveBeenLastCalledWith(1, 3700)
+      expect(wake.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 4000)
+      expect(engine.inspect('p1')).not.toBeNull() // still playing until the crossfade is done
+      vi.advanceTimersByTime(3900_000)
+      expect(engine.inspect('p1')).toBeNull() // then torn down like a finished sleep timer
+      expect(alarmSource().stop).not.toHaveBeenCalled() // the alarm keeps ringing
+    })
+
+    it('a sleep timer ending while an alarm is armed keeps the context running (no suspend)', () => {
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      engine.scheduleSleep(600, 60)
+      vi.advanceTimersByTime(600_000)
+      expect(engine.inspect('p1')).toBeNull()
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it('cancelAlarm() before it rings disarms it and leaves the mix playing', () => {
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      expect(engine.cancelAlarm()).toBe(false)
+      vi.advanceTimersByTime(4000_000)
+      expect(alarmSource().stop).toHaveBeenCalled()
+      expect(engine.inspect('p1')).not.toBeNull()
+      expect(gainNode(3).gain.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, expect.any(Number))
+    })
+
+    it('cancelAlarm() while ringing fades the alarm out and leaves everything quiet', () => {
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200 // past the 160s start, mid-crossfade
+      expect(engine.cancelAlarm()).toBe(true)
+      expect(alarmGain().linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 200.5)
+      expect(engine.inspect('p1')).toBeNull()
+      vi.advanceTimersByTime(1000)
+      expect(alarmSource().stop).toHaveBeenCalled()
+    })
+
+    it('re-derives a pending alarm from the wall clock after the context was suspended', async () => {
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      ctx.state = 'suspended' // clock froze at 100 while 10 minutes of wall time passed
+      vi.setSystemTime(T0 + 600_000)
+      engine.onEnterForeground()
+      await Promise.resolve()
+      await Promise.resolve()
+      const rearmed = vi.mocked(ctx.createBufferSource).mock.results[2].value
+      expect(rearmed.start).toHaveBeenCalledWith(100 + 3000)
+      expect(alarmSource().stop).toHaveBeenCalled()
+    })
+
+    it('isAlarmSounding() is true only once the alarm has started on a running context', () => {
+      expect(engine.isAlarmSounding(0)).toBe(false) // nothing armed
+      engine.scheduleAlarm('birds', T0 + 60_000, 300) // starts at 160
+      ctx.state = 'running'
+      expect(engine.isAlarmSounding(0)).toBe(false)
+      ctx.currentTime = 160
+      expect(engine.isAlarmSounding(0)).toBe(true)
+      ctx.state = 'suspended' // a frozen clock rings nothing
+      expect(engine.isAlarmSounding(0)).toBe(false)
+    })
+
+    it('isAlarmSounding() counts a start within the on-time slack (UI timer ahead of a drifted clock)', () => {
+      engine.scheduleAlarm('birds', T0 + 60_000, 300) // starts at 160
+      ctx.state = 'running'
+      ctx.currentTime = 160 - 7
+      expect(engine.isAlarmSounding(ALARM_ON_TIME_MS / 1000)).toBe(true)
+      ctx.currentTime = 160 - 8
+      expect(engine.isAlarmSounding(ALARM_ON_TIME_MS / 1000)).toBe(false)
+    })
+
+    it('init() re-derives an alarm scheduled before the context was unlocked (boot restore)', async () => {
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300) // clock frozen at 100 until the first gesture
+      vi.setSystemTime(T0 + 600_000)
+      await engine.init()
+      const rearmed = vi.mocked(ctx.createBufferSource).mock.results[2].value
+      expect(rearmed.start).toHaveBeenCalledWith(100 + 3000)
+    })
+
+    it('dismissing a ringing alarm with nothing left to play suspends after the stop fade', () => {
+      ctx.state = 'running'
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200
+      engine.cancelAlarm()
+      expect(ctx.suspend).not.toHaveBeenCalled() // not mid-fade
+      vi.advanceTimersByTime(500)
+      expect(ctx.suspend).toHaveBeenCalled()
+    })
+
+    it('...but not when a sound is loaded or started right after (openMix, wake)', async () => {
+      ctx.state = 'running'
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200
+      engine.cancelAlarm()
+      void engine.load(NOISE_SOUND) // a file sound may still be loading when the fade ends
+      vi.advanceTimersByTime(1000)
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it('...nor while a file sound that was already loading is still on its way', async () => {
+      ctx.state = 'running'
+      let finish!: () => void
+      vi.mocked(fetch).mockImplementationOnce(() => new Promise((r) => (finish = () => r(new Response(new ArrayBuffer(8))))))
+      const loading = engine.load(FILE_SOUND) // e.g. openMix started it just before
+      engine.scheduleAlarm('birds', T0 + 60_000, 300)
+      ctx.currentTime = 200
+      engine.cancelAlarm()
+      vi.advanceTimersByTime(1000)
+      expect(ctx.suspend).not.toHaveBeenCalled()
+      finish()
+      await loading
+    })
+
+    it('cancelling a pending alarm while the mix plays does not suspend', () => {
+      ctx.state = 'running'
+      engine.scheduleAlarm('birds', T0 + 3600_000, 300)
+      engine.cancelAlarm()
+      vi.advanceTimersByTime(1000)
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it('throws if the wake sound was never loaded', () => {
+      expect(() => engine.scheduleAlarm('nope', T0, 10)).toThrow(/not loaded/)
+    })
+  })
+
+  describe('bedtime start (mix held silent on the audio clock, then faded in)', () => {
+    const T0 = new Date('2026-01-01T22:00:00').getTime()
+    const bedtime = () => gainNode(4).gain
+
+    beforeEach(async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(T0)
+      ctx.currentTime = 100
+      await engine.load(NOISE_SOUND)
+      engine.play(placement())
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('fades the playing mix out now, holds it at 0, and ramps it in at the audio-clock start time', () => {
+      engine.scheduleStart(T0 + 3600_000)
+      expect(bedtime().cancelScheduledValues).toHaveBeenCalledWith(100)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenCalledWith(0, 100.5)
+      expect(bedtime().setValueAtTime).toHaveBeenLastCalledWith(0, 3700)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 3700 + FADE_IN_SEC)
+      expect(engine.inspect('p1')).not.toBeNull() // sources keep running (silently) through the hold
+    })
+
+    it('fades in over the start fade-in length when one is set', () => {
+      engine.setStartFade(30)
+      engine.scheduleStart(T0 + 60_000)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 160 + 30)
+    })
+
+    it('a start time already passed starts right after the short hold-in ramp', () => {
+      engine.scheduleStart(T0 - 5000)
+      expect(bedtime().setValueAtTime).toHaveBeenLastCalledWith(0, 100.5)
+    })
+
+    it('cancelStart() brings the mix back now', () => {
+      engine.scheduleStart(T0 + 3600_000)
+      ctx.currentTime = 200
+      engine.cancelStart()
+      expect(bedtime().cancelScheduledValues).toHaveBeenLastCalledWith(200)
+      expect(bedtime().linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 200.5)
+    })
+
+    it('a sleep timer ending before the start does not suspend the context', () => {
+      engine.scheduleStart(T0 + 3600_000)
+      engine.scheduleSleep(600, 60)
+      vi.advanceTimersByTime(600_000)
+      ctx.currentTime = 700
+      expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it('re-derives a pending start from the wall clock after the context was suspended', async () => {
+      engine.scheduleStart(T0 + 3600_000)
+      ctx.state = 'suspended' // clock froze at 100 while 10 minutes of wall time passed
+      vi.setSystemTime(T0 + 600_000)
+      engine.onEnterForeground()
+      await Promise.resolve()
+      await Promise.resolve()
+      expect(bedtime().setValueAtTime).toHaveBeenLastCalledWith(0, 100 + 3000)
+    })
   })
 
   it('onEnterForeground() resumes a suspended context; onEnterBackground() is a safe no-op', async () => {

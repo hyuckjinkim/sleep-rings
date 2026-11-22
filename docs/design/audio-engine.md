@@ -14,15 +14,17 @@
 placement 1개 = 노드 체인 1개. 모든 체인이 master로 합류한다.
 
 ```
-[source]  ──▶  [PannerNode (HRTF)]  ──▶  [GainNode]  ──▶  [master GainNode]  ──▶  destination
- loop buffer      각도→L/R/앞/뒤              사용자 볼륨 트림          전역 볼륨/페이드
+[source]  ──▶  [PannerNode (HRTF)]  ──▶  [GainNode]  ──▶  [master GainNode]  ──▶  [night GainNode]  ──▶  [DynamicsCompressor]  ──▶  destination
+ loop buffer      각도→L/R/앞/뒤              사용자 볼륨 트림          전역 볼륨              슬립 페이드 전용        리미터
  또는 노이즈       radius→거리감쇠(distanceModel)   + 뮤트
 ```
 
 - **source**: 파일이면 `AudioBufferSourceNode`(loop), 노이즈면 사전 렌더 노이즈 버퍼의 `AudioBufferSourceNode`(loop). (합성 방식은 §4.)
 - **PannerNode(HRTF)**가 **radius와 angle을 둘 다** 처리한다 — placement의 (radius, angle)을 리스너 기준 3D 위치로 매핑하면, 팬(방향)과 거리감쇠(볼륨)를 **한 노드가 물리 기반으로** 동시에 낸다. (근거 §2, §3.)
 - **GainNode**: 사용자가 탭 컨트롤로 만지는 미세 볼륨 + 뮤트. (거리감쇠 위에 곱해지는 트림.)
-- **master GainNode**: 전역 볼륨과 슬립 타이머 페이드의 단일 지점.
+- **master GainNode**: 전역(사용자) 볼륨.
+- **night GainNode**: 슬립 타이머 페이드 전용. 오디오 클럭 자동화로 예약되며, 볼륨 조작(`.value` 쓰기·`cancelScheduledValues`)이 master에만 닿으므로 예약된 페이드가 지워지지 않는다.
+- **DynamicsCompressor**: 여러 레이어 합산 시 클리핑을 막는 리미터(threshold -3 dB, ratio 20).
 
 폴백(StereoPanner) 경로에선 PannerNode가 없으므로 radius→게인을 **직접 계산**해 GainNode에 싣는다 (§2 폴백).
 
@@ -177,12 +179,9 @@ interface SoundEngine {
   /** 패닝 품질 런타임 전환 (hrtf<->stereo). 재생 중에도 그래프 재배선 */
   setPanQuality(q: 'hrtf' | 'stereo'): void;
 
-  /** 슬립 타이머: duration초 뒤 정지, 끝 fadeSec 동안 페이드아웃 */
+  /** 슬립 타이머: duration초 뒤 정지, 끝 fadeSec 동안 페이드아웃 (master 뒤 night 게인의 AudioParam 자동화) */
   scheduleSleep(durationSec: number, fadeSec: number): void;
   cancelSleep(): void;
-
-  /** 전체 페이드아웃 (수동 정지/타이머) */
-  fadeOutAll(durationSec: number): Promise<void>;
 
   /** 테스트 전용 introspection — placement별 현재 gain/pan (Playwright 단언용) */
   inspect(placementId: string): { gain: number; pan: { x: number; z: number } } | null;

@@ -17,10 +17,32 @@
         "collapse": "Collapsing header",
         "minibar": "Mini bar",
         "floating": "Floating"
-      }
+      },
+      "fadeIn": "Start fade-in",
+      "fadeOut": "Sleep timer fade-out",
+      "fadeOption": {
+        "off": "Off",
+        "seconds": "{{count}}s",
+        "minutes": "{{count}} min"
+      },
+      "volumeCap": "Maximum volume",
+      "capOption": {
+        "none": "No limit",
+        "percent": "{{percent}}%",
+        "nursery": "Nursery"
+      },
+      "nurseryHint": "Nursery mode keeps the maximum volume low. Place the device across the room from the crib — never in or on it — and use the sleep timer rather than playing all night."
+    },
+    "playbackNotification": {
+      "body": "Playing your sleep mix",
+      "channelName": "Sleep sound playback",
+      "channelDescription": "Shown while a sleep mix is playing"
     },
     "version": {
       "label": "Version"
+    },
+    "shortcut": {
+      "playLastMix": "Play last mix"
     }
   },
   "mixer": {
@@ -67,7 +89,18 @@
       "orbitShape": "Orbit shape",
       "volumeCurveOn": "Turn on volume swell",
       "volumeCurveOff": "Turn off volume swell",
-      "volumeCurveDepth": "Swell depth"
+      "volumeCurveDepth": "Swell depth",
+      "tone": "Tone (darker ↔ brighter)",
+      "toneNeutral": "Neutral",
+      "toneDarker": "Darker",
+      "toneBrighter": "Brighter",
+      "paidLocked": "{{feature}} · {{tier}}",
+      "variationOn": "Turn on gentle variation",
+      "variationOff": "Turn off gentle variation"
+    },
+    "paidFeature": {
+      "tone": "Noise tone",
+      "variation": "Gentle variation"
     },
     "master": {
       "volume": "Master volume"
@@ -78,7 +111,42 @@
     "sleep": {
       "title": "Sleep timer",
       "minutes": "{{minutes}}m",
-      "off": "Off"
+      "off": "Off",
+      "customHours": "Custom timer hours",
+      "customMinutes": "Custom timer minutes",
+      "hoursShort": "h",
+      "minutesShort": "m",
+      "customStart": "Start"
+    },
+    "bedtime": {
+      "title": "Bedtime start",
+      "time": "Start time",
+      "set": "Start then",
+      "cancel": "Play now",
+      "armed": "Starts at {{time}}",
+      "note": "The current mix stays silent until then and fades in at that time. SleepRings has to stay open (it may run in the background) — closing the app cancels it.",
+      "nativeNote": "If the app is closed, you'll get a notification at that time instead of the sound — tap it to open SleepRings.",
+      "notificationTitle": "Bedtime",
+      "notificationBody": "It's bedtime. If your mix isn't playing, tap to open SleepRings."
+    },
+    "alarm": {
+      "title": "Wake alarm",
+      "time": "Wake time",
+      "sound": "Wake sound",
+      "set": "Set alarm",
+      "cancel": "Cancel alarm",
+      "stop": "Stop alarm",
+      "armed": "Alarm at {{time}}",
+      "note": "Fades in gently at wake time. It only sounds while SleepRings stays open (it may run in the background) — closing the app turns the alarm off.",
+      "nativeNote": "If the app is closed, you'll get a notification instead of the sound.",
+      "notificationTitle": "Wake alarm",
+      "notificationBody": "It's your wake time.",
+      "closedAppSound": "Fades in gently at wake time, at alarm volume — even if SleepRings is closed. Tap Stop in its notification or open SleepRings to stop it.",
+      "exactNeeded": "To sound the alarm even when the app is closed, allow “Alarms & reminders” for SleepRings.",
+      "exactOpen": "Open Alarms & reminders",
+      "closedAppSoundIos": "Fades in gently at wake time while SleepRings is open. If it's closed, the system alarm sound rings instead — tap Stop on the alarm to turn it off.",
+      "exactNeededIos": "To sound the alarm even when the app is closed, allow alarms for SleepRings in Settings.",
+      "exactOpenIos": "Open the Settings app"
     },
     "presets": {
       "namePlaceholder": "Mix name",
@@ -86,11 +154,23 @@
       "load": "Load",
       "delete": "Delete"
     },
+    "share": {
+      "button": "Share",
+      "copied": "Link copied",
+      "failed": "Couldn't copy the link",
+      "lockedBody": "Some sounds in this shared mix are available from {{tier}}, so they were left out."
+    },
     "presetLimit": "Preset slots were full — “{{name}}” was replaced.",
     "sheet": {
       "label": "Sounds and controls",
       "expand": "Expand sheet",
       "collapse": "Collapse sheet"
+    },
+    "notificationsDenied": "Notifications are off, so there's no backup if the app is closed. The in-app timing still works.",
+    "lastMix": {
+      "offer": "Play your last mix?",
+      "play": "Play",
+      "dismiss": "Not now"
     }
   },
   "screen": {
@@ -118,7 +198,8 @@
       "restoring": "Restoring…",
       "failed": "Purchase failed. Please try again.",
       "comingSoon": "Purchases are coming soon. ({{price}})",
-      "bodyGeneric": "Upgrading to {{tier}} unlocks more sounds and more layers."
+      "bodyGeneric": "Upgrading to {{tier}} unlocks more sounds and more layers.",
+      "featureBody": "{{feature}} is available from {{tier}}."
     },
     "layerLimit": {
       "replaced": "Layers are full — replaced the oldest sound.",

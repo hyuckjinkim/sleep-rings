@@ -653,10 +653,60 @@
   border-radius: var(--so-radius-md, 12px);
 }
 
+/* Wake alarm: its own card between the timer and the presets. */
+.mixer-alarm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--so-space-2, 0.5rem);
+  background: var(--so-bg-elevated, #12182b);
+  padding: var(--so-space-3, 0.75rem);
+  border-radius: var(--so-radius-md, 12px);
+  margin-bottom: var(--so-space-5, 1.5rem);
+}
+
+.mixer-alarm-title {
+  color: var(--so-text-secondary, #a8adc4);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.mixer-alarm-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--so-space-2, 0.5rem);
+}
+
+.mixer-alarm input[type='time'] {
+  min-height: 44px;
+  padding: 0 var(--so-space-3, 0.75rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: var(--so-bg-base, #0a0e1a);
+  color: var(--so-text-primary, #f0f0f5);
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+.mixer-alarm button[aria-pressed='true'] {
+  border-color: var(--so-accent, #93a5c8);
+  font-weight: 600;
+}
+
+.mixer-alarm button:disabled {
+  opacity: var(--so-state-idle-opacity, 0.55);
+}
+
+.mixer-alarm-note {
+  margin: 0;
+  color: var(--so-text-tertiary, #6b7290);
+  font-size: var(--so-font-size-xs, 0.75rem);
+}
+
 .mixer-sleep-timer button,
 .mixer-presets-save button,
+.mixer-alarm button,
 .mixer-presets-list button,
-.mixer-controls-row button {
+.mixer-controls-row button,
+.mixer-last-mix button {
   min-height: 44px; /* B4 */
   min-width: 44px;
   padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
@@ -670,6 +720,25 @@
 .mixer-sleep-timer button:disabled {
   opacity: var(--so-state-idle-opacity, 0.55);
   color: var(--so-text-disabled, #454b66);
+}
+
+/* Custom h:m timer: two narrow numeric fields + start, wrapping as one unit. */
+.mixer-sleep-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--so-space-1, 0.25rem);
+}
+
+.mixer-sleep-custom input {
+  width: 3.25rem;
+  min-height: 44px;
+  padding: 0 var(--so-space-2, 0.5rem);
+  border-radius: var(--so-radius-full, 999px);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  background: var(--so-bg-base, #0a0e1a);
+  color: var(--so-text-primary, #f0f0f5);
+  font-size: var(--so-font-size-sm, 0.875rem);
+  text-align: center;
 }
 
 .mixer-sleep-remaining {
@@ -752,6 +821,30 @@
   color: var(--so-text-primary, #f0f0f5);
   border: 1px solid var(--so-border-subtle, #232b45);
   border-radius: var(--so-radius-full, 999px);
+  padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
+  box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
+  font-size: var(--so-font-size-sm, 0.875rem);
+}
+
+/* "Play your last mix?" — after a bedtime reminder tap on a closed app, or when a shortcut's
+   autoplay was blocked. Same slot and look as the undo toast, stacked above it if both show. */
+.mixer-last-mix {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--so-space-5, 1.5rem) * 3 + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--so-space-2, 0.5rem);
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  background: var(--so-bg-overlay, #1a2238);
+  color: var(--so-text-primary, #f0f0f5);
+  border: 1px solid var(--so-border-subtle, #232b45);
+  border-radius: var(--so-radius-lg, 16px);
   padding: var(--so-space-2, 0.5rem) var(--so-space-4, 1rem);
   box-shadow: var(--so-shadow-panel, 0 8px 24px rgb(0 0 0 / 40%));
   font-size: var(--so-font-size-sm, 0.875rem);
@@ -858,8 +951,31 @@
   justify-content: center;
 }
 
+/* Title + settings stay pinned above the collapsed band (CollapsingHeader reads --app-bar-h). */
+main:has(.layout-collapse) {
+  --app-bar-h: 64px;
+}
+
+main:has(.layout-collapse) .app-title {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  width: 100%;
+  height: var(--app-bar-h);
+  line-height: var(--app-bar-h);
+  margin-top: -1.5rem; /* cancel main's top padding so the bar sits flush at the top */
+  text-align: center;
+  background: var(--so-bg-elevated, #12182b);
+}
+
+main:has(.layout-collapse) .app-header-icon-button {
+  position: fixed;
+  top: 10px;
+  z-index: 8;
+}
+
 .layout-collapse .mixer-top {
-  top: 64px; /* = CollapsingHeader COMPACT_H */
+  top: calc(var(--app-bar-h, 0px) + 64px); /* + CollapsingHeader COMPACT_H */
 }
 
 .mixer-collapse-field {

@@ -11,9 +11,9 @@ const LAYOUT_KEY = 'so.layout'
 function readStoredLayout(): MixerLayout {
   try {
     const v = localStorage.getItem(LAYOUT_KEY)
-    return (MIXER_LAYOUTS as readonly string[]).includes(v ?? '') ? (v as MixerLayout) : 'sheet'
+    return (MIXER_LAYOUTS as readonly string[]).includes(v ?? '') ? (v as MixerLayout) : 'collapse'
   } catch {
-    return 'sheet'
+    return 'collapse'
   }
 }
 

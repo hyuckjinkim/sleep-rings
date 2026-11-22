@@ -8,6 +8,7 @@ export interface EngineAudioParam {
   setValueAtTime(value: number, time: number): void
   linearRampToValueAtTime(value: number, time: number): void
   cancelScheduledValues(time: number): void
+  setValueCurveAtTime(values: Float32Array, startTime: number, duration: number): void
 }
 
 export interface EngineAudioNode {
@@ -34,6 +35,20 @@ export interface EngineStereoPannerNode extends EngineAudioNode {
   pan: EngineAudioParam
 }
 
+export interface EngineDynamicsCompressorNode extends EngineAudioNode {
+  threshold: EngineAudioParam
+  knee: EngineAudioParam
+  ratio: EngineAudioParam
+  attack: EngineAudioParam
+  release: EngineAudioParam
+}
+
+export interface EngineBiquadFilterNode extends EngineAudioNode {
+  type: BiquadFilterType
+  frequency: EngineAudioParam
+  gain: EngineAudioParam
+}
+
 export interface EngineAudioBuffer {
   readonly duration: number
   readonly length: number
@@ -48,7 +63,7 @@ export interface EngineBufferSourceNode extends EngineAudioNode {
   loop: boolean
   loopStart: number
   loopEnd: number
-  start(): void
+  start(when?: number): void
   stop(): void
 }
 
@@ -60,6 +75,8 @@ export interface EngineAudioContext {
   createGain(): EngineGainNode
   createPanner(): EnginePannerNode
   createStereoPanner(): EngineStereoPannerNode
+  createDynamicsCompressor(): EngineDynamicsCompressorNode
+  createBiquadFilter(): EngineBiquadFilterNode
   createBufferSource(): EngineBufferSourceNode
   createBuffer(numberOfChannels: number, length: number, sampleRate: number): EngineAudioBuffer
   decodeAudioData(data: ArrayBuffer): Promise<EngineAudioBuffer>

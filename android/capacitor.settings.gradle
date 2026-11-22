@@ -11,8 +11,20 @@ project(':capacitor-app').projectDir = new File('../node_modules/@capacitor/app/
 include ':capacitor-haptics'
 project(':capacitor-haptics').projectDir = new File('../node_modules/@capacitor/haptics/android')
 
+include ':capacitor-local-notifications'
+project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
+
 include ':capawesome-team-capacitor-android-foreground-service'
 project(':capawesome-team-capacitor-android-foreground-service').projectDir = new File('../node_modules/@capawesome-team/capacitor-android-foreground-service/android')
+
+include ':capawesome-capacitor-app-shortcuts'
+project(':capawesome-capacitor-app-shortcuts').projectDir = new File('../node_modules/@capawesome/capacitor-app-shortcuts/android')
+
+include ':capgo-capacitor-app-intents'
+project(':capgo-capacitor-app-intents').projectDir = new File('../node_modules/@capgo/capacitor-app-intents/android')
+
+include ':capgo-capacitor-widget-kit'
+project(':capgo-capacitor-widget-kit').projectDir = new File('../node_modules/@capgo/capacitor-widget-kit/android')
 
 include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../node_modules/@revenuecat/purchases-capacitor/android')

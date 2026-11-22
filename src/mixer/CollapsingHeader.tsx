@@ -25,14 +25,14 @@ export function CollapsingHeader({ children, onSelect }: { children: ReactNode; 
   const { t } = useTranslation()
   const headerRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const geo = useRef({ range: 0, pageTop: 0 })
+  const geo = useRef({ range: 0, pageTop: 0, barH: 0 })
 
   function apply() {
     const header = headerRef.current
     const wrap = wrapRef.current
     if (!header || !wrap) return
-    const { range, pageTop } = geo.current
-    const end = pageTop + range // scrollY at which the header is fully collapsed (and stuck)
+    const { range, pageTop, barH } = geo.current
+    const end = pageTop + range - barH // scrollY at which the header is fully collapsed (and stuck)
     const p = end > 0 ? clamp01(window.scrollY / end) : 0
     const w = wrap.offsetWidth
     const x0 = (header.clientWidth - w) / 2
@@ -48,10 +48,12 @@ export function CollapsingHeader({ children, onSelect }: { children: ReactNode; 
     function measure() {
       if (!header) return
       const range = Math.max(0, header.offsetHeight - COMPACT_H)
-      header.style.top = `${-range}px`
+      // Pinned app bar (title + settings) above us — mixer.css --app-bar-h.
+      const barH = parseFloat(getComputedStyle(header).getPropertyValue('--app-bar-h')) || 0
+      header.style.top = `${barH - range}px`
       // Page position from the natural (unstuck) offset — getBoundingClientRect would include the
       // sticky shift once collapsed.
-      geo.current = { range, pageTop: header.offsetTop }
+      geo.current = { range, pageTop: header.offsetTop, barH }
       apply()
     }
     measure()
@@ -68,7 +70,7 @@ export function CollapsingHeader({ children, onSelect }: { children: ReactNode; 
       raf = requestAnimationFrame(apply)
       clearTimeout(snapTimer)
       snapTimer = window.setTimeout(() => {
-        const end = geo.current.pageTop + geo.current.range
+        const end = geo.current.pageTop + geo.current.range - geo.current.barH
         const y = window.scrollY
         if (y > 0 && y < end) window.scrollTo({ top: y < end / 2 ? 0 : end, behavior: 'smooth' })
       }, SNAP_IDLE_MS)

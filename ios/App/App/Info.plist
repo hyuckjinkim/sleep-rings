@@ -22,6 +22,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- "Play last mix" widget tap: sleeprings://play-last-mix, handled in AppDelegate. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.sleeprings.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sleeprings</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -62,6 +74,10 @@
 			<string>cstr6suwn9.skadnetwork</string>
 		</dict>
 	</array>
+	<!-- Closed-app wake alarm on iOS 26+ (WakeAlarmPlugin.swift). Without this key AlarmKit refuses
+	     to schedule; shown in the system prompt at the first alarm armed. -->
+	<key>NSAlarmKitUsageDescription</key>
+	<string>SleepRings uses this to sound your wake alarm even when the app is closed.</string>
 	<!-- App Tracking Transparency (roadmap-v030.md §3) — shown once before the first ad request;
 	     src/ads/ads.ts requests it inside initAds(). Declining falls back to non-personalized ads. -->
 	<key>NSUserTrackingUsageDescription</key>

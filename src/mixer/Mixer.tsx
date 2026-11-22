@@ -19,6 +19,9 @@ import type { Locale } from './types'
 import './mixer.css'
 
 let engineInitialized = false
+// Once per app lifetime, not per mount: Settings unmounts the Mixer, and restoring on the way back
+// would restart a mix the sleep timer had ended, or drop an orb whose autosave hadn't landed yet.
+let mixRestored = false
 
 export function Mixer() {
   const { t, i18n } = useTranslation()
@@ -33,7 +36,10 @@ export function Mixer() {
   const layout = useLayoutStore((s) => s.layout)
 
   useEffect(() => {
-    restoreMix()
+    if (!mixRestored) {
+      mixRestored = true
+      restoreMix()
+    }
     return subscribeAutoSave()
   }, [])
 

@@ -2,10 +2,17 @@
 <resources>
     <string name="app_name">SleepRings</string>
     <string name="title_activity_main">SleepRings</string>
-    <string name="package_name">com.sleeprings.app</string>
-    <string name="custom_url_scheme">com.sleeprings.app</string>
+    <string name="package_name" translatable="false">com.sleeprings.app</string>
+    <string name="custom_url_scheme" translatable="false">com.sleeprings.app</string>
     <!-- AdMob (docs/ads-setup.md) — Google's official test App ID. Replace with the real AdMob
          App ID (ca-app-pub-...~...) once issued; ad UNIT IDs live in src/ads/ad-config.ts, this is
          the separate per-app ID AdMob requires in native config. -->
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <string name="admob_app_id" translatable="false">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- Home-screen widget + Quick Settings tile (Korean in values-ko/) -->
+    <string name="play_last_mix">Play last mix</string>
+    <string name="widget_description">Opens SleepRings and plays your last mix</string>
+    <!-- Closed-app wake alarm notification (WakeAlarmService) -->
+    <string name="wake_alarm_title">Wake alarm</string>
+    <string name="wake_alarm_text">It\'s your wake time.</string>
+    <string name="wake_alarm_stop">Stop</string>
 </resources>
