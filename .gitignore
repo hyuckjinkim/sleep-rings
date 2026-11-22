@@ -31,3 +31,6 @@ playwright-report/
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# Claude Code 개인 메모 (.styleguide docs.md §4)
+**/CLAUDE.local.md
