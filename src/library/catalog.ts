@@ -20,23 +20,12 @@ export function isAvailable(soundId: string): boolean {
   return !UNAVAILABLE_IDS.has(soundId)
 }
 
-// Every sound in a category shares that category's hue (theme.css keeps all 13 at S54% L60% and
-// varies only hue, ~15-20deg apart). On the field that made same-category orbs indistinguishable
-// — four noise orbs rendered as four identical circles, so the only way to tell which was which
-// was to open each one. Shifting hue instead would collide with the neighbouring category, so the
-// distinction rides on lightness: the category hue stays recognisable, the individual sound gets
-// its own step. Alternating lighter/darker keeps every step near the base rather than marching
-// off toward white.
-const ORB_SHADE_STEPS = [0, 22, -18, 40, -32, 55, -44] // % mixed toward white (+) / black (-)
-
-/** CSS color for a sound's orb: its category hue at a per-sound lightness step. */
-export function orbColor(soundId: string, category: Category): string {
-  const base = `var(--so-orb-${category})`
-  const index = catalog.filter((s) => s.category === category).findIndex((s) => s.id === soundId)
-  const step = index < 0 ? 0 : ORB_SHADE_STEPS[index % ORB_SHADE_STEPS.length]
-  if (step === 0) return base
-  const magnitude = Math.abs(step)
-  return `color-mix(in srgb, ${base} ${100 - magnitude}%, ${step > 0 ? '#fff' : '#000'} ${magnitude}%)`
+// 색은 카테고리를, 아이콘은 사운드를 구분한다. 같은 카테고리 오브는 같은 색이고, 사운드마다
+// 전용 아이콘(assets/sound-icons/<id>.svg)이 있어 구분된다 — SoundIcon.test.tsx 가 카테고리
+// 안 아이콘 중복을 막는다. 예전에는 명도 단계로 나눴지만 같은 카테고리가 다른 색처럼 보였다.
+/** CSS color for a sound's orb: its category color. */
+export function orbColor(_soundId: string, category: Category): string {
+  return `var(--so-orb-${category})`
 }
 
 export const catalog: Sound[] = [

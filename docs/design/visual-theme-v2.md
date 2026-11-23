@@ -48,6 +48,8 @@ v1의 토큰 값은 하나도 바꾸지 않았고, `theme.css`에는 v2 블록�
 카테고리 13종 전부 대표 아이콘이 있어, 신규 사운드가 들어와도 **빈 자리가 생기지 않는다**
 (폴백 체인은 §1.5).
 
+**2026-11-24 추가 (6)**: 같은 카테고리 사운드가 같은 아이콘을 쓰지 않게 전용 아이콘을 더했다 — `rain-umbrella` `garden-rain` · `nature-brook` `night-stream` · `blizzard` · `seaside`. 오브 색은 카테고리 색 하나로 통일하고(명도 단계 없앰), 사운드 구분은 아이콘이 맡는다. 카테고리 안 아이콘 중복은 `src/icons/SoundIcon.test.tsx` 가 막는다.
+
 ### 1.3 핵심 검증 — 같은 색 오브 안에서 구별되는가
 
 `noise-*` 4종은 전부 `--so-orb-noise`, `binaural-*` 3종은 전부 `--so-orb-binaural`이다.

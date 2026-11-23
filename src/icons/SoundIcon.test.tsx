@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { SoundIcon } from './SoundIcon'
+import { catalog } from '../library/catalog'
 import { soundIconName } from './soundIcons'
 
 describe('soundIconName', () => {
@@ -12,8 +13,15 @@ describe('soundIconName', () => {
 
   it('falls back to the category icon when the sound has none', () => {
     expect(soundIconName('nature-wind', 'nature')).toBe('wind')
-    expect(soundIconName('seaside', 'ocean')).toBe('waves')
-    expect(soundIconName('night-stream', 'water')).toBe('stream')
+    expect(soundIconName('womb', 'asmr')).toBe('asmr')
+  })
+
+  it('gives every sound in a category a different icon', () => {
+    // 같은 카테고리는 색이 같으므로 아이콘이 유일한 구분 수단이다.
+    for (const category of new Set(catalog.map((s) => s.category))) {
+      const names = catalog.filter((s) => s.category === category).map((s) => soundIconName(s.id, s.category))
+      expect(new Set(names).size, `${category}: ${names.join(', ')}`).toBe(names.length)
+    }
   })
 
   it('falls back to the generic icon for an unknown sound with no category', () => {
