@@ -3,7 +3,7 @@
 // (visual-theme.md §9). Angle is written straight to the DOM each frame (never round-tripped
 // through the store), so these assert on the rendered `transform`, not on store state.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, fireEvent } from '@testing-library/react'
 import type { RefObject } from 'react'
 import { OrbitField } from './OrbitField'
 import { useMixStore, DEFAULT_ORBIT_SPEED } from './store'
@@ -20,6 +20,18 @@ function addOrbitingPlacement(overrides: PlacementPatch = {}): string {
 function renderField() {
   const fieldRef: RefObject<HTMLDivElement | null> = { current: null }
   return render(<OrbitField fieldRef={fieldRef} selectedId={null} onSelect={() => {}} />)
+}
+
+/** px distance between two `translate(xpx, ypx)` transforms. */
+function gap(a: string, b: string): number {
+  const xy = (t: string) => {
+    const m = /translate\((-?[\d.e-]+)px, (-?[\d.e-]+)px\)/.exec(t)
+    if (!m) throw new Error(`no translate in "${t}"`)
+    return [Number(m[1]), Number(m[2])]
+  }
+  const [ax, ay] = xy(a)
+  const [bx, by] = xy(b)
+  return Math.hypot(ax - bx, ay - by)
 }
 
 function orbTransform(container: HTMLElement): string {
@@ -87,5 +99,28 @@ describe('OrbitField rAF orbit loop', () => {
     const first = orbTransform(container)
     vi.advanceTimersByTime(2000)
     expect(orbTransform(container)).toBe(first)
+  })
+
+  it('한 오브를 눌러 리렌더돼도 다른 오브가 처음 놓은 자리로 튀지 않는다', () => {
+    addOrbitingPlacement()
+    addOrbitingPlacement()
+    const { container } = renderField()
+    vi.advanceTimersByTime(3000)
+    const [a, b] = container.querySelectorAll<HTMLElement>('.mixer-orb')
+    const before = b.style.transform
+
+    fireEvent.pointerDown(a, { pointerId: 1, clientX: 100, clientY: 50 }) // setIsDragging → 모든 Orb 리렌더
+    vi.advanceTimersByTime(16)
+    expect(gap(b.style.transform, before)).toBeLessThan(2)
+  })
+
+  it('store angle 이 바뀌면(같은 id 프리셋 불러오기 등) 그 자리부터 다시 돈다', () => {
+    const id = addOrbitingPlacement()
+    const { container } = renderField()
+    vi.advanceTimersByTime(3000)
+
+    useMixStore.getState().updatePlacement(id, { angle: Math.PI, orbit: { speed: 0 } }) // 아래쪽, 멈춤
+    vi.advanceTimersByTime(16)
+    expect(gap(orbTransform(container), 'translate(0px, 50px)')).toBeLessThan(2)
   })
 })

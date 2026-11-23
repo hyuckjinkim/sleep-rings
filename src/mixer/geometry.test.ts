@@ -81,6 +81,16 @@ describe('polarToUnit / unitToPolar', () => {
     const top = polarToUnit(1, 0, shape) // topmost point, on the minor axis -> compressed
     expect(top.y).toBeCloseTo(-0.5)
   })
+
+  it('round-trips tilted ellipse placements through unitToPolar(shape)', () => {
+    const shape = { kind: 'ellipse' as const, eccentricity: 0.6, tilt: 0.7 }
+    for (const [radius, angle] of [[0.5, 0.2], [0.9, 2], [0.3, 4.5]]) {
+      const { x, y } = polarToUnit(radius, angle, shape)
+      const back = unitToPolar(x, y, shape)
+      expect(back.radius).toBeCloseTo(radius, 5)
+      expect(back.angle).toBeCloseTo(angle, 5)
+    }
+  })
 })
 
 describe('spreadAngle', () => {

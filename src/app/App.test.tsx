@@ -90,6 +90,30 @@ describe('App restores the saved mix once, not on every Mixer mount', () => {
     expect(useMixStore.getState().current.placements.map((p) => p.soundId)).toEqual(['fan'])
   })
 
+  it('오브 패널이 열린 동안 필드를 패널 위 공간에 맞게 줄이고, 닫으면 되돌린다', () => {
+    // jsdom 에는 레이아웃이 없다: 필드는 위 50px·높이 300px, 패널은 위 200px 에서 시작한다고 둔다.
+    const rect = (top: number, height: number) => ({ top, height, bottom: top + height, left: 0, right: height, width: height, x: 0, y: top }) as DOMRect
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.classList.contains('mixer-field')) return rect(50, 300)
+      if (this.classList.contains('mixer-controls')) return rect(200, 440)
+      return rect(0, 0)
+    })
+    render(<App />)
+    act(() => {
+      useMixStore.getState().clearAll()
+      useMixStore.getState().addPlacement('fan', 0.3, 0)
+    })
+    const field = document.querySelector<HTMLElement>('.mixer-field')!
+
+    fireEvent.keyDown(document.querySelector('.mixer-orb')!, { key: 'Enter' })
+    expect(screen.getByRole('dialog', { name: '선풍기 소리' })).toBeInTheDocument()
+    expect(field.style.transform).toBe(`scale(${(200 - 12 - 50) / 300})`) // 필드 아래 끝 = 패널 위 12px
+
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }))
+    expect(field.style.transform).toBe('')
+    spy.mockRestore()
+  })
+
   it('does not restart a mix the sleep timer ended', async () => {
     render(<App />)
     act(() => {

@@ -24,6 +24,9 @@ const MAX_ECCENTRICITY = 0.85
 // — the engine/math side was already done in E3, this just gives it a UI path).
 const DEFAULT_VOLUME_CURVE_DEPTH = 0.5
 
+// 탭 뒤 호환 click 은 수십 ms 안에 온다. 사람이 패널을 보고 다시 누르기엔 짧은 여유.
+const OPEN_CLICK_GUARD_MS = 400
+
 /** Tap popover: volume (radius remap), lock toggle, delete, orbit mode/speed/shape. Bottom sheet, mobile-first. */
 export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const { t } = useTranslation()
@@ -36,6 +39,28 @@ export function OrbControls({ placementId, label, onClose }: OrbControlsProps) {
   const [upsell, setUpsell] = useState<PaidFeature | null>(null)
 
   useDialogFocus(rootRef, onClose)
+
+  // 터치 탭의 pointerup 에서 이 패널이 그려지면(또는 다른 오브로 바뀌면), Chromium 이 그 탭의 호환 click 을 손가락 아래에 새로 생긴
+  // 버튼(잠금·삭제·✕)에 떨어뜨린다. 열린 직후 새 pointerdown 없이 오는 포인터 click 한 번은 그 잔여 click 이라
+  // 삼킨다. detail 0(키보드·보조기기 활성화)은 그대로 둔다.
+  useEffect(() => {
+    function swallow(e: MouseEvent) {
+      if (e.detail > 0) {
+        e.stopPropagation()
+        e.preventDefault()
+      }
+      disarm()
+    }
+    function disarm() {
+      window.clearTimeout(timer)
+      document.removeEventListener('click', swallow, true)
+      document.removeEventListener('pointerdown', disarm, true)
+    }
+    const timer = window.setTimeout(disarm, OPEN_CLICK_GUARD_MS)
+    document.addEventListener('click', swallow, true)
+    document.addEventListener('pointerdown', disarm, true)
+    return disarm
+  }, [placementId]) // 열린 채 다른 오브를 탭하면 내용만 바뀐다 — 그때도 다시 건다
 
   // B13: close on a tap/click outside the popover. Taps on an orb are left alone — Orb.tsx's
   // own onTap wiring already selects/reselects correctly, and closing here first would just

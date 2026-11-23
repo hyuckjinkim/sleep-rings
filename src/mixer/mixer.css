@@ -382,12 +382,6 @@
   outline-offset: 3px;
 }
 
-.mixer-orb.is-pending-lock {
-  /* B8: dashed + dimmer than the solid is-locked ring — reads as "building up", not "locked yet" */
-  outline: 2px dashed var(--so-text-tertiary, #6b7290);
-  outline-offset: 3px;
-}
-
 .mixer-orb.is-selected {
   box-shadow:
     0 0 0 3px var(--so-accent, #93a5c8),

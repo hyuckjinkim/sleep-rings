@@ -52,8 +52,18 @@ export function polarToUnit(radius: number, angle: number, shape: OrbitShape): {
   return { x: localX * cos - localY * sin, y: localX * sin + localY * cos }
 }
 
-/** Inverse of polarToUnit's circle case — used to read a pointer position back as polar. */
-export function unitToPolar(x: number, y: number): { radius: number; angle: number } {
+/** Inverse of polarToUnit — used to read a pointer position back as polar. Circle when no shape is given. */
+export function unitToPolar(x: number, y: number, shape: OrbitShape = { kind: 'circle' }): { radius: number; angle: number } {
+  if (shape.kind === 'ellipse') {
+    // 기울기를 되돌리고 짧은 축 비율로 나눠 원 좌표로 펼친다.
+    const b = 1 - clamp(shape.eccentricity, 0, 0.95)
+    const cos = Math.cos(shape.tilt)
+    const sin = Math.sin(shape.tilt)
+    const localX = x * cos + y * sin
+    const localY = -x * sin + y * cos
+    x = localX
+    y = localY / b
+  }
   const radius = clamp(Math.hypot(x, y), 0, 1)
   const angle = normalizeAngle(Math.atan2(x, -y))
   return { radius, angle }

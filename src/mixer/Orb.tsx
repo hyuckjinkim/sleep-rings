@@ -6,11 +6,11 @@ import { SoundIcon } from '../icons/SoundIcon'
 import { orbColor } from '../library/catalog'
 import type { Category, OrbitShape, Placement } from './types'
 
-const LONG_PRESS_MS = 700 // B8: 500ms fired too easily on a careful mid-drag pause; 700ms + the is-pending-lock cue below give more room to tell "hesitating" from "locking".
 const SWIPE_MAX_MS = 300
 const SWIPE_MIN_ANGLE = 0.2 // rad, ~11.5deg
-const MOVE_THRESHOLD_ANGLE = 0.02
-const MOVE_THRESHOLD_RADIUS = 0.02
+// 탭과 드래그를 가르는 화면 거리. 손가락은 떼는 순간 몇 px 흔들리므로 마우스보다 넓게 둔다.
+const MOVE_THRESHOLD_TOUCH_PX = 10
+const MOVE_THRESHOLD_MOUSE_PX = 4
 
 interface OrbProps {
   placement: Placement
@@ -21,7 +21,8 @@ interface OrbProps {
   isDeleteZone: (clientY: number) => boolean
   selected: boolean
   onTap: (id: string) => void
-  beginInteraction: (id: string) => void
+  /** 지금 화면에 그려진 궤도 각도(OrbitField 의 liveAngles)를 돌려준다. 아직 없으면 undefined. */
+  beginInteraction: (id: string) => number | undefined
   endInteraction: (id: string, committedPosition?: boolean) => void
 }
 
@@ -48,7 +49,6 @@ export function Orb({
 }: OrbProps) {
   const elRef = useRef<HTMLDivElement | null>(null)
   const updatePlacement = useMixStore((s) => s.updatePlacement)
-  const toggleLocked = useMixStore((s) => s.toggleLocked)
   const removePlacement = useMixStore((s) => s.removePlacement)
   const loading = useMixStore((s) => s.loadingIds.has(placement.id))
   const sleeping = useMixStore((s) => s.sleeping)
@@ -58,14 +58,14 @@ export function Orb({
   const gesture = useRef<{
     startTime: number
     startAngle: number
-    startRadius: number
+    startX: number
+    startY: number
+    moveThresholdPx: number
     grabOffsetX: number
     grabOffsetY: number
     moved: boolean
-    longPressTimer: number | null
-    longPressFired: boolean
   } | null>(null)
-  const pinch = useRef<{ startDist: number; startEcc: number; lastEccentricity: number } | null>(null)
+  const pinch = useRef<{ startDist: number; startEcc: number; lastEccentricity: number; angle: number } | null>(null)
 
   useEffect(() => {
     return () => registerEl(placement.id, null)
@@ -97,40 +97,27 @@ export function Orb({
     el.style.transform = `translate(${x * r}px, ${y * r}px)`
   }
 
-  function clearLongPress() {
-    if (gesture.current?.longPressTimer != null) {
-      window.clearTimeout(gesture.current.longPressTimer)
-      gesture.current.longPressTimer = null
-    }
-    elRef.current?.classList.remove('is-pending-lock')
-  }
-
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     ;(e.target as Element).setPointerCapture(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    beginInteraction(placement.id)
+    // store 의 angle 은 놓은(마지막으로 끌어 놓은) 자리라 궤도를 돈 뒤엔 낡았다 — 지금 그려진 각도로 잡는다.
+    const angle = beginInteraction(placement.id) ?? placement.angle
 
     if (pointers.current.size === 1) {
       const m = fieldMetrics(fieldRef)
       const pointerUnit = clientToUnit(e.clientX, e.clientY, m)
-      const placementUnit = polarToUnit(placement.radius, placement.angle, { kind: 'circle' })
+      const placementUnit = polarToUnit(placement.radius, angle, placement.orbit.shape)
       gesture.current = {
         startTime: performance.now(),
-        startAngle: placement.angle,
-        startRadius: placement.radius,
+        startAngle: angle,
+        startX: e.clientX,
+        startY: e.clientY,
+        moveThresholdPx: e.pointerType === 'mouse' ? MOVE_THRESHOLD_MOUSE_PX : MOVE_THRESHOLD_TOUCH_PX,
         grabOffsetX: pointerUnit.x - placementUnit.x,
         grabOffsetY: pointerUnit.y - placementUnit.y,
         moved: false,
-        longPressFired: false,
-        longPressTimer: window.setTimeout(() => {
-          elRef.current?.classList.remove('is-pending-lock')
-          if (gesture.current) gesture.current.longPressFired = true
-          toggleLocked(placement.id)
-        }, LONG_PRESS_MS),
       }
-      elRef.current?.classList.add('is-pending-lock') // B8: visible cue while the hold is building up to a lock
     } else if (pointers.current.size === 2) {
-      clearLongPress()
       // L2 fix: drop the single-pointer drag state entirely (not just its timer). Otherwise
       // if one finger lifts back to a single pointer, the stale gesture (with a grabOffset
       // computed before the pinch started) revives and jumps the orb on the next move/release.
@@ -138,7 +125,7 @@ export function Orb({
       const pts = [...pointers.current.values()]
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
       const currentEcc = placement.orbit.shape.kind === 'ellipse' ? placement.orbit.shape.eccentricity : 0
-      pinch.current = { startDist: dist, startEcc: currentEcc, lastEccentricity: currentEcc }
+      pinch.current = { startDist: dist, startEcc: currentEcc, lastEccentricity: currentEcc, angle }
     }
   }
 
@@ -154,29 +141,19 @@ export function Orb({
       // pinch out (fingers spreading) tightens toward a circle; pinch in stretches the ellipse
       const eccentricity = clamp(pinch.current.startEcc - spread, 0, 0.85)
       pinch.current.lastEccentricity = eccentricity
-      setLiveTransform(placement.radius, placement.angle, shapeForEccentricity(eccentricity))
+      setLiveTransform(placement.radius, pinch.current.angle, shapeForEccentricity(eccentricity))
       return
     }
 
     const g = gesture.current
     if (!g || pointers.current.size !== 1) return
 
-    const m = fieldMetrics(fieldRef)
-    const pointerUnit = clientToUnit(e.clientX, e.clientY, m)
-    const targetUnit = { x: pointerUnit.x - g.grabOffsetX, y: pointerUnit.y - g.grabOffsetY }
-    const { radius, angle } = unitToPolar(targetUnit.x, targetUnit.y)
+    if (!g.moved && Math.hypot(e.clientX - g.startX, e.clientY - g.startY) > g.moveThresholdPx) g.moved = true
 
-    if (!g.moved) {
-      const movedEnough =
-        Math.abs(angleDelta(g.startAngle, angle)) > MOVE_THRESHOLD_ANGLE ||
-        Math.abs(radius - g.startRadius) > MOVE_THRESHOLD_RADIUS
-      if (movedEnough) {
-        g.moved = true
-        clearLongPress()
-      }
-    }
-
-    if (g.moved && !g.longPressFired) {
+    if (g.moved) {
+      const m = fieldMetrics(fieldRef)
+      const pointerUnit = clientToUnit(e.clientX, e.clientY, m)
+      const { radius, angle } = unitToPolar(pointerUnit.x - g.grabOffsetX, pointerUnit.y - g.grabOffsetY, placement.orbit.shape)
       setLiveTransform(radius, angle, placement.orbit.shape)
       elRef.current?.classList.toggle('is-delete-target', isDeleteZone(e.clientY))
     }
@@ -185,9 +162,8 @@ export function Orb({
   /** Returns true if a new radius/angle was actually committed to the store (drag/swipe). */
   function finishSinglePointer(e: React.PointerEvent<HTMLDivElement>): boolean {
     const g = gesture.current
-    clearLongPress()
     gesture.current = null
-    if (!g || g.longPressFired) return false
+    if (!g) return false
 
     if (!g.moved) {
       onTap(placement.id)
@@ -202,8 +178,7 @@ export function Orb({
 
     const m = fieldMetrics(fieldRef)
     const pointerUnit = clientToUnit(e.clientX, e.clientY, m)
-    const targetUnit = { x: pointerUnit.x - g.grabOffsetX, y: pointerUnit.y - g.grabOffsetY }
-    const { radius, angle } = unitToPolar(targetUnit.x, targetUnit.y)
+    const { radius, angle } = unitToPolar(pointerUnit.x - g.grabOffsetX, pointerUnit.y - g.grabOffsetY, placement.orbit.shape)
 
     const elapsed = performance.now() - g.startTime
     const delta = angleDelta(g.startAngle, angle)
@@ -252,7 +227,6 @@ export function Orb({
     pointers.current.delete(e.pointerId)
     if (pointers.current.size > 0) return
 
-    clearLongPress()
     gesture.current = null
     pinch.current = null
     elRef.current?.classList.remove('is-delete-target')
@@ -278,7 +252,9 @@ export function Orb({
     <div
       ref={(el) => {
         elRef.current = el
-        registerEl(placement.id, el)
+        // 인라인 콜백이라 리렌더마다 null 로도 불린다. null 을 넘기면 OrbitField 가 궤도 각도를 지워
+        // 모든 오브가 처음 놓은 자리로 튄다 — 해제는 위의 언마운트 effect 가 맡는다.
+        if (el) registerEl(placement.id, el)
       }}
       // "sleeping" (post sleep-timer fade-out) reuses the loading look — both mean
       // "not audibly playing right now", visual-theme.md §3 only defines one dim state.

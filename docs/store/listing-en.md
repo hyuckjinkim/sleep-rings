@@ -25,7 +25,6 @@ SleepRings is an ambient sound mixer where you place sounds directly on orbits a
 The center of the screen is you. Drag a sound token anywhere and it starts orbiting from that spot. The closer to the center, the louder it plays; the farther out, the quieter. Its angle shapes the stereo image — left, right, front, back. Listen with headphones for the full binaural spatial effect.
 
 **Shape the orbit with your fingers**
-- Hold a sound in place to lock its position
 - Pinch to squeeze its orbit into an ellipse, or spread to round it back out
 - Drag it to the bottom of the screen to remove it
 - Tap it to open volume and lock controls

@@ -25,6 +25,7 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
 
   const orbRefs = useRef(new Map<string, HTMLDivElement>()).current
   const liveAngles = useRef(new Map<string, number>()).current
+  const storeAngles = useRef(new Map<string, number>()).current // liveAngles 를 시작한 store angle
   const nextFlipAt = useRef(new Map<string, number>()).current
   const interactingIds = useRef(new Set<string>()).current
   // B11: the delete zone should only be visible while an orb is actually being dragged, not
@@ -37,16 +38,18 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
     } else {
       orbRefs.delete(id)
       liveAngles.delete(id)
+      storeAngles.delete(id)
       nextFlipAt.delete(id)
     }
   }
 
-  function beginInteraction(id: string) {
+  function beginInteraction(id: string): number | undefined {
     interactingIds.add(id)
     // Derive from the id set, not a counter: a pinch fires begin once per finger but end only
     // once for the orb, so the counter drifted upward and never returned to 0 — leaving the
     // delete-zone banner stuck on until reload (.omc/qa4/functional.md MEDIUM-1).
     setIsDragging(interactingIds.size > 0)
+    return liveAngles.get(id)
   }
   // L1 fix: only drop the live angle when the gesture actually committed a new one to the
   // store (drag/swipe). store.angle is otherwise stale (orbit motion never writes it back —
@@ -90,6 +93,11 @@ export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) 
         const el = orbRefs.get(p.id)
         if (!el || interactingIds.has(p.id)) continue
 
+        // store angle 이 바뀌면(같은 id 를 쓰는 프리셋 불러오기 등) 그 자리부터 다시 돈다.
+        if (storeAngles.get(p.id) !== p.angle) {
+          storeAngles.set(p.id, p.angle)
+          liveAngles.delete(p.id)
+        }
         let angle = liveAngles.get(p.id) ?? p.angle
         if (!reducedMotion && !state.sleeping && !p.locked && p.orbit.speed > 0) {
           if (p.orbit.mode === 'random') {
