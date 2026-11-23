@@ -15,6 +15,7 @@
 - 한 번에: `npm run check`(타입·린트·테스트). 린트는 경고도 0 으로 둔다.
 - 타입: `npm run typecheck`. `tsc -b` 는 쓰지 않는다 — `tsconfig.tsbuildinfo` 가 남는다.
 - 테스트: `npx vitest run --pool=forks --maxWorkers=1`(WSL 에서 병렬 실행이 타임아웃 난다). 결과의 테스트 파일 수가 `find src -name '*.test.ts*' | wc -l` 과 같은지 본다.
+  - `/mnt/d` 에서는 워커가 시작 제한(60~90초)을 자주 넘긴다. 빠르고 확실한 길: `rsync -a --delete --exclude /.git --exclude /android --exclude /ios --exclude /dist ./ ~/.cache/sleep-rings-test/` 뒤 그 폴더에서 `npx vitest run --pool=forks --maxWorkers=2`(ext4, 38파일 약 40초). `--exclude dist` 처럼 앞에 `/` 를 빼면 `node_modules/*/dist` 까지 빠진다.
 - 빌드: `npx vite build` · Android: `cd android && ./gradlew assembleDebug`.
 - iOS Swift 는 이 환경(Xcode 없음)에서 컴파일할 수 없다. 고친 Swift 는 「미검증」이라고 적는다.
 
