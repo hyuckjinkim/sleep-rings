@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Placement, Sound } from '../data/types'
-import { FADE_IN_SEC, SoundEngine } from './sound-engine'
+import { FADE_IN_SEC, SoundEngine } from './soundEngine'
 import { THROTTLE_SEC } from './spatial'
-import { createMockAudioContext } from './test-support/mock-audio-context'
-import type { EngineAudioContext } from './web-audio-types'
-import { ALARM_ON_TIME_MS } from '../mobile/wake-alarm'
+import { createMockAudioContext } from './test-support/mockAudioContext'
+import type { EngineAudioContext } from './webAudioTypes'
+import { ALARM_ON_TIME_MS } from '../mobile/wakeAlarm'
 
 const NOISE_SOUND: Sound = {
   id: 'pink-noise',

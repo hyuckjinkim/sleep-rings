@@ -9,7 +9,7 @@ describe('wake-lock', () => {
   })
 
   it('no-ops when navigator.wakeLock is unsupported (jsdom baseline)', async () => {
-    const { acquireWakeLock, releaseWakeLock } = await import('./wake-lock')
+    const { acquireWakeLock, releaseWakeLock } = await import('./wakeLock')
     await expect(acquireWakeLock()).resolves.toBeUndefined()
     expect(() => releaseWakeLock()).not.toThrow()
   })
@@ -20,7 +20,7 @@ describe('wake-lock', () => {
     const request = vi.fn().mockResolvedValue(sentinel)
     Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })
 
-    const { acquireWakeLock, releaseWakeLock } = await import('./wake-lock')
+    const { acquireWakeLock, releaseWakeLock } = await import('./wakeLock')
     await acquireWakeLock()
     expect(request).toHaveBeenCalledWith('screen')
 
@@ -36,7 +36,7 @@ describe('wake-lock', () => {
     const request = vi.fn().mockRejectedValue(new Error('denied'))
     Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true })
 
-    const { acquireWakeLock } = await import('./wake-lock')
+    const { acquireWakeLock } = await import('./wakeLock')
     await expect(acquireWakeLock()).resolves.toBeUndefined()
   })
 })

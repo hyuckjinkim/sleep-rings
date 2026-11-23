@@ -14,7 +14,7 @@ export function maxPresets(plan: Plan): number {
   return MAX_PRESETS[plan]
 }
 
-/** Exposed so purchase-adapter.ts can rank entitlements without a second copy of PLAN_RANK. */
+/** Exposed so purchaseAdapter.ts can rank entitlements without a second copy of PLAN_RANK. */
 export function planRank(plan: Plan): number {
   return PLAN_RANK[plan]
 }

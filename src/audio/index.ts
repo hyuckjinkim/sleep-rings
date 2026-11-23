@@ -1,3 +1,3 @@
-export { SoundEngine } from './sound-engine'
-export type { PanQuality } from './sound-engine'
-export type { EngineAudioContext } from './web-audio-types'
+export { SoundEngine } from './soundEngine'
+export type { PanQuality } from './soundEngine'
+export type { EngineAudioContext } from './webAudioTypes'

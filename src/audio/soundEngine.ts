@@ -23,14 +23,14 @@ import type {
   EngineGainNode,
   EnginePannerNode,
   EngineStereoPannerNode,
-} from './web-audio-types'
+} from './webAudioTypes'
 
 export type PanQuality = 'hrtf' | 'stereo'
 
 const NOISE_SECONDS = 10
 const BINAURAL_SECONDS = 10
 // audio-engine.md §5: individual placement onset should fade in too, not click straight to gain.
-// Exported so tests can advance ctx.currentTime past it deliberately (sound-engine.test.ts).
+// Exported so tests can advance ctx.currentTime past it deliberately (soundEngine.test.ts).
 export const FADE_IN_SEC = 0.2
 // ponytail: no real mobile-WebView HRTF budget measurement yet (design doc §8 open question #2)
 // — a flat active-placement-count heuristic is the cheap safety net. One-way (no upgrade back to

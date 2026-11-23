@@ -851,7 +851,7 @@
 }
 
 /* B2: minimal upgrade sheet — tap a locked chip to see which tier unlocks it. No purchase
-   button yet (src/plan/purchase-adapter.ts is a stub until RevenueCat lands). */
+   button yet (src/plan/purchaseAdapter.ts is a stub until RevenueCat lands). */
 .mixer-upgrade-backdrop {
   position: fixed;
   inset: 0;

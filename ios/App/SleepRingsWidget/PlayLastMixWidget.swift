@@ -5,7 +5,7 @@
 // docs, never compiled or run.
 //
 // Tap → sleeprings://play-last-mix → AppDelegate posts the launcher shortcut's "play-last-mix" item →
-// src/mobile/app-shortcuts.ts → playLastMix(), the same route as the stage 3 quick action.
+// src/mobile/appShortcuts.ts → playLastMix(), the same route as the stage 3 quick action.
 // The mix name comes from the widget-kit session src/mobile/widget.ts writes to the shared App Group.
 import SwiftUI
 import WidgetKit

@@ -32,7 +32,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
   },
 }))
 
-/** Non-reactive read for use outside React components (mixer/store.ts, ads/plan-gate.ts). */
+/** Non-reactive read for use outside React components (mixer/store.ts, ads/planGate.ts). */
 export function getPlan(): Plan {
   return usePlanStore.getState().plan
 }

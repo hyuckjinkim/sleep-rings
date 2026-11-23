@@ -1,9 +1,9 @@
 // Pre-rendered stereo binaural-beat buffers. Left/right channels each carry a pure sine at a
 // slightly different frequency (beatHz apart) — the *perceived* beat is the brain interfering
 // the two ears' signals, so the hard L/R separation is the whole point and must reach the
-// speakers untouched. SoundEngine bypasses the pan node for these (see sound-engine.ts).
+// speakers untouched. SoundEngine bypasses the pan node for these (see soundEngine.ts).
 import { MASTER_TARGET_RMS, type BufferHost } from './noise'
-import type { EngineAudioBuffer } from './web-audio-types'
+import type { EngineAudioBuffer } from './webAudioTypes'
 
 // Binaural used a fixed PEAK=0.5 (RMS~0.354 for a pure sine) regardless of the noise colors'
 // loudness — audio.md measured that as +9.4dB over MASTER_TARGET_RMS, the second-largest

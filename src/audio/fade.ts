@@ -1,5 +1,5 @@
 // GainNode fade scheduling. Linear ramps only — exponential ramps can't reach 0 (design doc §5).
-import type { EngineAudioParam } from './web-audio-types'
+import type { EngineAudioParam } from './webAudioTypes'
 
 const RAMP_FLOOR_SEC = 0.001
 

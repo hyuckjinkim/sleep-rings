@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { shouldShowBanner, shouldShowBannerNow } from './plan-gate'
+import { shouldShowBanner, shouldShowBannerNow } from './planGate'
 import { usePlanStore } from '../plan'
 
 describe('shouldShowBanner', () => {

@@ -4,7 +4,7 @@ import type { CustomerInfo, PurchasesError } from '@revenuecat/purchases-capacit
 import type { Plan } from './types'
 import { usePlanStore } from './store'
 import { planRank } from './tiers'
-import { FALLBACK_PRICE, PURCHASE_CONFIG, TIER_PLAN } from './purchase-config'
+import { FALLBACK_PRICE, PURCHASE_CONFIG, TIER_PLAN } from './purchaseConfig'
 
 export interface PurchaseOffering {
   plan: Exclude<Plan, 'free'>
@@ -99,7 +99,7 @@ class RevenueCatPurchaseAdapter implements PurchaseAdapter {
     const pkg = offerings.current?.availablePackages.find((p) => TIER_PLAN[p.identifier] === plan)
     if (!pkg) {
       throw new Error(
-        `[purchase] no RevenueCat package for plan "${plan}" — check the offering's package identifiers match purchase-config.ts's TIER_PLAN`,
+        `[purchase] no RevenueCat package for plan "${plan}" — check the offering's package identifiers match purchaseConfig.ts's TIER_PLAN`,
       )
     }
     const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg })

@@ -10,7 +10,7 @@ import { catalog, isAvailable } from '../library/catalog'
 import { clamp } from './geometry'
 import { hapticTap, setMediaSessionPlaying } from '../mobile' // B3: light-only, user-toggleable; no-op off-device
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
-import { ALARM_ON_TIME_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { ALARM_ON_TIME_MS, cancelNativeWakeAlarm } from '../mobile/wakeAlarm'
 import { canUseFeature, canUseSound, getPlan, maxLayers, maxPresets } from '../plan'
 
 // B7: how long the "undo delete" toast stays available after a removal.
@@ -489,7 +489,7 @@ export const useMixStore = create<MixStore>((set, get) => ({
       if (soundEngine.isAlarmSounding(ALARM_ON_TIME_MS / 1000)) {
         cancelReminder(ALARM_NOTIFICATION_ID) // the app is alive and ringing — no backup needed
         // Same for the native alarm, but only if this timer is on time: a late one means the app was
-        // frozen, and then the audio clock is late too — let the native alarm ring (wake-alarm.ts).
+        // frozen, and then the audio clock is late too — let the native alarm ring (wakeAlarm.ts).
         if (Date.now() - atMs < ALARM_ON_TIME_MS) cancelNativeWakeAlarm()
         clearTimeout(sleepTimeout) // the alarm supersedes a timer that hadn't finished yet
         set({ alarmRinging: true, sleeping: true, sleepEndsAt: null })

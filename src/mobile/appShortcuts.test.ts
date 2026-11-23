@@ -23,20 +23,20 @@ beforeEach(() => {
 
 describe('play-last-mix app shortcut', () => {
   it('publishes one shortcut with the translated title', async () => {
-    const { setPlayLastMixShortcut } = await import('./app-shortcuts')
+    const { setPlayLastMixShortcut } = await import('./appShortcuts')
     await setPlayLastMixShortcut('마지막 믹스 재생')
     expect(AppShortcuts.set).toHaveBeenCalledWith({ shortcuts: [{ id: 'play-last-mix', title: '마지막 믹스 재생' }] })
   })
 
   it('is not published from a session a share link launched (Android would bake that URL in)', async () => {
     App.getLaunchUrl.mockResolvedValue({ url: 'https://sleeprings.app/#mix=abc' })
-    const { setPlayLastMixShortcut } = await import('./app-shortcuts')
+    const { setPlayLastMixShortcut } = await import('./appShortcuts')
     await setPlayLastMixShortcut('Play last mix')
     expect(AppShortcuts.set).not.toHaveBeenCalled()
   })
 
   it('routes its taps, and only its taps, to the handler', async () => {
-    const { onPlayLastMixShortcut } = await import('./app-shortcuts')
+    const { onPlayLastMixShortcut } = await import('./appShortcuts')
     const onTap = vi.fn()
     onPlayLastMixShortcut(onTap)
     clickListener!({ shortcutId: 'something-else' })
@@ -47,7 +47,7 @@ describe('play-last-mix app shortcut', () => {
 
   it('does nothing on web', async () => {
     platform.native = false
-    const { onPlayLastMixShortcut, setPlayLastMixShortcut } = await import('./app-shortcuts')
+    const { onPlayLastMixShortcut, setPlayLastMixShortcut } = await import('./appShortcuts')
     await setPlayLastMixShortcut('Play last mix')
     onPlayLastMixShortcut(vi.fn())
     expect(AppShortcuts.set).not.toHaveBeenCalled()

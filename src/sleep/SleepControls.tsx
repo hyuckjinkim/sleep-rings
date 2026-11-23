@@ -7,7 +7,7 @@ import { usePlaybackSettings } from './settings'
 import { soundName } from '../library/catalog'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
-import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
+import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wakeAlarm'
 
 const PRESET_MINUTES = [15, 30, 45, 60, 90]
 
@@ -57,7 +57,7 @@ export function SleepControls() {
   const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
   const [now, setNow] = useState(Date.now())
   const [notificationsDenied, setNotificationsDenied] = useState(false) // app-wide, so both sections
-  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null) // closed-app alarm, wake-alarm.ts
+  const [exactAlarm, setExactAlarm] = useState<boolean | null>(null) // closed-app alarm, wakeAlarm.ts
   const isNative = Capacitor.isNativePlatform()
   const alarmIos = Capacitor.getPlatform() === 'ios' ? 'Ios' : '' // AlarmKit: no fade, Settings-page access
 

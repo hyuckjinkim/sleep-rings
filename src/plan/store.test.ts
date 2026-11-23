@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { usePlanStore, getPlan } from './store'
-import { localMockPurchaseAdapter } from './purchase-adapter'
+import { localMockPurchaseAdapter } from './purchaseAdapter'
 
 beforeEach(() => {
   localStorage.clear()

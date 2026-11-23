@@ -1,6 +1,6 @@
 // url -> AudioBuffer loader (fetch + decodeAudioData), cached per engine instance so the same
 // file is only fetched/decoded once even if multiple sounds/placements reference it.
-import type { EngineAudioBuffer } from './web-audio-types'
+import type { EngineAudioBuffer } from './webAudioTypes'
 
 export interface DecodeHost {
   decodeAudioData(data: ArrayBuffer): Promise<EngineAudioBuffer>

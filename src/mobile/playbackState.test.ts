@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isMixPlaying } from './playback-state'
+import { isMixPlaying } from './playbackState'
 
 const state = (orbs: number, patch: Partial<{ sleeping: boolean; alarmAt: number | null; bedtimeAt: number | null }> = {}) => ({
   current: { placements: Array.from({ length: orbs }, (_, i) => i) },

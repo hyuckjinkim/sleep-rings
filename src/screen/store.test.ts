@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
-import * as wakeLock from './wake-lock'
+import * as wakeLock from './wakeLock'
 
-vi.mock('./wake-lock', () => ({
+vi.mock('./wakeLock', () => ({
   acquireWakeLock: vi.fn().mockResolvedValue(undefined),
   releaseWakeLock: vi.fn(),
 }))

@@ -11,7 +11,7 @@ import { usePlaybackSettings } from './settings'
 import { usePlanStore } from '../plan'
 import { Capacitor } from '@capacitor/core'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, areRemindersDenied, scheduleReminder } from '../mobile/notifications'
-import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wake-alarm'
+import { NATIVE_ALARM_DELAY_MS, canScheduleNativeWakeAlarm, openExactAlarmSettings, scheduleAlarmBackup } from '../mobile/wakeAlarm'
 import { ALARM_FADE_SEC } from '../mixer/store'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
@@ -19,8 +19,8 @@ vi.mock('../mobile/notifications', async (importOriginal) => ({
   scheduleReminder: vi.fn().mockResolvedValue(true),
   areRemindersDenied: vi.fn().mockResolvedValue(false),
 }))
-vi.mock('../mobile/wake-alarm', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../mobile/wake-alarm')>()
+vi.mock('../mobile/wakeAlarm', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../mobile/wakeAlarm')>()
   return {
     ...real,
     canScheduleNativeWakeAlarm: vi.fn().mockResolvedValue(null),
@@ -120,7 +120,7 @@ describe('wake alarm controls', () => {
     expect(screen.getByText('앱이 종료돼 있으면 소리 대신 알림이 와요.')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('기상 시각'), { target: { value: '06:30' } })
     fireEvent.click(screen.getByRole('button', { name: '알람 켜기' }))
-    await act(async () => {}) // the alarm's backup first checks for the native alarm (wake-alarm.ts)
+    await act(async () => {}) // the alarm's backup first checks for the native alarm (wakeAlarm.ts)
     const [id, atMs, text, isArmed] = vi.mocked(scheduleReminder).mock.calls[0]
     expect(id).toBe(ALARM_NOTIFICATION_ID)
     expect(atMs).toBe(useMixStore.getState().alarmAt! + NATIVE_ALARM_DELAY_MS) // after the in-app start, not on it

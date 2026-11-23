@@ -5,7 +5,7 @@
     <string name="package_name" translatable="false">com.sleeprings.app</string>
     <string name="custom_url_scheme" translatable="false">com.sleeprings.app</string>
     <!-- AdMob (docs/ads-setup.md) — Google's official test App ID. Replace with the real AdMob
-         App ID (ca-app-pub-...~...) once issued; ad UNIT IDs live in src/ads/ad-config.ts, this is
+         App ID (ca-app-pub-...~...) once issued; ad UNIT IDs live in src/ads/adConfig.ts, this is
          the separate per-app ID AdMob requires in native config. -->
     <string name="admob_app_id" translatable="false">ca-app-pub-3940256099942544~3347511713</string>
     <!-- Home-screen widget + Quick Settings tile (Korean in values-ko/) -->

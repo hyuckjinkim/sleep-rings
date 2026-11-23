@@ -4,10 +4,10 @@
 // call sites this needs to be wired into (App.tsx's first-gesture handler + engine lifecycle).
 import { App } from '@capacitor/app'
 import type { PluginListenerHandle } from '@capacitor/core'
-import { startAndroidKeepAliveService, stopAndroidKeepAliveService } from './foreground-service'
-import type { KeepAliveNotificationText } from './foreground-service'
+import { startAndroidKeepAliveService, stopAndroidKeepAliveService } from './foregroundService'
+import type { KeepAliveNotificationText } from './foregroundService'
 
-/** Structural subset of SoundEngine (src/audio/sound-engine.ts) this bridge drives. */
+/** Structural subset of SoundEngine (src/audio/soundEngine.ts) this bridge drives. */
 export interface BackgroundAudioTarget {
   onEnterBackground(): void
   onEnterForeground(): void

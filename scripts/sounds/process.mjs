@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // manifest.json에서 catalogId가 있는 항목만 raw/{category}/{id}.* → public/sounds/{catalogId}.m4a 로
 // 후처리(라우드니스 정규화+루프 크로스페이드+AAC 변환)한다. 출력 경로는 src/library/catalog.ts의
-// file 소스(`sounds/{catalogId}.m4a`)와 1:1 — catalog-assets.test.ts가 이 대응을 검사한다.
+// file 소스(`sounds/{catalogId}.m4a`)와 1:1 — catalogAssets.test.ts가 이 대응을 검사한다.
 // ffmpeg가 없으면 설치를 시도하지 않고 블로커로 보고만 하고 종료한다.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";

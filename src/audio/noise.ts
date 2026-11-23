@@ -2,7 +2,7 @@
 // noise is a stationary signal, so a long pre-rendered loop (~10s) is enough to be inaudible
 // as a repeat. See docs/design/audio-engine.md §3.
 import type { NoiseColor } from '../data/types'
-import type { EngineAudioBuffer } from './web-audio-types'
+import type { EngineAudioBuffer } from './webAudioTypes'
 
 // generateWhiteNoise/generatePinkNoise/generateBrownNoise/generateGreenNoise below are also used
 // as raw *ingredients* inside composite generators further down (e.g. campfire = brown rumble +

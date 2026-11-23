@@ -1,4 +1,4 @@
-// M1 regression (see ads-lifecycle.ts's header comment): a showBanner() call made while
+// M1 regression (see adsLifecycle.ts's header comment): a showBanner() call made while
 // initAds() is still pending must not be dropped — it must fire once init resolves.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,7 +24,7 @@ describe('showBannerWhenReady', () => {
     let resolveInit!: () => void
     initAds.mockReturnValue(new Promise<void>((resolve) => { resolveInit = resolve }))
 
-    const { showBannerWhenReady } = await import('./ads-lifecycle')
+    const { showBannerWhenReady } = await import('./adsLifecycle')
 
     const call = showBannerWhenReady(true) // fired before initAds() has resolved — the old bug's trigger
     await Promise.resolve()
@@ -39,7 +39,7 @@ describe('showBannerWhenReady', () => {
 
   it('reuses one initAds() call across repeated show/hide requests', async () => {
     initAds.mockResolvedValue(undefined)
-    const { showBannerWhenReady } = await import('./ads-lifecycle')
+    const { showBannerWhenReady } = await import('./adsLifecycle')
 
     await showBannerWhenReady(true)
     await showBannerWhenReady(false)

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAudioBufferLoader } from './loader'
-import { createMockAudioBuffer } from './test-support/mock-audio-context'
+import { createMockAudioBuffer } from './test-support/mockAudioContext'
 
 afterEach(() => {
   vi.unstubAllGlobals()

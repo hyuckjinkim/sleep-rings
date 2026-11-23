@@ -19,7 +19,7 @@ vi.mock('../mobile/notifications', async (importOriginal) => ({
   },
 }))
 const shortcutTap = vi.hoisted(() => ({ fire: () => {} }))
-vi.mock('../mobile/app-shortcuts', () => ({
+vi.mock('../mobile/appShortcuts', () => ({
   setPlayLastMixShortcut: vi.fn(),
   onPlayLastMixShortcut: (cb: () => void) => {
     shortcutTap.fire = cb
@@ -27,7 +27,7 @@ vi.mock('../mobile/app-shortcuts', () => ({
   },
 }))
 const siriIntent = vi.hoisted(() => ({ fire: () => {} }))
-vi.mock('../mobile/app-intents', () => ({
+vi.mock('../mobile/appIntents', () => ({
   onPlayLastMixIntent: (cb: () => void) => {
     siriIntent.fire = cb
     return () => {}

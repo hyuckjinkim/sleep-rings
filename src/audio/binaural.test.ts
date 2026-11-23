@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderBinauralBuffer } from './binaural'
 import { MASTER_TARGET_RMS } from './noise'
-import { createMockAudioBuffer } from './test-support/mock-audio-context'
+import { createMockAudioBuffer } from './test-support/mockAudioContext'
 
 const SAMPLE_RATE = 48000
 // Binaural now targets 0.7x the shared master RMS for equal-loudness (see binaural.ts) rather than

@@ -6,10 +6,10 @@ import android.content.Intent
 import io.capawesome.capacitorjs.plugins.appshortcuts.AppShortcutsPlugin
 
 // The widget and the Quick Settings tile open the app exactly like the "Play last mix" launcher
-// shortcut (src/mobile/app-shortcuts.ts): an ACTION_VIEW intent carrying the shortcut id, which
+// shortcut (src/mobile/appShortcuts.ts): an ACTION_VIEW intent carrying the shortcut id, which
 // AppShortcutsPlugin turns into its "click" event, so JS reuses playLastMix(). No data URI — the
 // App plugin would report that as a link open.
-private const val PLAY_LAST_MIX_SHORTCUT_ID = "play-last-mix" // = PLAY_LAST_MIX_SHORTCUT_ID in app-shortcuts.ts
+private const val PLAY_LAST_MIX_SHORTCUT_ID = "play-last-mix" // = PLAY_LAST_MIX_SHORTCUT_ID in appShortcuts.ts
 
 fun playLastMixIntent(context: Context): Intent =
     Intent(Intent.ACTION_VIEW, null, context, MainActivity::class.java)

@@ -26,7 +26,7 @@ import {
   NOISE_BUFFER_SECONDS,
   renderNoiseBuffer,
 } from './noise'
-import { createMockAudioBuffer } from './test-support/mock-audio-context'
+import { createMockAudioBuffer } from './test-support/mockAudioContext'
 
 const SAMPLE_RATE = 48000
 const LENGTH = 4800 // 0.1s — enough for sanity checks without a slow test
@@ -90,7 +90,7 @@ describe('nature generators are RMS-matched to the existing noise colors (E3 §7
   // Mirrors noise.ts's internal MASTER_TARGET_RMS — duplicated here as the expected value under
   // test, not imported, so this catches the target drifting silently. See noise.ts for why 0.12.
   const NATURE_TARGET_RMS = 0.12
-  const DEFAULT_SECONDS = 10 // matches sound-engine.ts's NOISE_SECONDS default (rain/stream use it)
+  const DEFAULT_SECONDS = 10 // matches soundEngine.ts's NOISE_SECONDS default (rain/stream use it)
 
   it.each([
     // wind/waves bake exactly one amplitude-swell cycle per buffer (see NOISE_BUFFER_SECONDS) —

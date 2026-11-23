@@ -3,7 +3,7 @@
 //   node node_modules/@capgo/capacitor-app-intents/scripts/generate-app-shortcuts.mjs \
 //     --config ios/App/app-shortcuts.config.json --output ios/App/App/CapgoGeneratedAppShortcuts.swift
 // (then re-add this header). UNVERIFIED: written without Xcode, never compiled or run. Each phrase
-// dispatches "playLastMix" to JavaScript (src/mobile/app-intents.ts); openAppWhenRun is true.
+// dispatches "playLastMix" to JavaScript (src/mobile/appIntents.ts); openAppWhenRun is true.
 #if canImport(AppIntents)
 import AppIntents
 import CapgoCapacitorAppIntents

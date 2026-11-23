@@ -16,7 +16,7 @@ import { useMixStore, emptyMix, defaultOrbit } from '../mixer/store'
 import { soundEngine } from '../mixer/engine/instance'
 import type { Mix } from '../mixer/types'
 import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
-import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { cancelNativeWakeAlarm } from '../mobile/wakeAlarm'
 import { Capacitor } from '@capacitor/core'
 import { usePlanStore } from '../plan'
 
@@ -24,8 +24,8 @@ vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
   cancelReminder: vi.fn(),
 }))
-vi.mock('../mobile/wake-alarm', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../mobile/wake-alarm')>()),
+vi.mock('../mobile/wakeAlarm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/wakeAlarm')>()),
   cancelNativeWakeAlarm: vi.fn(),
 }))
 

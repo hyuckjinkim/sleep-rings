@@ -7,7 +7,7 @@
 // repeatedly. That's enforced by where the caller mounts this, not by this module.
 import { Capacitor } from '@capacitor/core'
 import { AdMob, AdmobConsentStatus, BannerAdPosition, BannerAdSize } from '@capacitor-community/admob'
-import { AD_CONFIG } from './ad-config'
+import { AD_CONFIG } from './adConfig'
 
 export type BannerPosition = 'top' | 'bottom'
 

@@ -10,7 +10,7 @@ import { NURSERY_VOLUME_CAP } from '../sleep/persistence'
 const showBannerWhenReady = vi.fn().mockResolvedValue(undefined)
 const hideBanner = vi.fn().mockResolvedValue(undefined)
 
-vi.mock('./ads-lifecycle', () => ({
+vi.mock('./adsLifecycle', () => ({
   showBannerWhenReady: (...args: unknown[]) => showBannerWhenReady(...args),
   hideBanner: (...args: unknown[]) => hideBanner(...args),
 }))

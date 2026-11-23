@@ -2,7 +2,7 @@
 // stops audio; this only blacks out the display after N minutes of no pointer/key input. Audio
 // keeps playing straight through a dim — this module never touches soundEngine.
 import { create } from 'zustand'
-import { acquireWakeLock, releaseWakeLock } from './wake-lock'
+import { acquireWakeLock, releaseWakeLock } from './wakeLock'
 import { loadDimMinutes, saveDimMinutes } from './persistence'
 
 export type DimMinutes = 5 | 10 | 30 | null // null = "사용 안 함" / off

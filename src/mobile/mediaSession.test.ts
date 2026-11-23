@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { initMediaSession, setNowPlaying } from './media-session'
-import type { BackgroundAudioTarget } from './background-audio'
+import { initMediaSession, setNowPlaying } from './mediaSession'
+import type { BackgroundAudioTarget } from './backgroundAudio'
 
 function makeTarget(): BackgroundAudioTarget {
   return { onEnterBackground: vi.fn(), onEnterForeground: vi.fn() }

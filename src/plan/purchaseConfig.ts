@@ -5,9 +5,9 @@ import type { Plan } from './types'
  * RevenueCat project + store products exist (owner manual steps, §7). These are public/client
  * keys (safe to ship, comparable to a Stripe *publishable* key — RevenueCat's own docs class them
  * this way), not secrets, but they still gate real StoreKit/Play Billing calls: leave both blank
- * and purchase-adapter.ts's getPurchaseAdapter() falls back to localMockPurchaseAdapter, same
- * fail-safe shape as src/ads/ad-config.ts's useTestAds. No `as const` here (unlike ad-config.ts) —
- * purchase-adapter.test.ts mutates these strings to exercise the fallback without a Capacitor
+ * and purchaseAdapter.ts's getPurchaseAdapter() falls back to localMockPurchaseAdapter, same
+ * fail-safe shape as src/ads/adConfig.ts's useTestAds. No `as const` here (unlike adConfig.ts) —
+ * purchaseAdapter.test.ts mutates these strings to exercise the fallback without a Capacitor
  * bridge in jsdom.
  */
 export const PURCHASE_CONFIG: { revenueCatApiKey: { android: string; ios: string } } = {

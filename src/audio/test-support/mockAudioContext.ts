@@ -1,5 +1,5 @@
 // Minimal Web Audio mock for unit tests. jsdom ships no Web Audio API at all, so engine tests
-// inject this instead — it satisfies the EngineAudioContext adapter surface from web-audio-types.ts.
+// inject this instead — it satisfies the EngineAudioContext adapter surface from webAudioTypes.ts.
 import { vi } from 'vitest'
 import type {
   EngineAudioBuffer,
@@ -11,7 +11,7 @@ import type {
   EngineGainNode,
   EnginePannerNode,
   EngineStereoPannerNode,
-} from '../web-audio-types'
+} from '../webAudioTypes'
 
 function createParam(initial = 0): EngineAudioParam {
   const param: EngineAudioParam = {

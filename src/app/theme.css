@@ -121,7 +121,7 @@ body {
      3) 명시 라이트                  → :root[data-theme='light']
      4) 시스템 라이트                → @media (prefers-color-scheme: light) :root:not([data-theme])
    (3)과 (4)의 값은 반드시 같게 유지할 것 — light-dark()는 구형 Android WebView에서 미지원이라 복제한다.
-   data-theme은 index.html 인라인 스크립트와 src/app/theme-mode.ts가 <html>에 붙인다.
+   data-theme은 index.html 인라인 스크립트와 src/app/themeMode.ts가 <html>에 붙인다.
    대비 검증(WCAG AA 4.5:1, 본문 텍스트 3종 × 배경 3단계 × 양 테마) 결과는 docs/design/visual-theme.md 참고. */
 :root {
   color-scheme: dark;

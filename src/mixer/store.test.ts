@@ -5,14 +5,14 @@ import { catalog } from '../library/catalog'
 import { usePlanStore } from '../plan'
 import type { Sound } from './types'
 import { ALARM_NOTIFICATION_ID, BEDTIME_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
-import { ALARM_ON_TIME_MS, NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { ALARM_ON_TIME_MS, NATIVE_ALARM_DELAY_MS, cancelNativeWakeAlarm } from '../mobile/wakeAlarm'
 
 vi.mock('../mobile/notifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../mobile/notifications')>()),
   cancelReminder: vi.fn(),
 }))
-vi.mock('../mobile/wake-alarm', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../mobile/wake-alarm')>()),
+vi.mock('../mobile/wakeAlarm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../mobile/wakeAlarm')>()),
   cancelNativeWakeAlarm: vi.fn(),
 }))
 

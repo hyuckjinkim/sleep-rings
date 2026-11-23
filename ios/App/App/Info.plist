@@ -62,7 +62,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<!-- AdMob (docs/ads-setup.md) — Google's official test App ID. Replace with the real AdMob App
-	     ID (ca-app-pub-...~...) once issued; ad UNIT IDs live in src/ads/ad-config.ts. -->
+	     ID (ca-app-pub-...~...) once issued; ad UNIT IDs live in src/ads/adConfig.ts. -->
 	<key>GADIsAdManagerApp</key>
 	<true/>
 	<key>GADApplicationIdentifier</key>

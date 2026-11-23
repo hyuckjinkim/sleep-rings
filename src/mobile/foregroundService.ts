@@ -1,7 +1,7 @@
 // Android-only: keeps the process (and the WebView's Web Audio graph) alive while backgrounded
 // by running a foreground service with a persistent notification. See docs/android-build.md
 // "백그라운드 재생" and audio-engine.md §6 1안. iOS has no equivalent — UIBackgroundModes: audio
-// (Info.plist) + the silent <audio> keep-alive in background-audio.ts cover it there.
+// (Info.plist) + the silent <audio> keep-alive in backgroundAudio.ts cover it there.
 import { Capacitor } from '@capacitor/core'
 import { ForegroundService, Importance } from '@capawesome-team/capacitor-android-foreground-service'
 

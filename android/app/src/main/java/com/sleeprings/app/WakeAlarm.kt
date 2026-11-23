@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 
 /**
  * Closed-app wake alarm: AlarmManager.setAlarmClock wakes WakeAlarmReceiver, which starts
- * WakeAlarmService to ring. JS (src/mobile/wake-alarm.ts) arms and disarms it in step with the
+ * WakeAlarmService to ring. JS (src/mobile/wakeAlarm.ts) arms and disarms it in step with the
  * in-app alarm. The trigger time is kept in SharedPreferences only to re-arm after a reboot.
  */
 object WakeAlarm {

@@ -6,7 +6,7 @@ import { WAKE_SOUNDS, emptyMix, startPlayback, useMixStore } from '../mixer/stor
 import { soundEngine } from '../mixer/engine/instance'
 import { startKeepAliveAudio } from '../mobile'
 import { ALARM_NOTIFICATION_ID, cancelReminder } from '../mobile/notifications'
-import { cancelNativeWakeAlarm } from '../mobile/wake-alarm'
+import { cancelNativeWakeAlarm } from '../mobile/wakeAlarm'
 import { canUseSound, getPlan } from '../plan'
 import type { Mix } from '../mixer/types'
 

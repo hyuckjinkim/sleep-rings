@@ -4,7 +4,7 @@
 // WebView (Android, all versions this app targets) and WKWebView from iOS 15+ — so a native
 // plugin would add a dependency for zero extra capability. No-ops entirely on platforms without
 // the API (older WebViews / desktop browsers without it).
-import type { BackgroundAudioTarget } from './background-audio'
+import type { BackgroundAudioTarget } from './backgroundAudio'
 import iconUrl from '../../assets/icon.svg?no-inline'
 
 const APP_NAME = 'SleepRings'
@@ -22,7 +22,7 @@ export function setNowPlaying(mixName: string | null): void {
   navigator.mediaSession.metadata = new MediaMetadata({ title, artist: APP_NAME, artwork: ARTWORK })
 }
 
-/** Wires lock-screen play/pause to the same foreground/background hooks background-audio.ts
+/** Wires lock-screen play/pause to the same foreground/background hooks backgroundAudio.ts
  * already drives — reusing BackgroundAudioTarget instead of a new interface. Call once at
  * startup next to initBackgroundAudio(soundEngine). Returns a cleanup fn. */
 export function initMediaSession(target: BackgroundAudioTarget, mixName: string | null = null): () => void {

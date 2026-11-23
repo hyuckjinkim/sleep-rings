@@ -33,7 +33,7 @@ import {
   canScheduleNativeWakeAlarm,
   openExactAlarmSettings,
   scheduleAlarmBackup,
-} from './wake-alarm'
+} from './wakeAlarm'
 
 const TEXT = { title: 'Wake alarm', body: "It's your wake time." }
 const AT = new Date('2026-01-02T07:00:00').getTime()

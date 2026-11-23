@@ -1,7 +1,7 @@
 // Closed-app wake alarm on iOS 26+ through AlarmKit. This is the iOS side of
-// src/mobile/wake-alarm.ts, with the same "WakeAlarm" JS interface as the Android
+// src/mobile/wakeAlarm.ts, with the same "WakeAlarm" JS interface as the Android
 // WakeAlarmPlugin.kt. JS decides when to arm and disarm it (the double-alarm rule is in
-// wake-alarm.ts). Below iOS 26 every method reports unavailable, except cancel, which no-ops.
+// wakeAlarm.ts). Below iOS 26 every method reports unavailable, except cancel, which no-ops.
 // JS then keeps the stage 3 backup notification.
 // UNVERIFIED: written without Xcode against the AlarmKit docs, never compiled or run.
 //

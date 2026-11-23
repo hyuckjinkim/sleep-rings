@@ -9,7 +9,7 @@ import { addListenerSafely } from './listener'
 export const ALARM_NOTIFICATION_ID = 1001
 export const BEDTIME_NOTIFICATION_ID = 1002
 
-/** Translated by the caller — this module stays i18n-free, like foreground-service.ts. */
+/** Translated by the caller — this module stays i18n-free, like foregroundService.ts. */
 export interface ReminderText {
   title: string
   body: string

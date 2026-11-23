@@ -7,7 +7,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 
-/** JS bridge for the closed-app wake alarm — src/mobile/wake-alarm.ts. */
+/** JS bridge for the closed-app wake alarm — src/mobile/wakeAlarm.ts. */
 @CapacitorPlugin(name = "WakeAlarm")
 class WakeAlarmPlugin : Plugin() {
     /** { at: epoch ms, soundId, fadeSec }. soundId is unused natively: see WakeAlarmService.startPlayer. */

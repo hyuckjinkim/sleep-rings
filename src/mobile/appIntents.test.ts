@@ -20,7 +20,7 @@ beforeEach(() => {
 
 describe('Siri / App Intents routing', () => {
   it('routes the playLastMix intent (live or drained after a cold launch) to the handler', async () => {
-    const { onPlayLastMixIntent } = await import('./app-intents')
+    const { onPlayLastMixIntent } = await import('./appIntents')
     const onPlay = vi.fn()
     onPlayLastMixIntent(onPlay)
     intentHandler!({ id: '1', name: 'somethingElse', params: {} })
@@ -30,7 +30,7 @@ describe('Siri / App Intents routing', () => {
   })
 
   it('removes the listener on cleanup, even before it finished registering', async () => {
-    const { onPlayLastMixIntent } = await import('./app-intents')
+    const { onPlayLastMixIntent } = await import('./appIntents')
     const cleanup = onPlayLastMixIntent(vi.fn())
     cleanup()
     const handle = await useAppIntentsListener.mock.results[0].value
@@ -39,7 +39,7 @@ describe('Siri / App Intents routing', () => {
   })
 
   it('does nothing on Android or web (no App Intents there)', async () => {
-    const { onPlayLastMixIntent } = await import('./app-intents')
+    const { onPlayLastMixIntent } = await import('./appIntents')
     platform.name = 'android'
     onPlayLastMixIntent(vi.fn())
     platform.name = 'web'

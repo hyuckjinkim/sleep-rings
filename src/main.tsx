@@ -5,7 +5,7 @@ import './app/theme.css'
 import i18n from './i18n'
 import { initBackgroundAudio, initMediaSession, setNowPlaying } from './mobile'
 import { setWidgetMixName } from './mobile/widget'
-import { isMixPlaying } from './mobile/playback-state'
+import { isMixPlaying } from './mobile/playbackState'
 import { useMixStore } from './mixer/store'
 import { UNTITLED_MIX_NAME } from './mixer/types'
 import { soundEngine } from './mixer/engine/instance'
@@ -13,7 +13,7 @@ import { registerServiceWorker } from './app/pwa'
 import { restoreAlarm } from './sleep/persistence'
 
 // Once for the app's lifetime — safe on plain web too (@capacitor/app ships a Page Visibility
-// web fallback), see docs/android-build.md §4. What counts as playing: src/mobile/playback-state.ts.
+// web fallback), see docs/android-build.md §4. What counts as playing: src/mobile/playbackState.ts.
 initBackgroundAudio(soundEngine, {
   isPlaying: () => isMixPlaying(useMixStore.getState()),
   subscribe: (onChange) => useMixStore.subscribe(onChange),

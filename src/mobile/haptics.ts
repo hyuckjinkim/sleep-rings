@@ -6,7 +6,7 @@
 //
 // Not wired into src/mixer/store.ts (that file belongs to another worker) — see the report to
 // "main" for the exact call sites (addPlacement / removePlacement+restoreLastRemoved /
-// toggleLocked) and the one-line snippet each needs, same pattern as background-audio.ts's
+// toggleLocked) and the one-line snippet each needs, same pattern as backgroundAudio.ts's
 // decoupling from the engine it drives.
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
 

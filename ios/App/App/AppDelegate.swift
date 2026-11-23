@@ -52,7 +52,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         // "Play last mix" widget tap (ios/App/SleepRingsWidget): replay it as the launcher shortcut's
-        // quick action, so JS takes the same route (app-shortcuts.ts → playLastMix()). Not forwarded
+        // quick action, so JS takes the same route (appShortcuts.ts → playLastMix()). Not forwarded
         // to the App plugin: as a launch URL it would make setPlayLastMixShortcut skip this session.
         // Async as above, for a cold launch. UNVERIFIED: written without Xcode, never built.
         if url.scheme == "sleeprings" && url.host == "play-last-mix" {
