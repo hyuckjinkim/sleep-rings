@@ -3,6 +3,7 @@ import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { enginePlacement, useMixStore } from './store'
 import { polarToUnit } from './geometry'
+import { isInDeleteZone } from './deleteZone'
 import { soundEngine } from './engine/instance'
 import { soundCategory, soundName } from '../library/catalog'
 import { Orb } from './Orb'
@@ -15,13 +16,6 @@ interface OrbitFieldProps {
   fieldRef: RefObject<HTMLDivElement | null>
   selectedId: string | null
   onSelect: (id: string) => void
-}
-
-/** Bottom band (as a fraction of field height) where dropping/releasing an orb deletes it. */
-export function isInDeleteZone(fieldRef: RefObject<HTMLDivElement | null>, clientY: number): boolean {
-  const rect = fieldRef.current?.getBoundingClientRect()
-  if (!rect) return false
-  return clientY >= rect.bottom - rect.height * 0.22
 }
 
 export function OrbitField({ fieldRef, selectedId, onSelect }: OrbitFieldProps) {

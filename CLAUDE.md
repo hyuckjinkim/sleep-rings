@@ -12,7 +12,7 @@
 
 ## 검사
 
-- 한 번에: `npm run check`(타입·린트·테스트). 린트 경고 13건(React Compiler 계열 9 등)은 알려진 것(`.styleguide` Sleep-Rings §3).
+- 한 번에: `npm run check`(타입·린트·테스트). 린트는 경고도 0 으로 둔다.
 - 타입: `npm run typecheck`. `tsc -b` 는 쓰지 않는다 — `tsconfig.tsbuildinfo` 가 남는다.
 - 테스트: `npx vitest run --pool=forks --maxWorkers=1`(WSL 에서 병렬 실행이 타임아웃 난다). 결과의 테스트 파일 수가 `find src -name '*.test.ts*' | wc -l` 과 같은지 본다.
 - 빌드: `npx vite build` · Android: `cd android && ./gradlew assembleDebug`.

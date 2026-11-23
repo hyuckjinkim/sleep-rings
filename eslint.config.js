@@ -25,13 +25,8 @@ export default defineConfig([
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
-      // React Compiler 계열 규칙(react-hooks v7). 도입 때 FieldDock·SleepControls 9곳이 걸렸다 — 고치려면
-      // 렌더 동작을 바꾸는 리팩터링이라 화면 확인과 함께 한다. 그때까지 경고(.styleguide Sleep-Rings §3).
-      'react-hooks/refs': 'warn',
-      'react-hooks/purity': 'warn',
-      // 컴포넌트 파일이 상수·함수를 함께 내보내면 개발 중 HMR 만 전체 새로고침으로 바뀐다(빌드 결과와 무관).
-      // 4곳 — 파일을 가를 때 고친다.
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // 컴포넌트 파일은 컴포넌트만 내보낸다(HMR). 순수 함수는 geometry.ts·deleteZone.ts·soundIcons.ts 로.
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
   },
   {

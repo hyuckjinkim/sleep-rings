@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMixStore } from './store'
-import { spreadAngle, unitToPolar } from './geometry'
+import { classifyDrag, spreadAngle, unitToPolar } from './geometry'
+import type { DragIntent } from './geometry'
 import { catalog, isAvailable, orbColor } from '../library/catalog'
 import { SoundIcon } from '../icons/SoundIcon'
 import { canUseSound, requiredPlan, usePlanStore } from '../plan'
@@ -10,24 +11,9 @@ import { UpgradeSheet } from '../plan/UpgradeSheet'
 import type { Plan } from '../plan'
 import type { Category, Locale, Sound } from './types'
 
-const DRAG_THRESHOLD_PX = 4
 
 interface PaletteProps {
   fieldRef: RefObject<HTMLDivElement | null>
-}
-
-export type DragIntent = 'tap' | 'pan' | 'place'
-
-/**
- * Classify a chip pointer gesture once total movement clears DRAG_THRESHOLD_PX. Horizontal-
- * dominant movement pans the palette strip (chips already use pointerdown->field drag to place
- * an orb, so panning needs its own axis to avoid colliding with that gesture); vertical/diagonal
- * movement keeps the existing field-placement drag. Below threshold it's still a tap. Pure
- * function so the direction split can be unit-tested without pointer-event plumbing.
- */
-export function classifyDrag(dx: number, dy: number, threshold = DRAG_THRESHOLD_PX): DragIntent {
-  if (Math.hypot(dx, dy) <= threshold) return 'tap'
-  return Math.abs(dx) > Math.abs(dy) ? 'pan' : 'place'
 }
 
 /** B2: a locked-padlock badge for plan-gated chips. Inline SVG (no new asset file — this is a

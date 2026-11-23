@@ -82,3 +82,24 @@ export function spreadAngle(existing: readonly number[]): number {
   }
   return angle
 }
+
+// Orb.tsx(핀치)와 OrbControls.tsx 의 궤도 모양 슬라이더(핀치가 안 될 때 대안)가 함께 쓴다.
+export function shapeForEccentricity(eccentricity: number): OrbitShape {
+  return eccentricity < 0.05 ? { kind: 'circle' } : { kind: 'ellipse', eccentricity, tilt: 0 }
+}
+
+const DRAG_THRESHOLD_PX = 4
+
+export type DragIntent = 'tap' | 'pan' | 'place'
+
+/**
+ * Classify a chip pointer gesture once total movement clears DRAG_THRESHOLD_PX. Horizontal-
+ * dominant movement pans the palette strip (chips already use pointerdown->field drag to place
+ * an orb, so panning needs its own axis to avoid colliding with that gesture); vertical/diagonal
+ * movement keeps the existing field-placement drag. Below threshold it's still a tap. Pure
+ * function so the direction split can be unit-tested without pointer-event plumbing.
+ */
+export function classifyDrag(dx: number, dy: number, threshold = DRAG_THRESHOLD_PX): DragIntent {
+  if (Math.hypot(dx, dy) <= threshold) return 'tap'
+  return Math.abs(dx) > Math.abs(dy) ? 'pan' : 'place'
+}

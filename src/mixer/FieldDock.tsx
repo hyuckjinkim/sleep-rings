@@ -77,8 +77,11 @@ export function FieldDock({ children, onSelect }: { children: ReactNode; onSelec
   const gesture = useRef<Gesture | null>(null)
   const activePointers = useRef(new Set<number>())
   const pendingMini = useRef<boolean | null>(null)
-  viewRef.current = view
-  countRef.current = placementCount
+  // 렌더 중이 아니라 커밋 직후에 맞춘다(React Compiler react-hooks/refs). 아래 레이아웃 효과보다 먼저 선언해 먼저 돈다.
+  useLayoutEffect(() => {
+    viewRef.current = view
+    countRef.current = placementCount
+  })
 
   function miniFieldWidth(): number {
     return miniSize.current ?? Math.min(window.innerWidth * 0.42, 160)
@@ -253,16 +256,14 @@ export function FieldDock({ children, onSelect }: { children: ReactNode; onSelec
     window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
   }
 
-  function startGesture(kind: Gesture['kind']) {
-    return (e: React.PointerEvent<HTMLDivElement>) => {
-      const r = dockRef.current?.getBoundingClientRect()
-      const field = dockRef.current?.querySelector<HTMLElement>('.mixer-field')
-      if (!r || progress.current < 1) return
-      e.currentTarget.setPointerCapture(e.pointerId)
-      gesture.current = { kind, offsetX: e.clientX - r.left, offsetY: e.clientY - r.top, startX: e.clientX, startW: field?.offsetWidth ?? 0 }
-      pos.current = { x: r.left, y: r.top } // pin top-left so a resize grows right/down from here
-      dockRef.current?.classList.add('is-morphing') // solid tint instead of blur while moving
-    }
+  function startGesture(kind: Gesture['kind'], e: React.PointerEvent<HTMLDivElement>) {
+    const r = dockRef.current?.getBoundingClientRect()
+    const field = dockRef.current?.querySelector<HTMLElement>('.mixer-field')
+    if (!r || progress.current < 1) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    gesture.current = { kind, offsetX: e.clientX - r.left, offsetY: e.clientY - r.top, startX: e.clientX, startW: field?.offsetWidth ?? 0 }
+    pos.current = { x: r.left, y: r.top } // pin top-left so a resize grows right/down from here
+    dockRef.current?.classList.add('is-morphing') // solid tint instead of blur while moving
   }
 
   // ponytail: position/size aren't re-clamped on viewport resize/rotation; add a resize listener
@@ -314,7 +315,7 @@ export function FieldDock({ children, onSelect }: { children: ReactNode; onSelec
       )}
       <div ref={dockRef} className={className}>
         {isFloating && (
-          <div className="mixer-field-dock-handle" role="separator" aria-label={t('mixer.field.move')} onPointerDown={startGesture('move')} {...gestureHandlers}>
+          <div className="mixer-field-dock-handle" role="separator" aria-label={t('mixer.field.move')} onPointerDown={(e) => startGesture('move', e)} {...gestureHandlers}>
             <svg viewBox="0 0 24 8" width="24" height="8" aria-hidden="true">
               <path d="M2 2h20M2 6h20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -352,7 +353,7 @@ export function FieldDock({ children, onSelect }: { children: ReactNode; onSelec
         {view === 'strip' && <PlacedStrip onSelect={onSelect} />}
         {children}
         {isFloating && view === 'orbit' && (
-          <div className="mixer-field-dock-resize" role="separator" aria-label={t('mixer.field.resize')} onPointerDown={startGesture('resize')} {...gestureHandlers}>
+          <div className="mixer-field-dock-resize" role="separator" aria-label={t('mixer.field.resize')} onPointerDown={(e) => startGesture('resize', e)} {...gestureHandlers}>
             <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
               <path d="M11 4 4 11M11 8l-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>

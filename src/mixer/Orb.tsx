@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { DEFAULT_ORBIT_SPEED, useMixStore } from './store'
-import { angleDelta, clamp, polarToUnit, unitToPolar } from './geometry'
+import { angleDelta, clamp, polarToUnit, shapeForEccentricity, unitToPolar } from './geometry'
 import { SoundIcon } from '../icons/SoundIcon'
 import { orbColor } from '../library/catalog'
 import type { Category, OrbitShape, Placement } from './types'
@@ -32,11 +32,6 @@ function fieldMetrics(fieldRef: RefObject<HTMLDivElement | null>) {
 
 function clientToUnit(clientX: number, clientY: number, m: { cx: number; cy: number; r: number }) {
   return { x: (clientX - m.cx) / m.r, y: (clientY - m.cy) / m.r }
-}
-
-// Exported for reuse by the orbit-shape slider in OrbControls.tsx (pinch-inaccessible fallback).
-export function shapeForEccentricity(eccentricity: number): OrbitShape {
-  return eccentricity < 0.05 ? { kind: 'circle' } : { kind: 'ellipse', eccentricity, tilt: 0 }
 }
 
 export function Orb({

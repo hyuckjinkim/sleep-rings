@@ -55,7 +55,7 @@ export function SleepControls() {
   const [presetName, setPresetName] = useState('')
   const hasPlacements = useMixStore((s) => s.current.placements.length > 0)
   const [shareStatus, setShareStatus] = useState<'copied' | 'failed' | null>(null)
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   const [notificationsDenied, setNotificationsDenied] = useState(false) // app-wide, so both sections
   const [exactAlarm, setExactAlarm] = useState<boolean | null>(null) // closed-app alarm, wakeAlarm.ts
   const isNative = Capacitor.isNativePlatform()

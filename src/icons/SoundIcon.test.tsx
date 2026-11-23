@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { SoundIcon, soundIconName } from './SoundIcon'
+import { SoundIcon } from './SoundIcon'
+import { soundIconName } from './soundIcons'
 
 describe('soundIconName', () => {
   it('prefers a sound-specific icon when one exists', () => {
