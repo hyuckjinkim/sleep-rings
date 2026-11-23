@@ -3,6 +3,73 @@
 `npm run release`(commit-and-tag-version)가 커밋 이력(Conventional Commits)으로 갱신한다.
 0.5.0 이하는 수동 릴리즈 기록(구 RELEASE_MANIFEST.json)을 옮긴 것으로, '참고'에 빌드 검증·후속 작업 메모가 있다.
 
+## [0.7.0](https://github.com/hyuckjinkim/sleep-rings/compare/v0.6.0...v0.7.0) (2026-11-23)
+
+### 기능
+
+* **audio:** max volume cap and nursery setting ([d6d30b3](https://github.com/hyuckjinkim/sleep-rings/commit/d6d30b37749230b39df57bad81ea8d382b73418a))
+* **mixer:** default to collapsing header, pin title + settings above it ([9fce34a](https://github.com/hyuckjinkim/sleep-rings/commit/9fce34a1295358cfafc45c68c15ccb810714c708))
+* **mixer:** gentle per-sound volume variation (paid) ([0b4ba52](https://github.com/hyuckjinkim/sleep-rings/commit/0b4ba522524970e91ffcf389322fd3f8670f94c5))
+* **mixer:** noise tone control for synthesized noise colors (paid) ([96f71a9](https://github.com/hyuckjinkim/sleep-rings/commit/96f71a981a26264c24a5500bf97cabfea7753b0b))
+* **mixer:** share a mix as a link, open shared links on web and native ([4f49a4e](https://github.com/hyuckjinkim/sleep-rings/commit/4f49a4ee8c3759884d3f5c9ed3fd29b59703e75c))
+* **mixer:** 플로팅 전환을 순간이동에서 대칭 모프로 — 빈 자리는 도크 슬롯으로 ([a6660da](https://github.com/hyuckjinkim/sleep-rings/commit/a6660dab778fa3e2206347d3f4f1a9de5f1f1d7c))
+* **mixer:** 화면 구성 4종(바텀시트·접는 헤더·미니 바·플로팅)을 설정에서 비교 ([645b863](https://github.com/hyuckjinkim/sleep-rings/commit/645b863973f840d71067a9fd49934b861fe66df9))
+* **mobile:** "play last mix" launcher shortcut ([ff07bed](https://github.com/hyuckjinkim/sleep-rings/commit/ff07bed804993ac3560c5e554962818652818c88))
+* **mobile:** Android "play last mix" home-screen widget and Quick Settings tile ([acea687](https://github.com/hyuckjinkim/sleep-rings/commit/acea6874abd6f83bbe17c129f5b17342aecd88bc))
+* **mobile:** iOS "play last mix" home-screen widget ([8d43034](https://github.com/hyuckjinkim/sleep-rings/commit/8d43034181239d2b4cb39672c2d1487d2c1a7541))
+* **mobile:** Now Playing shows the mix name, artist and app icon ([1cb6deb](https://github.com/hyuckjinkim/sleep-rings/commit/1cb6debdca811fc969005ac2a6a000dde251bf53))
+* **mobile:** Siri "Play SleepRings" / "Play last mix" via App Intents ([00ad378](https://github.com/hyuckjinkim/sleep-rings/commit/00ad378de85af4ecb8c4a523f988897744bfd2ee))
+* **settings:** 언어 선택을 한국어·English 두 버튼으로, 선택 저장·기기 언어 감지 ([09c2ffb](https://github.com/hyuckjinkim/sleep-rings/commit/09c2ffbbb4eacddb093e39ad2368a729816b03d0))
+* **sleep:** Android wake alarm that rings with the app closed ([2db6700](https://github.com/hyuckjinkim/sleep-rings/commit/2db67001ba2d7a2e0a0fff7d94dbf77b0271a811))
+* **sleep:** backup notification for the wake alarm and bedtime start ([51a15b1](https://github.com/hyuckjinkim/sleep-rings/commit/51a15b11dc21c5301a1e09a202790cc8d5dba4e7))
+* **sleep:** fade-in wake alarm while the app is running ([a95a025](https://github.com/hyuckjinkim/sleep-rings/commit/a95a025cd6587787444e06addc9573d4c09a4b66))
+* **sleep:** iOS 26 wake alarm that rings with the app closed (AlarmKit) ([81cd77f](https://github.com/hyuckjinkim/sleep-rings/commit/81cd77ff56782386ec3f67da764a7e983f88cfb8))
+* **sleep:** scheduled bedtime start while the app stays open ([32a4aaa](https://github.com/hyuckjinkim/sleep-rings/commit/32a4aaa34cec00eee7c7d9979f79ebb8ffd39f95))
+* **sleep:** start fade-in, fade-out length setting and custom h:m timer ([0177b3b](https://github.com/hyuckjinkim/sleep-rings/commit/0177b3b8baad835c0d8348b13e8ba7c4c80b1b39))
+* **theme:** 라이트/다크 모드, 배경색을 3단계로 통일, 설정에 테마·화면 구성 선택 ([ac79691](https://github.com/hyuckjinkim/sleep-rings/commit/ac796912f3ce486290800b5ee38a1bc098bff354))
+* **web:** offline PWA with a hand-written service worker ([68601f6](https://github.com/hyuckjinkim/sleep-rings/commit/68601f643194f30fb491ee1251869e5ec717f137))
+
+### 수정
+
+* **audio:** cap the summed output, fade the intro stage, cache tone dB ([974623d](https://github.com/hyuckjinkim/sleep-rings/commit/974623d00c747706332cc859230afffa39237e1a))
+* **audio:** don't suspend after an alarm dismiss while a file sound loads ([399dd8c](https://github.com/hyuckjinkim/sleep-rings/commit/399dd8caf7c9fedc413116e94f7f2bcd078faad9))
+* **audio:** reject failed sound fetches and bake a true loop crossfade ([2c4a764](https://github.com/hyuckjinkim/sleep-rings/commit/2c4a76487a4debdcfee129a97f0959394e41694f))
+* **audio:** run sleep fade on the audio clock via a dedicated night gain ([a2a05b2](https://github.com/hyuckjinkim/sleep-rings/commit/a2a05b278d23dc579eeff461a7f692263b1aec78))
+* **deps:** bump Capacitor to 8.4.3 for GHSA-rvm3-566m-v7fv ([16f1dbc](https://github.com/hyuckjinkim/sleep-rings/commit/16f1dbc8f2a1203559463c8213f666509a52b611))
+* **ios:** trust the AlarmKit prompt's answer, and describe the URL scheme exactly ([4bfd16b](https://github.com/hyuckjinkim/sleep-rings/commit/4bfd16b5cff8f5eddf079e1530d799b5c01f7e6f))
+* **library:** drop sleep/brainwave claims from binaural sound names ([da607fe](https://github.com/hyuckjinkim/sleep-rings/commit/da607fee9b3bfdad3c095249c2f82c6c261abcdd))
+* **lint:** React Compiler·react-refresh 경고 13건 정리하고 규칙을 에러로 되돌림 ([add0675](https://github.com/hyuckjinkim/sleep-rings/commit/add0675712432a1878fcd550b5e1c562990546c0))
+* **mixer:** reopen a share link later, and open one pasted into a tab ([0e11bdc](https://github.com/hyuckjinkim/sleep-rings/commit/0e11bdc98124308a0c93c3d627129c541474a1e3))
+* **mixer:** restore the saved mix once per app, not on every mount ([1e21bed](https://github.com/hyuckjinkim/sleep-rings/commit/1e21bed0ab5afbfb2761429762100f41e5212c2f))
+* **mobile:** clear a leftover keep-alive service at boot ([e062fcc](https://github.com/hyuckjinkim/sleep-rings/commit/e062fccd3f60d939ea17272c6c35ec6ce65d5a9a))
+* **mobile:** remove plugin listeners even when cleanup beats registration ([e1880dd](https://github.com/hyuckjinkim/sleep-rings/commit/e1880ddaec7528ff4fb63dfc82eeba48a4beb47c))
+* **mobile:** start the Android keep-alive service with playback, not on background ([aacaaac](https://github.com/hyuckjinkim/sleep-rings/commit/aacaaac101c8f2981b053b789bbb653fbc9ad3b4))
+* **sleep:** fire backup notifications after the in-app start, not on it ([d777cd1](https://github.com/hyuckjinkim/sleep-rings/commit/d777cd1bb5fc69cae1a30cce71ae3190207a4629))
+* **sleep:** give the iOS alarm-access button a name of its own ([6fa4861](https://github.com/hyuckjinkim/sleep-rings/commit/6fa4861df76913c5eab461220617ecc204484465))
+* **sleep:** mark the mix stopped when cancelling an alarm already ringing ([1cb71e2](https://github.com/hyuckjinkim/sleep-rings/commit/1cb71e29dbad73a5034598f08e559ff47eec7a79))
+* **sleep:** native wake alarm never rings silently, rejects bad input ([ac04d3e](https://github.com/hyuckjinkim/sleep-rings/commit/ac04d3ef0ce06984b2a4f24cc8709661d991cbc3))
+* **sleep:** never drop a wake alarm on relaunch, downgrade or a suspended clock ([ed3f887](https://github.com/hyuckjinkim/sleep-rings/commit/ed3f887819dbbf4c3bf085fdd9882108026c67c3))
+* **sleep:** never end up with no alarm, and keep it across a relaunch ([cc55bc8](https://github.com/hyuckjinkim/sleep-rings/commit/cc55bc8a4cc50b8181964c7b54036d6cbb8e012c))
+* **sleep:** restart stopped orbs when leaving the post-timer state ([9df6e24](https://github.com/hyuckjinkim/sleep-rings/commit/9df6e2479204f3690d5bf5a76e2e2a46fe9f95d5))
+* **sleep:** show the notifications-off note instead of the backup promise ([b865221](https://github.com/hyuckjinkim/sleep-rings/commit/b865221f941267131104a33b20a6f12bdc0f7bbe))
+* **sounds:** make the sound pipeline emit exactly the catalog's file paths ([0ea4731](https://github.com/hyuckjinkim/sleep-rings/commit/0ea4731f9bae461cc70392fb1c0d4d5ea82d3f82))
+* **web:** cache only HTML as the shell, never fail on a cache write ([5873511](https://github.com/hyuckjinkim/sleep-rings/commit/5873511d93fb3339b027d2ac69189db8ae87fb02))
+* **web:** keep the worker alive until a background cache write lands ([4485701](https://github.com/hyuckjinkim/sleep-rings/commit/44857018d99dd008a517b4368557d310d60639d8))
+* **web:** match cached assets ignoring Vary so the app loads offline ([675c90c](https://github.com/hyuckjinkim/sleep-rings/commit/675c90c68343b9d6a3b95c888cb3b3fe4ebbdf73))
+* **web:** precache every asset chunk at install so offline works fully ([840911b](https://github.com/hyuckjinkim/sleep-rings/commit/840911b4986f78781ce36cf575ddf356e4de3242))
+
+### 구조
+
+* **mixer:** keep UNTITLED_MIX_NAME out of the store ([9b04da7](https://github.com/hyuckjinkim/sleep-rings/commit/9b04da7bb5a0bed456ba0494a140cedf4d6a0895))
+* 두 단어 모듈 파일 이름을 kebab-case → camelCase 로 ([5e6bbd1](https://github.com/hyuckjinkim/sleep-rings/commit/5e6bbd18ed1a46dbc7f7e1e743fc198d19820595))
+
+### 문서
+
+* README 추가 — 앱 소개, 실행·테스트·모바일 빌드·릴리즈 방법 ([6d8604f](https://github.com/hyuckjinkim/sleep-rings/commit/6d8604f26af072ee5f6a39186bb613f61e2d4381))
+* README에 화면 캡처 4장 추가(assets/screenshots), 플로팅·언어 설명 갱신 ([8c9e710](https://github.com/hyuckjinkim/sleep-rings/commit/8c9e7102f8e014efd4b23a091f2a9f4b4eb435b7))
+* **research:** feature candidates and staged roadmap ([e13d95f](https://github.com/hyuckjinkim/sleep-rings/commit/e13d95fc0085c8f7c2b5c1ce8aeb86a3431e4f73))
+* visual-theme 두 문서와 roadmap-v030 머리에 상태 표시 ([0b89cfd](https://github.com/hyuckjinkim/sleep-rings/commit/0b89cfdaa3a495fbd2c77d990f256ffa479b5ace))
+
 ## [0.6.0](https://github.com/hyuckjinkim/sleep-rings/compare/v0.5.0...v0.6.0) (2026-11-17)
 
 ### 기능
