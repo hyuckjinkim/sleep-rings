@@ -1,5 +1,7 @@
 # 비주얼 테마 가이드 — SleepRings
 
+> 상태: 현행 — 색·토큰. 아이콘·배경·레이아웃은 [visual-theme-v2.md](./visual-theme-v2.md) 가 덧붙이고, 그 문서가 §8(별 개수)을 대체한다.
+
 > 토큰 정의: `src/app/theme.css` (CSS 커스텀 프로퍼티, `:root`)
 > 벤치마크 근거: `docs/research/sleep-orbit-benchmark.md` §4(비주얼) — 원본 에셋·로고는 참조하지 않고 "다크 필드 위 컬러 사운드 오브" 분위기만 벤치마크했다.
 > 데이터 모델 근거: `docs/design/architecture.md` §3 (`Category` 유니온 13종)

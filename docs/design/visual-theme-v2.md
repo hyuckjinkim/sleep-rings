@@ -1,5 +1,7 @@
 # 비주얼 테마 v2 — 아이콘 세트 · 배경 · 디자인 시스템
 
+> 상태: 현행 — [visual-theme.md](./visual-theme.md) 위에 얹는 문서(v1 을 대체하지 않는다).
+
 **대상**: SleepRings v0.3.0 / **작성**: design-lead / **선행 문서**: [visual-theme.md](./visual-theme.md)
 
 v1은 **색과 토큰**을 정의했다. v2는 그 위에 **형태(아이콘)·깊이(배경)·위계(레이아웃)** 를 얹는다.
