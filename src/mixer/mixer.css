@@ -526,8 +526,12 @@
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: 80vh; /* the orbit-mode/speed/shape rows can push this tall on short viewports */
+  /* 패널이 열리면 Mixer 가 필드를 패널 위 공간으로 줄인다. 패널이 화면의 절반을 넘으면 작은 화면(360x640)에서
+     필드가 1/4 로 줄어 오브를 누르기 어렵다 — 높이를 절반 아래로 묶고 나머지 행은 패널 안에서 스크롤한다. */
+  max-height: 45vh;
+  max-height: 45dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--so-bg-overlay, #1a2238);
   border-top: 1px solid var(--so-border-subtle, #232b45);
   border-radius: var(--so-radius-lg, 20px) var(--so-radius-lg, 20px) 0 0;
@@ -540,6 +544,16 @@
   transition:
     opacity var(--so-duration-base, 300ms) var(--so-ease-gentle, ease),
     transform var(--so-duration-base, 300ms) var(--so-ease-gentle, ease);
+}
+
+.mixer-controls > .mixer-controls-row:first-child {
+  /* 제목·✕ 줄은 패널 안을 스크롤해도 위에 남긴다. */
+  position: sticky;
+  top: calc(-1 * var(--so-space-4, 1rem));
+  z-index: 1;
+  margin-top: calc(-1 * var(--so-space-4, 1rem));
+  padding-top: var(--so-space-4, 1rem);
+  background: var(--so-bg-overlay, #1a2238);
 }
 
 .mixer-controls-divider {
