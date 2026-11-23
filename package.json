@@ -16,9 +16,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "web": "vite build && vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "web": "VITE_TEST_PLAN=tier10000 vite build && vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "web:tunnel": "cloudflared tunnel --url http://127.0.0.1:4173",
-    "deploy:web": "vite build && npx -y wrangler@4.164.0 deploy",
+    "deploy:web": "VITE_TEST_PLAN=tier10000 vite build && npx -y wrangler@4.164.0 deploy",
     "build:ios": "vite build && npx cap sync ios",
     "release": "commit-and-tag-version",
     "build:android": "vite build && npx cap sync android && cd android && ./gradlew bundleRelease assembleRelease"
