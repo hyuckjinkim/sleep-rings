@@ -184,15 +184,14 @@
   "plan": {
     "tier": {
       "free": "Free",
-      "tier2000": "the ₩2,000 plan",
-      "tier5000": "the ₩5,000 plan",
-      "tier10000": "the ₩10,000 plan"
+      "tier2000": "Pro",
+      "tier5000": "Pro Max"
     },
     "upgrade": {
       "title": "Upgrade needed",
       "body": "{{sound}} is available from {{tier}}.",
       "close": "OK",
-      "buy": "Buy for {{price}}",
+      "buy": "{{price}} · one-time purchase, yours to keep",
       "purchasing": "Purchasing…",
       "restore": "Restore purchases",
       "restoring": "Restoring…",

@@ -22,7 +22,7 @@ describe('usePlanStore', () => {
     localStorage.setItem('so.plan', 'not-a-plan')
     // usePlanStore already initialized at import time with whatever was there then; simulate a
     // fresh read the same way boot does.
-    expect(['free', 'tier2000', 'tier5000', 'tier10000']).toContain(getPlan())
+    expect(['free', 'tier2000', 'tier5000']).toContain(getPlan())
   })
 })
 

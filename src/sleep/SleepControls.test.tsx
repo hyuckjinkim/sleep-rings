@@ -200,7 +200,7 @@ describe('wake alarm controls', () => {
   })
 
   it('after a downgrade, a picked wake sound the plan lost falls back to the free one (Set still arms)', () => {
-    usePlanStore.setState({ plan: 'tier10000' })
+    usePlanStore.setState({ plan: 'tier5000' })
     render(<SleepControls />)
     fireEvent.click(screen.getByRole('button', { name: '새소리' }))
     act(() => usePlanStore.setState({ plan: 'free' }))

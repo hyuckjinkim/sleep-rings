@@ -67,7 +67,7 @@ usage 정책: opus는 **설계 1회 + 페이즈 경계 배치 리뷰**에만. �
 2. **ffmpeg 설치** (`sudo apt-get install ffmpeg`) 후 `node scripts/sounds/process.mjs` 실행 → loudnorm·루프·AAC 변환
 3. **개인정보처리방침 연락 이메일·시행일 기입** — `docs/store/privacy-policy-{ko,en}.md`의 placeholder 교체 (양대 스토어 제출 하드 요구사항, 최종 리뷰 L-2)
 3-1. **AdMob 계정·앱 등록·광고 단위 ID 발급** 후 테스트 ID 교체 — `docs/ads-setup.md`
-3-2. **RevenueCat 계정·구독 상품 3종(2,000·5,000·10,000원) 등록** 후 SDK 연결 — `docs/plan-tiers.md`. ⚠️ 10,000원을 빼면 안 된다: v0.4.0에서 이 티어에 실제 콘텐츠 3종(새소리·귀뚜라미·싱잉볼)이 들어갔고, 상품이 없으면 구매 시트는 뜨지만 매칭 상품이 없어 **영구 구매 실패**한다(3종 등록 또는 해당 사운드 티어 하향 택1)
+3-2. **RevenueCat 계정·평생 1회 구매 상품 2종(Pro 2,000·Pro Max 5,000원) 등록** 후 SDK 연결 — `docs/plan-tiers.md`. 패키지·entitlement 식별자는 `tier2000`/`tier5000`. 10,000원 티어는 2026-11-24에 폐지했다(아래 메모)
 3-3. **iOS ATT 프롬프트·Privacy Manifest 제출값 확인**, Google UMP 동의 폼 설정 — 미비 시 심사 반려·EEA 광고 강등
 4. Android/iOS 스토어 계정·서명·제출 (P5~P6 산출물로 준비됨). 제출 전 키스토어 비밀번호 교체(`android/keystore.properties`) + 상표 공식 조회(USPTO/KIPRIS)
 
@@ -97,7 +97,7 @@ v0.1.0 카탈로그 실물은 합성 노이즈 4종(바이노럴은 타입만 �
 
 **화면 자동 꺼짐 설계 근거**: iOS/Android 모두 앱이 화면을 직접 끄는 API가 없고 wake-lock 해제도 사용자 OS 설정에 종속돼 시각 보장이 불가 → 암전 오버레이로 확정적 체감을 만들고 wake-lock 해제를 병행(OLED만 실절전).
 
-**10,000원 티어**: v0.4.0에서 콘텐츠 확보 완료(새소리·귀뚜라미·싱잉볼) → **등록 대상은 2,000·5,000·10,000원 3종**. 이 티어를 빼고 출시하면 해당 3종은 구매 경로가 막힌 채 잠긴 상태로 남는다.
+**10,000원 티어**: 2026-11-24 오너 결정: 10,000원 티어 폐지, 해당 6종(새소리·귀뚜라미·싱잉볼 + 파일 기반 정원의 비·해변·밤의 시냇물)은 5,000원으로. **등록 대상은 2,000·5,000원 2종**이고 10,000원 티어의 코드 식별자는 지웠다.
 
 ## 운영 규칙
 
@@ -118,7 +118,7 @@ v0.1.0 카탈로그 실물은 합성 노이즈 4종(바이노럴은 타입만 �
 
 부수 수정: 배너 초기화 대기 중 요청이 유실되던 문제(ads-lifecycle), 암전 오버레이를 루트로 승격(설정 화면에서도 동작), 기본 탭이 카탈로그 편집에 좌우되던 결합 제거, 선렌더 제거 후 갱신 누락됐던 테스트.
 
-**남은 수동 단계**: AdMob 광고단위 ID 발급·교체, RevenueCat 계정·상품 3종 등록·API 키 주입(`src/plan/purchase-config.ts`), iOS ATT/Privacy Manifest 확인. 상세는 `docs/plan-tiers.md` §7, `docs/ads-setup.md`.
+**남은 수동 단계**: AdMob 광고단위 ID 발급·교체, RevenueCat 계정·상품 2종 등록·API 키 주입(`src/plan/purchase-config.ts`), iOS ATT/Privacy Manifest 확인. 상세는 `docs/plan-tiers.md` §7, `docs/ads-setup.md`.
 
 ## v0.5.0 (2026-08-20) — 사운드 전면 고급화 + 실기 렌더 QA
 

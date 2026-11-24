@@ -1,10 +1,10 @@
 // Pure gating rules — no React, no storage. roadmap-v030.md §2 / monetization.md §4.
 import type { Plan } from './types'
 
-const PLAN_RANK: Record<Plan, number> = { free: 0, tier2000: 1, tier5000: 2, tier10000: 3 }
+const PLAN_RANK: Record<Plan, number> = { free: 0, tier2000: 1, tier5000: 2 }
 
-const MAX_LAYERS: Record<Plan, number> = { free: 3, tier2000: 5, tier5000: Infinity, tier10000: Infinity }
-const MAX_PRESETS: Record<Plan, number> = { free: 3, tier2000: 10, tier5000: Infinity, tier10000: Infinity }
+const MAX_LAYERS: Record<Plan, number> = { free: 3, tier2000: 5, tier5000: Infinity }
+const MAX_PRESETS: Record<Plan, number> = { free: 3, tier2000: 10, tier5000: Infinity }
 
 export function maxLayers(plan: Plan): number {
   return MAX_LAYERS[plan]
@@ -31,11 +31,11 @@ export function planRank(plan: Plan): number {
 // heartbeat/womb) are the 2,000원 differentiator.
 const SOUND_TIER: Record<string, Plan> = {
   // v0.3.1 premium synth batch. birds/crickets/singing-bowl are niche/ASMR-leaning (same call as
-  // heartbeat/womb in the B1 batch) so they anchor the top tier — it had zero usable content
-  // before this. train/blizzard/city-rain are general ambience like the existing free eight.
-  birds: 'tier10000',
-  crickets: 'tier10000',
-  'singing-bowl': 'tier10000',
+  // heartbeat/womb in the B1 batch) so they sit in the top (5,000원) tier alongside binaural.
+  // train/blizzard/city-rain are general ambience like the existing free eight.
+  birds: 'tier5000',
+  crickets: 'tier5000',
+  'singing-bowl': 'tier5000',
   train: 'free',
   blizzard: 'free',
   'city-rain': 'free',
@@ -58,12 +58,12 @@ const SOUND_TIER: Record<string, Plan> = {
   'binaural-delta': 'tier5000',
   'binaural-theta': 'tier5000',
   'binaural-alpha': 'tier5000',
-  // Future file-based premium library (roadmap §2's 10,000원 row). Currently asset-unavailable
-  // regardless of plan (catalog.ts's isAvailable()) — this just records the intended tier for
-  // when those assets land.
-  'garden-rain': 'tier10000',
-  seaside: 'tier10000',
-  'night-stream': 'tier10000',
+  // Future file-based premium library (formerly roadmap §2's 10,000원 row; that tier was dropped
+  // 2026-11-24, so these join the 5,000원 tier). Currently asset-unavailable regardless of plan
+  // (catalog.ts's isAvailable()) — this just records the intended tier for when those assets land.
+  'garden-rain': 'tier5000',
+  seaside: 'tier5000',
+  'night-stream': 'tier5000',
 }
 
 /** Unmapped ids (a future catalog addition someone forgets to tier) default to 'free' — per the

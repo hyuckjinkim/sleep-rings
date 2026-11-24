@@ -42,6 +42,8 @@ function fadeLabel(t: (key: string, opts?: Record<string, unknown>) => string, s
 export function Settings({ onClose }: SettingsProps) {
   const { t, i18n } = useTranslation()
   const plan = usePlanStore((s) => s.plan)
+  // ponytail: two paid tiers, so 'everything above mine' is just these two cases.
+  const upgradeTiers: Exclude<Plan, 'free'>[] = plan === 'free' ? ['tier2000', 'tier5000'] : plan === 'tier2000' ? ['tier5000'] : []
   const dimmed = useScreenStore((s) => s.dimmed)
   const bannerActive = shouldShowBanner(plan === 'free') && !dimmed
 
@@ -236,12 +238,13 @@ export function Settings({ onClose }: SettingsProps) {
         {/* The hint above told free users to upgrade and then offered no way to do it — the plan
             section was a dead end, and buying was only reachable by tapping a locked palette chip
             (which a user browsing settings has no reason to think of). Same sheet, opened with the
-            tier the user picked rather than the tier some sound happens to require. */}
-        {plan === 'free' && (
+            tier the user picked rather than the tier some sound happens to require. A Pro owner sees
+            Pro Max here too — purchases are one-time, so without this the only way up was a locked chip. */}
+        {upgradeTiers.length > 0 && (
           <>
             <span className="settings-label">{t('plan.settings.choose')}</span>
             <div className="settings-plan-tiers">
-              {(['tier2000', 'tier5000', 'tier10000'] as const).map((tier) => (
+              {upgradeTiers.map((tier) => (
                 <button key={tier} type="button" className="settings-plan-tier" onClick={() => setUpgradeTarget(tier)}>
                   {t(`plan.tier.${tier}`)}
                 </button>

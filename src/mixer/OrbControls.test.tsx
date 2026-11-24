@@ -20,8 +20,8 @@ describe('OrbControls noise tone (paid)', () => {
     const id = placeOrb('noise-pink')
     render(<OrbControls placementId={id} label="Pink" onClose={() => {}} />)
     expect(screen.queryByLabelText('음색 (어둡게 ↔ 밝게)')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '노이즈 음색 · 2,000원 플랜' }))
-    expect(screen.getByRole('dialog', { name: '업그레이드 안내' })).toHaveTextContent('노이즈 음색 기능은 2,000원 플랜부터')
+    fireEvent.click(screen.getByRole('button', { name: '노이즈 음색 · Pro' }))
+    expect(screen.getByRole('dialog', { name: '업그레이드 안내' })).toHaveTextContent('노이즈 음색 기능은 Pro부터')
   })
 
   it('paid plan: the slider writes tone onto the placement', () => {
@@ -47,7 +47,7 @@ describe('OrbControls gentle variation (paid)', () => {
     const id = placeOrb('nature-rain')
     render(<OrbControls placementId={id} label="Rain" onClose={() => {}} />)
     expect(screen.queryByRole('button', { name: '자연스러운 변화 켜기' })).toBeNull()
-    expect(screen.getByRole('button', { name: '자연스러운 변화 · 2,000원 플랜' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '자연스러운 변화 · Pro' })).toBeInTheDocument()
   })
 
   it('paid plan: toggles variation on the placement, for any sound', () => {

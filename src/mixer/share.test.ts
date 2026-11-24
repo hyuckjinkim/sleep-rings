@@ -86,13 +86,13 @@ describe('share link decoding rejects malformed input', () => {
     ['missing version', linkFor({ m: 1, p: [orb('noise-white')] })],
     ['placements not an array', linkFor({ v: 1, m: 1, p: { 0: orb('noise-white') } })],
   ])('%s → null', (_label, url) => {
-    expect(decodeShareUrl(url, 'tier10000')).toBeNull()
+    expect(decodeShareUrl(url, 'tier5000')).toBeNull()
   })
 
   it('rejects an oversized param before decoding it', () => {
     const big = linkFor({ v: 1, m: 1, p: [orb('noise-white')], pad: 'x'.repeat(MAX_SHARE_PARAM_LENGTH) })
     expect(shareParam(big)!.length).toBeGreaterThan(MAX_SHARE_PARAM_LENGTH)
-    expect(decodeShareUrl(big, 'tier10000')).toBeNull()
+    expect(decodeShareUrl(big, 'tier5000')).toBeNull()
   })
 })
 
@@ -100,14 +100,14 @@ describe('share link decoding sanitizes values', () => {
   it('drops unknown, malformed and not-yet-available sounds', () => {
     const decoded = decodeShareUrl(
       linkFor({ v: 1, m: 1, p: [orb('evil<script>'), orb('garden-rain'), { s: 42 }, null, 'x', orb('noise-white')] }),
-      'tier10000',
+      'tier5000',
     )
     expect(decoded?.mix.placements.map((p) => p.soundId)).toEqual(['noise-white'])
     expect(decoded?.lockedPlan).toBeNull()
   })
 
   it('returns null when nothing usable is left', () => {
-    expect(decodeShareUrl(linkFor({ v: 1, m: 1, p: [orb('unknown-sound')] }), 'tier10000')).toBeNull()
+    expect(decodeShareUrl(linkFor({ v: 1, m: 1, p: [orb('unknown-sound')] }), 'tier5000')).toBeNull()
   })
 
   it('clamps out-of-range numbers and replaces non-numbers with defaults', () => {
@@ -134,7 +134,7 @@ describe('share link decoding sanitizes values', () => {
     const many = linkFor({ v: 1, m: 1, p: Array.from({ length: 30 }, () => orb('noise-white')) })
     expect(decodeShareUrl(many, 'free')?.mix.placements).toHaveLength(3)
     expect(decodeShareUrl(many, 'tier2000')?.mix.placements).toHaveLength(5)
-    expect(decodeShareUrl(many, 'tier10000')?.mix.placements).toHaveLength(24)
+    expect(decodeShareUrl(many, 'tier5000')?.mix.placements).toHaveLength(24)
   })
 })
 
@@ -144,7 +144,7 @@ describe('share link and the receiver plan', () => {
   it('drops sounds the plan does not include and reports the highest plan needed', () => {
     const decoded = decodeShareUrl(link, 'free')
     expect(decoded?.mix.placements.map((p) => p.soundId)).toEqual(['noise-pink'])
-    expect(decoded?.lockedPlan).toBe('tier10000')
+    expect(decoded?.lockedPlan).toBe('tier5000')
   })
 
   it('reports the upsell even when every sound is locked', () => {
@@ -154,7 +154,7 @@ describe('share link and the receiver plan', () => {
   })
 
   it('keeps everything for a plan that includes it', () => {
-    const decoded = decodeShareUrl(link, 'tier10000')
+    const decoded = decodeShareUrl(link, 'tier5000')
     expect(decoded?.mix.placements.map((p) => p.soundId)).toEqual(['heartbeat', 'noise-pink', 'birds'])
     expect(decoded?.lockedPlan).toBeNull()
   })

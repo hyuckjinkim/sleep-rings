@@ -68,15 +68,24 @@ describe('Settings plan section', () => {
     // The upgrade hint used to be the end of the road: buying was only reachable by tapping a
     // locked palette chip, which nobody browsing settings would think to do.
     render(<Settings onClose={() => {}} />)
-    const tier = screen.getByRole('button', { name: '2,000원 플랜' })
+    const tier = screen.getByRole('button', { name: 'Pro' })
     fireEvent.click(tier)
     expect(screen.getByRole('dialog', { name: '업그레이드 안내' })).toBeTruthy()
   })
 
-  it('does not offer plan buttons to someone who already paid', () => {
+  it('does not offer plan buttons to someone on the top plan', () => {
     usePlanStore.setState({ plan: 'tier5000' })
     render(<Settings onClose={() => {}} />)
-    expect(screen.queryByRole('button', { name: '2,000원 플랜' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Pro' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Pro Max' })).toBeNull()
+  })
+
+  it('lets a Pro owner reach Pro Max from settings', () => {
+    usePlanStore.setState({ plan: 'tier2000' })
+    render(<Settings onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: 'Pro' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pro Max' }))
+    expect(screen.getByRole('dialog', { name: '업그레이드 안내' })).toBeTruthy()
   })
 })
 

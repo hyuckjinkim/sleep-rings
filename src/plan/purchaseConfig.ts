@@ -27,7 +27,6 @@ export const PURCHASE_CONFIG: { revenueCatApiKey: { android: string; ios: string
 export const TIER_PLAN: Record<string, Exclude<Plan, 'free'>> = {
   tier2000: 'tier2000',
   tier5000: 'tier5000',
-  tier10000: 'tier10000',
 }
 
 /** Listed prices (docs/plan-tiers.md §1) shown when live offerings haven't loaded yet — no
@@ -35,5 +34,4 @@ export const TIER_PLAN: Record<string, Exclude<Plan, 'free'>> = {
 export const FALLBACK_PRICE: Record<Exclude<Plan, 'free'>, string> = {
   tier2000: '₩2,000',
   tier5000: '₩5,000',
-  tier10000: '₩10,000',
 }

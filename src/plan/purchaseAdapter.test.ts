@@ -69,13 +69,12 @@ describe('getPurchaseAdapter / isPurchaseAvailable — key/native fallback', () 
 })
 
 describe('localMockPurchaseAdapter', () => {
-  it('getOfferings lists all three paid tiers at their listed prices', async () => {
+  it('getOfferings lists both paid tiers at their listed prices', async () => {
     const { localMockPurchaseAdapter } = await import('./purchaseAdapter')
     const offerings = await localMockPurchaseAdapter.getOfferings()
     expect(offerings).toEqual([
       { plan: 'tier2000', priceString: '₩2,000' },
       { plan: 'tier5000', priceString: '₩5,000' },
-      { plan: 'tier10000', priceString: '₩10,000' },
     ])
   })
 
@@ -178,11 +177,11 @@ describe('RevenueCat purchase()/restore() — success, cancel, failure', () => {
   })
 
   it('restore() resolves the restored plan and updates the plan store', async () => {
-    restorePurchases.mockResolvedValue({ customerInfo: customerInfoWith(['tier10000']) })
+    restorePurchases.mockResolvedValue({ customerInfo: customerInfoWith(['tier5000']) })
     const { getPurchaseAdapter } = await import('./purchaseAdapter')
     const { usePlanStore } = await import('./store')
-    expect(await getPurchaseAdapter().restore()).toBe('tier10000')
-    expect(usePlanStore.getState().plan).toBe('tier10000')
+    expect(await getPurchaseAdapter().restore()).toBe('tier5000')
+    expect(usePlanStore.getState().plan).toBe('tier5000')
   })
 
   it('getOfferings() falls back to the listed-price catalog when the current offering has no matching packages', async () => {
@@ -192,7 +191,6 @@ describe('RevenueCat purchase()/restore() — success, cancel, failure', () => {
     expect(offerings).toEqual([
       { plan: 'tier2000', priceString: '₩2,000' },
       { plan: 'tier5000', priceString: '₩5,000' },
-      { plan: 'tier10000', priceString: '₩10,000' },
     ])
   })
 })

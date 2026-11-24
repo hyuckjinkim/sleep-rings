@@ -145,8 +145,8 @@ export const catalog: Sound[] = [
     source: { kind: 'synth', generator: 'womb' },
     license: { spdx: 'no-license-required', sourceName: '합성' },
   },
-  // Premium synth batch (v0.3.1): 6 more sounds giving the 10,000원 tier its first real content
-  // (it otherwise has zero playable sounds — the 3 file sounds below are asset-unavailable). Tier
+  // Premium synth batch (v0.3.1): 6 more sounds for the 5,000원 tier (the 10,000원 tier they
+  // were first built for was dropped 2026-11-24; the 3 file sounds below are asset-unavailable). Tier
   // mapping lives in src/plan/tiers.ts, not here (see docs/plan-tiers.md §5).
   {
     id: 'birds',

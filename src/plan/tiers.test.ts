@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { canUseFeature, canUseSound, featurePlan, maxLayers, maxPresets, requiredPlan } from './tiers'
 import type { Plan } from './types'
 
-const PLANS: Plan[] = ['free', 'tier2000', 'tier5000', 'tier10000']
+const PLANS: Plan[] = ['free', 'tier2000', 'tier5000']
 
 describe('maxLayers', () => {
   it('increases monotonically with plan rank', () => {
     expect(maxLayers('free')).toBe(3)
     expect(maxLayers('tier2000')).toBe(5)
     expect(maxLayers('tier5000')).toBe(Infinity)
-    expect(maxLayers('tier10000')).toBe(Infinity)
   })
 })
 
@@ -18,7 +17,6 @@ describe('maxPresets', () => {
     expect(maxPresets('free')).toBe(3)
     expect(maxPresets('tier2000')).toBe(10)
     expect(maxPresets('tier5000')).toBe(Infinity)
-    expect(maxPresets('tier10000')).toBe(Infinity)
   })
 })
 
@@ -37,8 +35,14 @@ describe('requiredPlan', () => {
     expect(requiredPlan('binaural-delta')).toBe('tier5000')
   })
 
-  it('maps the future file-based library to 10,000원', () => {
-    expect(requiredPlan('garden-rain')).toBe('tier10000')
+  it('maps the premium synth sounds (birds/crickets/singing-bowl) to 5,000원', () => {
+    expect(requiredPlan('birds')).toBe('tier5000')
+    expect(requiredPlan('crickets')).toBe('tier5000')
+    expect(requiredPlan('singing-bowl')).toBe('tier5000')
+  })
+
+  it('maps the future file-based library to 5,000원', () => {
+    expect(requiredPlan('garden-rain')).toBe('tier5000')
   })
 
   it('defaults an unmapped id to free (never accidentally locks unknown content)', () => {
@@ -55,19 +59,25 @@ describe('canUseSound', () => {
     expect(canUseSound('heartbeat', 'free')).toBe(false)
     expect(canUseSound('heartbeat', 'tier2000')).toBe(true)
     expect(canUseSound('heartbeat', 'tier5000')).toBe(true)
-    expect(canUseSound('heartbeat', 'tier10000')).toBe(true)
   })
 
   it('a binaural (5,000원) sound is locked below tier5000', () => {
     expect(canUseSound('binaural-delta', 'free')).toBe(false)
     expect(canUseSound('binaural-delta', 'tier2000')).toBe(false)
     expect(canUseSound('binaural-delta', 'tier5000')).toBe(true)
-    expect(canUseSound('binaural-delta', 'tier10000')).toBe(true)
   })
 
-  it('the future file-based library is locked below tier10000', () => {
-    expect(canUseSound('garden-rain', 'tier5000')).toBe(false)
-    expect(canUseSound('garden-rain', 'tier10000')).toBe(true)
+  it('birds/crickets/singing-bowl are locked below tier5000', () => {
+    for (const id of ['birds', 'crickets', 'singing-bowl']) {
+      expect(canUseSound(id, 'free')).toBe(false)
+      expect(canUseSound(id, 'tier2000')).toBe(false)
+      expect(canUseSound(id, 'tier5000')).toBe(true)
+    }
+  })
+
+  it('the future file-based library is locked below tier5000', () => {
+    expect(canUseSound('garden-rain', 'tier2000')).toBe(false)
+    expect(canUseSound('garden-rain', 'tier5000')).toBe(true)
   })
 })
 
@@ -76,7 +86,7 @@ describe('paid feature gating', () => {
     expect(featurePlan('tone')).toBe('tier2000')
     expect(canUseFeature('tone', 'free')).toBe(false)
     expect(canUseFeature('tone', 'tier2000')).toBe(true)
-    expect(canUseFeature('tone', 'tier10000')).toBe(true)
+    expect(canUseFeature('tone', 'tier5000')).toBe(true)
   })
 
   it('variation needs the lowest paid tier or above', () => {

@@ -570,8 +570,8 @@ export function generateWombNoise(length: number, sampleRate: number): Float32Ar
   return normalizeRms(swelled, MASTER_TARGET_RMS)
 }
 
-// --- Premium synth batch (v0.3.1): 6 more sounds for the 10,000원 tier, which otherwise has zero
-// working content (its 3 file-based sounds are asset-unavailable — docs/plan-tiers.md §1). Same
+// --- Premium synth batch (v0.3.1): 6 more sounds for the 5,000원 tier (alongside binaural); the 10,000원
+// tier it was first built for was dropped 2026-11-24 (docs/plan-tiers.md). Same
 // primitives as B1 above, plus two new ones: a stateful FM-chirp voice (birds) and
 // triggerDecayEnvelope reused to drive tones instead of noise (crickets/blizzard sparkle).
 
