@@ -269,6 +269,42 @@ describe('Orb gestures', () => {
     expect(endInteraction).toHaveBeenLastCalledWith(placement.id) // no committed=true
   })
 
+  it('포인터 캡처는 안쪽 아이콘이 아니라 오브 자신에 건다 — 아이콘 노드가 바뀌어도 pointerup 을 놓치지 않게', () => {
+    const placement = addTestPlacement()
+    render(<OrbHarness placement={placement} onTap={vi.fn()} beginInteraction={vi.fn()} endInteraction={vi.fn()} />)
+    const orb = screen.getByRole('button')
+    const icon = document.createElement('span')
+    orb.appendChild(icon)
+    const capture = vi.spyOn(Element.prototype, 'setPointerCapture')
+
+    fireEvent.pointerDown(icon, { pointerId: 1, clientX: 100, clientY: 50 })
+
+    expect(capture).toHaveBeenCalledTimes(1)
+    expect(capture.mock.contexts[0]).toBe(orb)
+    capture.mockRestore()
+  })
+
+  it('pointerup 전에 캡처를 잃으면 드래그를 취소로 닫아 오브가 드래그 중으로 멈추지 않는다', () => {
+    const placement = addTestPlacement()
+    const endInteraction = vi.fn()
+    render(<OrbHarness placement={placement} onTap={vi.fn()} beginInteraction={vi.fn()} endInteraction={endInteraction} />)
+    const orb = screen.getByRole('button')
+
+    fireEvent.pointerDown(orb, { pointerId: 1, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(orb, { pointerId: 1, clientX: 100, clientY: 190 })
+    fireEvent.lostPointerCapture(orb, { pointerId: 1 })
+
+    expect(endInteraction).toHaveBeenLastCalledWith(placement.id)
+    expect(getPlacement(placement.id)).toMatchObject({ radius: 0.5, angle: 0 })
+
+    // 정상 pointerup 뒤에 오는 lostpointercapture 는 두 번 닫지 않는다.
+    endInteraction.mockClear()
+    fireEvent.pointerDown(orb, { pointerId: 2, clientX: 100, clientY: 50 })
+    fireEvent.pointerUp(orb, { pointerId: 2, clientX: 100, clientY: 50 })
+    fireEvent.lostPointerCapture(orb, { pointerId: 2 })
+    expect(endInteraction).toHaveBeenCalledTimes(1)
+  })
+
   it('releasing one finger mid-pinch does not revive a stale single-pointer drag (L2 regression)', () => {
     const placement = addTestPlacement()
     const onTap = vi.fn()

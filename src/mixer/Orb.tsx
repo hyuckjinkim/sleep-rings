@@ -98,7 +98,9 @@ export function Orb({
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    ;(e.target as Element).setPointerCapture(e.pointerId)
+    // 캡처는 오브 자신에 건다. e.target(안쪽 아이콘 SVG path 등)에 걸면 그 노드가 바뀌는 순간 캡처가 조용히
+    // 풀려, pointerup 이 필드로 가고 오브가 '드래그 중'으로 멈춘다(삭제 영역 표시도 남음, 2026-11-24 재현).
+    e.currentTarget.setPointerCapture(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     // store 의 angle 은 놓은(마지막으로 끌어 놓은) 자리라 궤도를 돈 뒤엔 낡았다 — 지금 그려진 각도로 잡는다.
     const angle = beginInteraction(placement.id) ?? placement.angle
@@ -264,6 +266,11 @@ export function Orb({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      // pointerup 이 처리되기 전에 캡처를 잃으면(시스템 제스처·포커스 이동 등) 그 제스처를 취소로 닫는다 —
+      // 정상 종료 때는 handlePointerUp 이 먼저 pointers 에서 지워 여기선 아무것도 하지 않는다.
+      onLostPointerCapture={(e) => {
+        if (pointers.current.has(e.pointerId)) handlePointerCancel(e)
+      }}
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
