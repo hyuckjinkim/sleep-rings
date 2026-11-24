@@ -1,7 +1,7 @@
 # Store Listing Draft (English) — SleepRings
 
 > Shared draft for App Store and Play Store. References the "Sleep Orbit" benchmark for concept only — its name and marketing copy are not reused verbatim (`docs/research/sleep-orbit-benchmark.md`).
-> Feature copy is scoped to what's actually decided/implemented (`docs/PLAN.md` confirmed decisions table): orbit placement, radius = volume, binaural spatial panning, 4 synthesized noise generators, sleep timer with fade-out, save/load presets, offline playback, free with no ads. Claims the original app makes (100+ sounds, 17 categories, ASMR whispers) are not included since we haven't built that scale yet.
+> Feature copy is scoped to what's actually decided/implemented (`docs/PLAN.md` confirmed decisions table): orbit placement, radius = volume, binaural spatial panning, 4 synthesized noise generators, sleep timer with fade-out, save/load presets, offline playback, a generous free tier with no ads on the playback screen (free plan shows one banner on the settings screen only; banner kept per owner decision 2026-11-24). Claims the original app makes (100+ sounds, 17 categories, ASMR whispers) are not included since we haven't built that scale yet.
 
 ## App Name
 
@@ -38,8 +38,8 @@ Set a sleep timer and the mix fades out gently before playback stops. Name and s
 **Never loses your night**
 Your mix auto-saves, so reopening the app picks up right where you left off. Playback works without a network connection.
 
-**Free, and ad-free**
-15 sounds plus orbit mixing, the sleep timer, presets and auto-dim are free. Ads appear only as a small banner on the settings screen — **never on the screen you actually listen on**. Ten more sounds unlock with a subscription.
+**Generous for free, no ads where you listen**
+15 sounds plus orbit mixing, the sleep timer, presets and auto-dim are free. Ads appear only as a small banner on the settings screen — **never on the screen you actually listen on**. Ten more sounds unlock with a one-time Pro or Pro Max purchase — no subscription.
 
 ## Keywords (App Store, ≤100 chars, comma-separated, no spaces)
 

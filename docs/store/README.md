@@ -30,5 +30,6 @@ Android 알림(백그라운드 재생 포그라운드 서비스, `docs/android-b
 
 ## 스토어 제출 전 반드시 교체할 항목
 
-- `privacy-policy-ko.md` / `privacy-policy-en.md`의 `[실제 연락 이메일로 교체]`, `[시행일]` — 실제 게시 계정 이메일 확정 전이라 자리표시자로 남겨둠(임의로 개인 이메일을 채워 넣지 않음)
+- `privacy-policy-ko.md` / `privacy-policy-en.md`의 `[실제 연락 이메일로 교체]`, `[시행일]`, 개인정보 보호책임자 성명 — 실제 게시 계정 이메일 확정 전이라 자리표시자로 남겨둠(임의로 개인 이메일을 채워 넣지 않음)
+- Play Console 신고(2026-11-24 고도화 플랜 2단계): ① `mediaPlayback` 포그라운드 서비스 — 사용자가 직접 재생을 시작하는 장면이 담긴 영상 필수 ② Health apps — 「Sleep Management」 ③ Data safety — AdMob 수집 항목(광고 ID·대략적 위치·기기 정보·앱 상호작용, 공유: Google). 광고는 설정 화면 배너로 유지(2026-11-24 오너 결정)
 - `docs/app-name.md`에 이미 기록된 대로, 번들 ID(`com.sleeprings.app`)의 USPTO/KIPRIS 공식 조회·도메인 확인은 제출 전 별도 필요
